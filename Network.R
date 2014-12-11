@@ -1,0 +1,396 @@
+###############################################################################
+#Hummingbird Flower Interactions at the Santa Lucia and Maquipucuna EcoReserves
+###############################################################################
+#Ben Weinstein - Stony Brook University - Department of Ecology and Evolution
+
+require(chron)
+require(bipartite)
+require(ggplot2)
+require(ape)
+require(reshape)
+require(sna)
+require(stringr)
+require(maptools)
+require(taxize)
+require(picante)
+require(dplyr)
+library(scales)
+
+
+
+###################
+#Source Functions
+###################
+
+source(paste(gitpath,"NetworkSource.R",sep=""))
+
+############################################
+##############Read In Data##################
+############################################
+
+#bring in clade data
+clades<-read.csv(paste(gitpath,"InputData//CladeList.txt",sep=""),header=FALSE)[,-1]
+colnames(clades)<-c("Clade","Genus","Species","double","English")
+clades<-clades[,1:5]
+
+#Bring in Phylogenetic Data
+trx<-read.tree(paste(gitpath,"InputData\\hum294.tre",sep=""))
+
+#format tips
+new<-str_extract(trx$tip.label,"(\\w+).(\\w+)")
+#get duplicates
+trx<-drop.tip(trx,trx$tip.label[duplicated(new)])
+
+#name tips.
+trx$tip.label<-str_extract(trx$tip.label,"(\\w+).(\\w+)")
+
+#Read in trait distance between species, run from Morphology.R
+sp.dist<-read.csv("C:/Users/Ben/Dropbox/Thesis/Maquipucuna_SantaLucia/Results/HummingbirdDist.csv",row.names=1)
+
+#Read in plant phylogeny 
+pco<-read.csv(paste(gitpath,"InputData/PlantRelatedness.csv",sep=""))
+
+###Read in Flower Camera Dataset####
+dat<-read.csv("C:/Users/Ben/Dropbox/Thesis/Maquipucuna_SantaLucia/Data2013/csv/FlowerVideoClean.csv",row.names=1)
+
+#Get desired columns
+dat<-dat[,colnames(dat) %in% c("ID","Video","Date","Iplant_Double","Time","Hummingbird","Sex","Temp","Pierce","lon","lat","ele")]
+
+#Fix date format
+dat$Month<-as.numeric(format(as.Date(dat$Date,"%m/%d/%Y"),"%m"))
+
+####Bring in interaction matrix for the flower transects, see FlowerTransects.R
+transect.FL<-read.csv("C:/Users/Ben/Dropbox/Thesis/Maquipucuna_SantaLucia/Results/HummingbirdTransects/HumTransectRows.csv",row.names=1)
+
+#make the columns as similiar as possible to videodata
+colnames(transect.FL)<-c("GPS.ID","TransectID","Hummingbird","Date","Month","Transect_R","Iplant_Double","lat","lon","ele")
+
+transect.FL$Iplant_Double<-gsub("_"," ",transect.FL$Iplant_Double)
+##############Data Imported#####################
+
+#Bind in the transect rows to the bottom of dat?
+dat<-as.data.frame(rbind_list(dat,transect.FL))
+
+dat$Iplant_Double<-as.factor(dat$Iplant_Double)
+############################################
+##############Data Import Complete##########
+############################################
+
+#Create Universal Date Stamp
+
+dat$DateP<-sapply(dat$Date,function(x){
+  if(is.na(x)){
+    return(NA)
+  }
+  if(str_detect(x,"-")){
+    toR<-as.character(strptime(x,"%Y-%m-%d"))
+    #print(toR)
+    return(toR)
+  }
+  
+  if(str_detect(x,"/")){
+    toR<-as.character(strptime(x,format="%m/%d/%Y"))
+    #print(toR)
+    return(toR)
+  }
+})
+
+dat$DateP<-as.POSIXlt(dat$DateP)
+
+# year position
+dat$Year<-years(dat$DateP)
+
+#one error
+dat[dat$Year %in% 2012,"Year"]<-2013
+
+###########################
+#Hummingbird Data Cleaning 
+###########################
+.simpleCap <- function(x) {
+  s <- strsplit(x, " ")[[1]]
+  paste(toupper(substring(s, 1, 1)), substring(s, 2),
+        sep = "", collapse = " ")
+}
+
+#Caps Hummingbird
+dat$Hummingbird<-factor(sapply(dat$Hummingbird,function(x) {.simpleCap(as.character(x))}))
+
+#make a object, just to save typing
+h<-levels(dat$Hummingbird)
+
+missp<-h[!h %in% clades$English]
+
+paste("misspelled levels",missp)
+h[h %in% missp]
+
+spellC<-c("Booted Racket-tail","Green-crowned Woodnymph","Rufous-tailed Hummingbird","UKWN","UKWN","UKWN","Violet-tailed Sylph","White-sided Flowerpiercer")
+
+paste("Spelling Correction",spellC)
+
+h[h %in% missp]<-spellC
+
+head(clades)
+#can taxize do english names? 
+
+levels(dat$Hummingbird) <- h
+
+#Take our any bad data
+dat_e<-droplevels(dat[!dat$Hummingbird %in% c("","NANA","UKWN","Ukwn","Western Emerald"),])
+
+#Remove out piercing events for now?
+table(dat$Pierce)
+datPierce<-dat_e[dat_e$Pierce%in% c("Yes","YES","y","Y"),]
+
+#Piercing over time
+ggplot(datPierce,aes(x=DateP,y=Hummingbird)) + geom_point(size=3)
+
+dat_e<-dat_e[!dat_e$Pierce %in% c("Yes","YES","y","Y"),]
+
+#Drop any unused factors?
+dat_e<-droplevels(dat_e)
+
+#Drop any observations without plants
+dat_e<-droplevels(dat_e[!dat_e$Iplant_Double %in% c("",NA),])
+
+#drop species without double name
+
+sp_l<-levels(dat_e$Iplant_Double)
+
+l<-sapply(sp_l,function(x){
+  str2 <- gsub(' {2,}',' ',x)
+  length(strsplit(str2,' ')[[1]])
+})
+
+sp_r<-names(which(l==1))
+
+datf<-droplevels(dat_e[!dat_e$Iplant_Double %in% sp_r,])
+#################Data Cleaning Complete################
+
+
+############################################
+#Run Network Function for the entire dataset
+NetworkC(datf=datf,naming="Total",plots=T)
+############################################
+
+#############################################
+#Temporal Change in Network Structure
+#############################################
+dat.split<-split(datf,list(datf$Month,datf$Year),drop=TRUE)
+
+#which months have been run?
+torun<-dat.split[!names(dat.split) %in% list.files(paste("Figures","Temporal",sep="/"))]
+
+#not 1.2013
+torun<-torun[!names(torun) %in% "1.2013"]
+
+#############################################
+#Compute metrics for each month
+#############################################
+if(length(torun)>0){
+for (x in 1:length(torun)){
+  NetworkC(datf=torun[[x]],naming=paste("Temporal",names(torun)[[x]],sep="/"))
+}}
+
+############################################
+##############Networks Created##############
+############################################
+
+##################################
+#Retrieve Classes, name them, melt 
+#Start with networkwide properties
+##################################
+
+#Get the desired files from paths - within time?
+fil.list<-list.files(paste("Figures","Temporal",sep="/"),pattern="NetworkProperties.csv",recursive=TRUE,full.names=TRUE)
+
+fil<-list()
+#Read and name each file
+for (x in 1:length(fil.list)){
+  fil[[x]]<-read.csv(fil.list[[x]])
+  names(fil)[x]<-strsplit(fil.list[[x]],"/")[[1]][3]
+}
+
+#melt the outputs to a single dataframe
+m.Prop<-melt(fil)
+colnames(m.Prop)<-c("Metric","Level","value","Time")
+
+#Correct the naming of levels
+levels(m.Prop$Level)<-c("Hummingbirds","Plants")
+
+#If you want to remove overall metrics
+month.Prop<-m.Prop[!m.Prop$Time=="Total",]
+
+#write csv to file
+write.csv(month.Prop,"TimeMetrics.csv")
+# 
+# #For each metric plot them with time
+# dir.create(paste(netPath,"TimeFigures",sep=""))
+# setwd(paste(netPath,"TimeFigures",sep=""))
+# 
+# #Which metrics are desired?
+# droplevels(month.Prop)
+# 
+# #metricskeep<-c("connectance","links per species","nestedness","Shannon diversity","H2","niche overlap","robustness.HL","number of compartments","robustness.LL","number.of.species.HL")
+# #month.Prop<-droplevels(month.Prop[month.Prop$Metric %in% metricskeep,])
+# 
+# #format time
+# month.Prop$Month<-as.numeric(sapply(month.Prop$Time,function(x){  strsplit(x,"\\.")[[1]][1]}))
+# month.Prop$Year<-as.numeric(sapply(month.Prop$Time,function(x){  strsplit(x,"\\.")[[1]][2]}))
+# month.Prop$Date<-paste("1",month.Prop$Month,month.Prop$Year,sep="/")
+# 
+# 
+# month.Prop$Date<-as.Date(month.Prop$Date,format="%d/%m/%Y")
+# 
+# 
+# p<-ggplot(na.omit(month.Prop),aes(x=Date,y=value,col=Level)) + geom_point() + geom_line(linetype="dashed",aes(group=Level)) + facet_wrap(~Metric,scales="free_y",ncol=4) 
+# p<-p + theme_bw() + scale_x_date(labels = date_format("%b-%y"),breaks= "4 months") + geom_smooth(col="black",linetype="dashed",size=.5)
+# ggsave("MetricsFacet.svg",height=8,width=11)
+# 
+# print(p)
+# ##Add a trend line across all months?
+# 
+# #be interested to add a "mean line" and then the value of the total network...
+# 
+# 
+# dir.create("Metric_TimePlots")
+# setwd("Metric_TimePlots")
+# 
+# #Individual plots
+# for(x in levels(month.Prop$Metric)) {
+#   toplot<-na.omit(month.Prop[month.Prop$Metric %in% x,])
+#   
+#   #If there are no records, go to next metric
+#   if(nrow(toplot)==0) next
+#   
+#   #Plot and Save
+#   p<-ggplot(toplot,aes(x=as.numeric(Time),y=value,col=Level)) + geom_point() + geom_line(linetype="dashed",aes(group=Level))
+#   p + theme_bw() + ylab(x)
+#   ggsave(paste(x,".svg",sep=""),height=8,width=11)
+# }
+# 
+# ##############################################
+# #Compute Metrics for each Humminbird species
+# ##############################################
+# 
+# #Get the desired files from paths
+# fil.list<-list.files(paste(netPath,"Temporal",sep="/"),pattern="HummingbirdMetrics.csv",recursive=TRUE,full.names=TRUE)
+# 
+# fil<-list()
+# #Read and name each file
+# for (x in 1:length(fil.list)){
+#   fil[[x]]<-read.csv(fil.list[[x]])
+#   names(fil)[x]<-strsplit(fil.list[[x]],"/")[[1]][11]
+# }
+# 
+# Hum.Time<-melt(fil)
+# colnames(Hum.Time)<-c("Species","Metric","value","Time")
+# 
+# #Just get the Metrics which make sense for this analysis
+# head(Hum.Time)
+# 
+# #format time
+# Hum.Time$Month<-as.numeric(sapply(Hum.Time$Time,function(x){  strsplit(x,"\\.")[[1]][1]}))
+# Hum.Time$Year<-as.numeric(sapply(Hum.Time$Time,function(x){  strsplit(x,"\\.")[[1]][2]}))
+# Hum.Time$Date<-paste("1",Hum.Time$Month,Hum.Time$Year,sep="/")
+# 
+# 
+# Hum.Time$Date<-as.Date(Hum.Time$Date,format="%d/%m/%Y")
+# 
+# metricskeep<-c("nestedrank","resource.range","betweenness","d","degree","species.strength")
+#   Hum.Time<-droplevels(Hum.Time[Hum.Time$Metric %in% metricskeep ,])
+# 
+# #Probably should exclude rare species?
+# H.c<-cast(Hum.Time,...~Metric)
+# Hum.Time<-melt(H.c)
+# 
+# #Quick and dirty look across species 
+# ggplot(Hum.Time,aes(Date,value,col=Species)) + facet_grid(Species~Metric,scales="free_x") + geom_line(linetype="dashed",aes(group=Species)) + geom_point() + theme_bw() + scale_x_date(breaks="4 months")
+# ggsave(paste(netPath,"TimeFigures/HumSpecies_Time.svg",sep=""),height=8,width=11)
+# 
+# ggplot(Hum.Time[Hum.Time$Metric %in% "d",],aes(Date,value,col=Species)) + facet_wrap(~Species,scales="free_x") + geom_line(linetype="dashed",aes(group=Species)) + geom_point() + theme_bw() + scale_x_date(breaks="4 months")
+# 
+# #Plot for each species, or for each metric?
+# for(x in levels(droplevels(Hum.Time$Species))){
+#   if(nrow(Hum.Time[Hum.Time$Species %in% x & !Hum.Time$Time %in% "Total",])==0) next
+#   
+#   #drop the total column and added a dashed total line
+#   p<-ggplot(Hum.Time[Hum.Time$Species %in% x & !Hum.Time$Time %in% "Total",],aes(as.numeric(Time),value)) + facet_wrap(~Metric,scales="free") + geom_line(linetype="dashed",aes(group=Species)) + geom_point() + theme_bw()
+#   p
+#   ggsave(paste(netPath,paste(x,".svg",sep=""),sep="TimeFigures/"),height=8,width=11) 
+# 
+# }
+# 
+# #######################################################################
+# #Bring in Transect Data and Compare Specilization and available resources across all Elevations
+# #######################################################################
+# #At first just use the across entire network properies and all flowers from all elevations
+# #The next step is to set species ranges and get flower transects across that range
+# 
+# #The script FlowerTransects.R must be run
+# #source(paste(gitpath),"FlowerTransects.R")
+# 
+# ####################
+# #Network Properties
+# head(month.Prop)
+# ####################
+# # 
+# # ########################################################
+# # #For now there is a bit of a mismatch, since the network 
+# # #is not split by elevation, but the flowers are aggregated into 200m bins
+# # #########################################################
+# # 
+# # setwd(droppath)
+# # load("Thesis/Maquipucuna_SantaLucia/Results/FlowerTransect.Rdata")
+# # 
+# # #setwd to dropbox
+# # droppath<-"C:/Users/Ben/Dropbox/"
+# # setwd(droppath)
+# # #Set github path
+# # 
+# # #The aggregate totals of the flower assemblage
+# # head(fl.totals)
+# # 
+# # #aggregate by month for now, not elev split
+# # month.totals<-aggregate(fl.totals$TotalFlowers/1000,list(fl.totals$Month,fl.totals$Year),sum)
+# # colnames(month.totals)<-c("Month","Year","Flowers")
+# # 
+# # #Start with just hummingbird levels
+# # month.Hum<-month.Prop[month.Prop$Level == "Hummingbirds",]
+# # 
+# # #combine the flower totals and network metrics
+# # network.fl<-merge(month.totals,month.Hum,by=c("Month","Year"))
+# # 
+# # #write to file
+# # write.csv(network.fl,"C:\\Users\\Ben\\Dropbox\\Thesis\\Maquipucuna_SantaLucia\\Results\\Network//networkflowers.csv")
+# # #Quick visualization, 
+# # p<-ggplot(network.fl[,],aes(Flowers,value,shape=Year,col=as.factor(Month))) + facet_wrap(~Metric,scale="free") + geom_point(size=3) + geom_smooth(method="lm",aes(group=Year)) + theme_bw()
+# # print(p)
+# # ggsave(paste(netPath,"NetworkPropFlowers.svg",sep=""),height=8,width=11,dpi=300)
+# # 
+# # p<-ggplot(network.fl[ network.fl$Metric %in% c("connectance","cluster coefficient"),],aes(Flowers,value,shape=Year,col=as.factor(Month))) + facet_wrap(~Metric,scale="free",nrow=2) + geom_point(size=3) + geom_smooth(method="lm",aes(group=Year)) + theme_bw() + labs(col="Month")
+# # ggsave(paste(netPath,"NetworkConnectance.jpeg",sep=""),height=11,width=8,dpi=300) 
+# # 
+# # ###############################################
+# # #Hummingbird Properties and Available Resources
+# # ###############################################
+# # head(Hum.Time)
+# # 
+# # #Take out the total time
+# # Hum.Time<-Hum.Time[!Hum.Time$Time %in% "Total",]
+# # hum.fl<-merge(month.totals,Hum.Time,by=c("Month","Year"))
+# # 
+# # #Need to subset by number of interactions, get rid of the species just seen once?
+# # with(hum.fl,table(Species,Month))
+# # month_Pres<-aggregate(hum.fl$Month,list(hum.fl$Species),function(x) nlevels(factor(x)))
+# # 
+# # #Keep species seen more than 1 month
+# # species_keep<-month_Pres[which(month_Pres$x > 1),]$Group.1
+# # 
+# # #remove an unknwon species
+# # species_keep<-species_keep[!species_keep %in% "UKWN"]
+# # ggplot(hum.fl[hum.fl$Species %in% species_keep,],aes(as.numeric(Flowers),value,col=as.factor(Month))) + facet_wrap(~Metric,scale="free") + geom_point() + geom_smooth(method="lm",aes(group=1))
+# # ggsave(paste(netPath,"SpeciesPropFlowers.svg",sep=""),height=8,width=11,dpi=300)
+
+#Save image to file
+save.image("NetworkData.Rdata")
+setwd(gitpath)

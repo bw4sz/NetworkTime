@@ -1,0 +1,4 @@
+"","degree","normalised.degree","species.strength","interaction.push.pull","nestedrank","PDI","resource.range","species.specificity.index","PSI","node.specialisation.index.NSI","betweenness","weighted.betweenness","closeness","weighted.closeness","Fisher.alpha","partner.diversity","effective.partners","proportional.generality","proportional.similarity","d"
+"Buff-tailed Coronet",1,0.5,0.5,-0.5,0.5,1,1,1,0.5,1.5,0,0,0.3,0.333333333333333,0.795926633452104,0,1,0.5,0.5,0.5
+"Collared Inca",1,0.5,0.5,-0.5,1,1,1,1,0.5,1.5,0,0,0.3,0.333333333333333,0.795926633452104,0,1,0.5,0.5,0.5
+"Violet-tailed Sylph",2,1,1,0,0,0,0,0,0.5,1,1,1,0.4,0.5,1.59181590415142,0.693147180559945,2,1,1,0

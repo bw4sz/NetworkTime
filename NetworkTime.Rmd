@@ -13,6 +13,15 @@ require(reshape2)
 require(ggplot2)
 library(scales)
 library(dplyr)
+#Set Dropbox Location
+#setwd to dropbox
+droppath<-"C:/Users/Ben/Dropbox/"
+
+#Set github path
+gitpath<-"C:/Users/Ben/Documents/NetworkTime/"
+
+setwd(gitpath)
+
 opts_chunk$set(message=FALSE,warning=FALSE,fig.width=13,echo=FALSE)
 ```
 
@@ -94,14 +103,24 @@ ggplot(fl.totals,aes(x=Month.a,TotalFlowers,shape=as.factor(Year))) + geom_point
 
 #Flowers at each elevation over time without Karen's data
 ggplot(fl.totals,aes(x=Month.a,TotalFlowers,shape=as.factor(Year),col=as.factor(Elev))) + geom_point(size=3) + theme_bw()  + geom_smooth(aes(group=Elev),family="poisson",method="glm",formula=y~poly(x,2)) + ylab("Available Flowers") + labs(x="Month",col="Elevation Transect",shape="Year") 
+
+fl.totals$DateP<-as.Date(strptime(as.character(fl.totals$Date),"%d/%m/%y"))
+
+#Flowers at each elevation over time without Karen's data
+ggplot(fl.totals,aes(x=DateP,TotalFlowers,shape=as.factor(Year),col=as.factor(Elev))) + geom_point(size=3) + theme_bw()  + geom_smooth(aes(group=1)) + ylab("Available Flowers") + labs(x="Month",col="Elevation Transect",shape="Year") + scale_x_date(labels = date_format("%m/%y"),breaks= "1 months") 
 ```
 
-Need to insert the source network script here, probably needs to be updated seperately for the maquipucuna repo.
+
+```{r network,fig.height=15}
+#Compute network measures
+source("Network.R")
+```
+
 
 #Network measures over time
 ```{r}
 #write csv to file
-month.Prop<-read.csv("C:/Users/Ben/Dropbox/Thesis/Maquipucuna_SantaLucia/Results/Network/timeMetrics.csv",row.names=1)
+month.Prop<-read.csv("TimeMetrics.csv",row.names=1)
 
 month.Prop$Time<-as.character(month.Prop$Time)
 
@@ -118,85 +137,47 @@ m<-month.Prop[month.Prop$Metric %in% metricskeep,]
 m<-dcast(m,...~Metric)
 m$H2i<-1-m$H2
 
-
 m<-melt(m,measure.vars=c("H2i",metricskeep))
 
-#remove h2
 m<-m[!m$variable %in% "H2",]
 
+m<-group_by(m,variable) %>% mutate(stand=value/max(value)) 
+
 #Plot metrics over time
-p<-ggplot(na.omit(m[!(m$Month==12 & m$Year==2014),]),aes(x=Date,y=value,col=Level)) + geom_point(size=3) + geom_line(linetype="dashed",aes(group=Level)) + facet_wrap(~variable,scales="free_y",ncol=1) 
+p<-ggplot(m[!(m$Month==12 & m$Year==2014),],aes(x=Date,y=value,col=variable,shape=Level))+ geom_point(size=3) + geom_line() + facet_wrap(~variable,scales="free_y",ncol=1) 
 p<-p + theme_bw() + scale_x_date(labels = date_format("%m/%y"),breaks= "2 months") 
 p
-ggsave("MetricsFacet.svg",height=8,width=11)
+
+# # or together
+# p<-ggplot(m[!(m$Month==12 & m$Year==2014),],aes(x=Date,y=stand,col=variable,shape=Level))+ geom_point(size=1) + geom_line() 
+# p<-p + theme_bw() + scale_x_date(labels = date_format("%m/%y"),breaks= "2 months") 
+# p
+# ggsave("MetricsFacet.svg",height=8,width=11)
 ```
 
 #Specialization, Connectance and Niche Overlap as a function of available resources.
+
+The flower data needs to be much more finely tuned in terms of geographic proximity, what does it matter how many flowers were at at 2500 for an interaction at 1200m.
+
 ```{r,eval=FALSE}
-########################################################
-#For now there is a bit of a mismatch, since the network 
-#is not split by elevation, but the flowers are aggregated into 200m bins
-#########################################################
-
-setwd(droppath)
-load("Thesis/Maquipucuna_SantaLucia/Results/FlowerTransect.Rdata")
-
-#setwd to dropbox
-droppath<-"C:/Users/Ben/Dropbox/"
-setwd(droppath)
-#Set github path
-gitpath<-"C:/Users/Ben/Documents/Maquipicuna/"
-
-#The aggregate totals of the flower assemblage
-head(fl.totals)
+fl.totals<-read.csv("C:/Users/Ben/Dropbox/Thesis/Maquipucuna_SantaLucia/Results/FlowerTransects/FlowerAvailability.csv")
 
 #aggregate by month for now, not elev split
-month.totals<-aggregate(fl.totals$TotalFlowers/1000,list(fl.totals$Month,fl.totals$Year),sum)
+month.totals<-aggregate(fl.totals$TotalFlowers,list(fl.totals$Month,fl.totals$Year),sum)
 colnames(month.totals)<-c("Month","Year","Flowers")
 
-#Start with just hummingbird levels
-month.Hum<-month.Prop[month.Prop$Level == "Hummingbirds",]
-
 #combine the flower totals and network metrics
-network.fl<-merge(month.totals,month.Hum,by=c("Month","Year"))
+network.fl<-merge(month.totals,m,by=c("Month","Year"))
 
-#write to file
-write.csv(network.fl,"C:\\Users\\Ben\\Dropbox\\Thesis\\Maquipucuna_SantaLucia\\Results\\Network//networkflowers.csv")
-#Quick visualization, 
-p<-ggplot(network.fl[,],aes(Flowers,value,shape=Year,col=as.factor(Month))) + facet_wrap(~Metric,scale="free") + geom_point(size=3) + geom_smooth(method="lm",aes(group=Year)) + theme_bw()
+#Quick visualization 
+p<-ggplot(network.fl,aes(Flowers,value,shape=as.factor(Year),col=as.factor(Month))) + facet_wrap(~variable,scale="free") + geom_point(size=3) + geom_smooth(method="lm",aes(group=1)) + theme_bw()
 print(p)
 ggsave(paste(netPath,"NetworkPropFlowers.svg",sep=""),height=8,width=11,dpi=300)
 
 p<-ggplot(network.fl[ network.fl$Metric %in% c("connectance","cluster coefficient"),],aes(Flowers,value,shape=Year,col=as.factor(Month))) + facet_wrap(~Metric,scale="free",nrow=2) + geom_point(size=3) + geom_smooth(method="lm",aes(group=Year)) + theme_bw() + labs(col="Month")
 ggsave(paste(netPath,"NetworkConnectance.jpeg",sep=""),height=11,width=8,dpi=300) 
-
-###############################################
-#Hummingbird Properties and Available Resources
-###############################################
-head(Hum.Time)
-
-#Take out the total time
-Hum.Time<-Hum.Time[!Hum.Time$Time %in% "Total",]
-hum.fl<-merge(month.totals,Hum.Time,by=c("Month","Year"))
-
-#Need to subset by number of interactions, get rid of the species just seen once?
-with(hum.fl,table(Species,Month))
-month_Pres<-aggregate(hum.fl$Month,list(hum.fl$Species),function(x) nlevels(factor(x)))
-
-#Keep species seen more than 1 month
-species_keep<-month_Pres[which(month_Pres$x > 1),]$Group.1
-
-#remove an unknwon species
-species_keep<-species_keep[!species_keep %in% "UKWN"]
-ggplot(hum.fl[hum.fl$Species %in% species_keep,],aes(as.numeric(Flowers),value,col=as.factor(Month))) + facet_wrap(~Metric,scale="free") + geom_point() + geom_smooth(method="lm",aes(group=1))
-ggsave(paste(netPath,"SpeciesPropFlowers.svg",sep=""),height=8,width=11,dpi=300)
-
-#Save image to file
-setwd(droppath)
-save.image("Thesis/Maquipucuna_SantaLucia/Results/Network/NetworkData.Rdata")
 ```
 
-```
 #Results
 
 #Discussion
