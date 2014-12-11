@@ -1,0 +1,213 @@
+---
+title: "Specialization decreases with increasing resource availability in a tropical plant-pollinator network."
+author: "Ben Weinstein"
+date: "Tuesday, October 14, 2014"
+output:
+  html_document:
+    theme: spacelab
+---
+
+```{r,echo=FALSE,warning=FALSE,message=FALSE}
+require(knitr)
+require(reshape2)
+require(ggplot2)
+library(scales)
+library(dplyr)
+opts_chunk$set(message=FALSE,warning=FALSE,fig.width=13,echo=FALSE)
+```
+
+#Introduction
+
+* Species mutualisms are under growing threat from climate change. 
+
+* The tightness and fidelity of these interactions are shaped by evolutionary forces promoting specialization and generalization.
+
+* In additon, the stability of these interactions depends on their relative specialization and generalization. Generalist interactions are likley to be more robust to climatic changes and maintain ecosystem services. 
+
+* The dominant theory for pollinator specialization posits that selection should promote adaptations for the most effecive pollinator.
+
+* However, this hypothesis ignores how a pollinator interactions with the surrounding biotic enviroment.
+
+  * When is it mutalism, thompson.
+
+* In nature, biotic interactions occur against a shifting background of resource availability.
+
+* In addition many specialist show temporal change in feeding behavior.
+
+  * Liem's paradox.
+    
+* In this work we evaluate the effect of resource availability on niche overlap and specialization in Andean Hummingbirds.
+
+* Nectar is the non-equilibirial resource with niche breadth measured as the diversity of plants visited and specialization the diversity of plants visited versus the number of available plants.
+
+* Nectar availability changes drastically thoughout the year (Jun-Oct high availability)
+
+* In light of this variation in resource abundance, we test two opposing theories exist for how pollinators should specialize for potential nectar resources. 
+
+###Specialization should increase as available resources increases
+
+* When there are an abundance of available resources, species do not suffer as much cost from competition. The plethora of option leads to decreased specialization as species maximize amount of time feeding and reduced time foraging for their specialized resource.
+The observation that many morphological specialists forage as generalists during periods of high resource availability led to Liem’s Paradox in cichlids. Sloan-Wilson () suggested that the solution to this paradox is that the specialists fall back on private resources in time of low scarcity, which promotes greater morphological specialization.
+
+  * MacArthur and Levins 1967, Abrams 1983), and niche partitioning (sensu MacArthur 1958, Pianka 1974, 1976, Schoener 1974) predict that stable coexistence of competing species is achieved through niche differenti- ation that reduces overlap among competitors. Thus, during periods of relative food scarcity, animals are expected to adjust feeding to reduce niche overlap with competitors.
+
+###Specialization should decrease as available resources increases
+* Optimal foraging suggests that as resource availability increases, species should specialize on resources which reduce handling time and increase efficiency. 
+
+  * At times of low resource availablity species cannot be choosy, and must forgage on whatever plants are available. Species should prefer to partition resource space when possible, as to reduced competition among species. 
+
+
+* We divide the plant-pollinator assemblage into temporal partitions to evaluate how co-occuring plants and pollinators partition resource space.
+
+####Trait-Matching and Specialization
+
+The above hypothesis predict a pattern of specialization and resources, but provide no direct mechanism by which species choose which resource for specialization. It has been repeated suggested that hummingbird foodplant specialization is mediated through bill-corolla phenotype matching. We therefore expect that as specialization increase, the strength of phenotypic matching should decrease. When given a choice, species should pick the flowers which reduce competition and closely match their bill morphology.
+
+####Hummingbird network ecology
+
+* Previous work
+  * Maglianesi, M., Blüthgen, N., Böhning-Gaese, K., & Schleuning, M. (2014). Morphological traits determine specialization and resource use in plant-hummingbird networks in the Neotropics. Ecology, In press.
+  * Vizentin-bugoni, J., Maruyama, P. K., & Sazima, M. (2014). Processes entangling interactions in communities: forbidden links are more important than abundance in a hummingbird–plant network. Proceedings of the Royal Society B: Biological Sciences, 281.
+
+#Methods
+
+# Specialization over time
+
+We use two parallel methods to estimate the role of available resources in shaping specialization and trait matching in hummingbirds.
+
+##Figure 1 - Conceptual figure for specialization and changing available resources.
+
+##Figure 2 -
+
+```{r}
+#Write flower totals
+fl.totals<-read.csv("C:/Users/Ben/Dropbox/Thesis/Maquipucuna_SantaLucia/Results/FlowerTransects/FlowerAvailability.csv")
+
+#Make month abbreviation column, with the right order
+fl.totals$Month.a<-factor(month.abb[fl.totals$Month],month.abb[c(1:12)])
+
+#Make year factor column
+fl.totals$Year<-as.factor(fl.totals$Year)
+
+#Flowers at each elevation over time without Karen's data
+ggplot(fl.totals,aes(x=Month.a,TotalFlowers,shape=as.factor(Year))) + geom_point(size=3) + theme_bw()  + geom_smooth(aes(group=1)) + ylab("Flowers") + xlab("Month") + facet_wrap(~Elev,scales="free_y")
+
+#Flowers at each elevation over time without Karen's data
+ggplot(fl.totals,aes(x=Month.a,TotalFlowers,shape=as.factor(Year),col=as.factor(Elev))) + geom_point(size=3) + theme_bw()  + geom_smooth(aes(group=Elev),family="poisson",method="glm",formula=y~poly(x,2)) + ylab("Available Flowers") + labs(x="Month",col="Elevation Transect",shape="Year") 
+```
+
+Need to insert the source network script here, probably needs to be updated seperately for the maquipucuna repo.
+
+#Network measures over time
+```{r}
+#write csv to file
+month.Prop<-read.csv("C:/Users/Ben/Dropbox/Thesis/Maquipucuna_SantaLucia/Results/Network/timeMetrics.csv",row.names=1)
+
+month.Prop$Time<-as.character(month.Prop$Time)
+
+#format time
+month.Prop$Month<-as.numeric(sapply(month.Prop$Time,function(x){  strsplit(x,"\\.")[[1]][1]}))
+month.Prop$Year<-as.numeric(sapply(month.Prop$Time,function(x){  strsplit(x,"\\.")[[1]][2]}))
+month.Prop$Date<-paste("1",month.Prop$Month,month.Prop$Year,sep="/")
+month.Prop$Date<-as.Date(month.Prop$Date,format="%d/%m/%Y")
+
+metricskeep<-c("connectance","H2","cluster.coefficient.HL","niche.overlap.HL")
+
+m<-month.Prop[month.Prop$Metric %in% metricskeep,]
+
+m<-dcast(m,...~Metric)
+m$H2i<-1-m$H2
+
+
+m<-melt(m,measure.vars=c("H2i",metricskeep))
+
+#remove h2
+m<-m[!m$variable %in% "H2",]
+
+#Plot metrics over time
+p<-ggplot(na.omit(m[!(m$Month==12 & m$Year==2014),]),aes(x=Date,y=value,col=Level)) + geom_point(size=3) + geom_line(linetype="dashed",aes(group=Level)) + facet_wrap(~variable,scales="free_y",ncol=1) 
+p<-p + theme_bw() + scale_x_date(labels = date_format("%m/%y"),breaks= "2 months") 
+p
+ggsave("MetricsFacet.svg",height=8,width=11)
+```
+
+#Specialization, Connectance and Niche Overlap as a function of available resources.
+```{r,eval=FALSE}
+########################################################
+#For now there is a bit of a mismatch, since the network 
+#is not split by elevation, but the flowers are aggregated into 200m bins
+#########################################################
+
+setwd(droppath)
+load("Thesis/Maquipucuna_SantaLucia/Results/FlowerTransect.Rdata")
+
+#setwd to dropbox
+droppath<-"C:/Users/Ben/Dropbox/"
+setwd(droppath)
+#Set github path
+gitpath<-"C:/Users/Ben/Documents/Maquipicuna/"
+
+#The aggregate totals of the flower assemblage
+head(fl.totals)
+
+#aggregate by month for now, not elev split
+month.totals<-aggregate(fl.totals$TotalFlowers/1000,list(fl.totals$Month,fl.totals$Year),sum)
+colnames(month.totals)<-c("Month","Year","Flowers")
+
+#Start with just hummingbird levels
+month.Hum<-month.Prop[month.Prop$Level == "Hummingbirds",]
+
+#combine the flower totals and network metrics
+network.fl<-merge(month.totals,month.Hum,by=c("Month","Year"))
+
+#write to file
+write.csv(network.fl,"C:\\Users\\Ben\\Dropbox\\Thesis\\Maquipucuna_SantaLucia\\Results\\Network//networkflowers.csv")
+#Quick visualization, 
+p<-ggplot(network.fl[,],aes(Flowers,value,shape=Year,col=as.factor(Month))) + facet_wrap(~Metric,scale="free") + geom_point(size=3) + geom_smooth(method="lm",aes(group=Year)) + theme_bw()
+print(p)
+ggsave(paste(netPath,"NetworkPropFlowers.svg",sep=""),height=8,width=11,dpi=300)
+
+p<-ggplot(network.fl[ network.fl$Metric %in% c("connectance","cluster coefficient"),],aes(Flowers,value,shape=Year,col=as.factor(Month))) + facet_wrap(~Metric,scale="free",nrow=2) + geom_point(size=3) + geom_smooth(method="lm",aes(group=Year)) + theme_bw() + labs(col="Month")
+ggsave(paste(netPath,"NetworkConnectance.jpeg",sep=""),height=11,width=8,dpi=300) 
+
+###############################################
+#Hummingbird Properties and Available Resources
+###############################################
+head(Hum.Time)
+
+#Take out the total time
+Hum.Time<-Hum.Time[!Hum.Time$Time %in% "Total",]
+hum.fl<-merge(month.totals,Hum.Time,by=c("Month","Year"))
+
+#Need to subset by number of interactions, get rid of the species just seen once?
+with(hum.fl,table(Species,Month))
+month_Pres<-aggregate(hum.fl$Month,list(hum.fl$Species),function(x) nlevels(factor(x)))
+
+#Keep species seen more than 1 month
+species_keep<-month_Pres[which(month_Pres$x > 1),]$Group.1
+
+#remove an unknwon species
+species_keep<-species_keep[!species_keep %in% "UKWN"]
+ggplot(hum.fl[hum.fl$Species %in% species_keep,],aes(as.numeric(Flowers),value,col=as.factor(Month))) + facet_wrap(~Metric,scale="free") + geom_point() + geom_smooth(method="lm",aes(group=1))
+ggsave(paste(netPath,"SpeciesPropFlowers.svg",sep=""),height=8,width=11,dpi=300)
+
+#Save image to file
+setwd(droppath)
+save.image("Thesis/Maquipucuna_SantaLucia/Results/Network/NetworkData.Rdata")
+```
+
+```
+#Results
+
+#Discussion
+
+##Comparable literature
+* Correa, S., & Winemiller, K. (2014). Niche partitioning among frugivorous fishes in response to fluctuating resources in the Amazonian floodplain forest. Ecology, 95(1), 210–224.
+
+  * In general, dietary shifts in response to changes in the availability of preferred foods reduced interspecific niche overlap and may be a mechanism that facilitates coexistence in this species-rich fish assem- blage. During the period of greatest fruit production, diets of all six species were dominated, to varying degrees, by fruits and seeds, yielding broadly overlap- ping trophic niches among species.
+  
+* Trait packing, coexsitance and tropical specialization
+  * This niche partitioning mechanism is central to many explanations of the latitudinal gradient in species diversity, i.e that greater resources lead to finer subdivision of niche space, and promotes reproductive isolation. 
+  
+  * Dalsgaard, B., Magård, E., Fjeldså, J., Martín González, A. M., Rahbek, C., Olesen, J. M., … Svenning, J.-C. (2011). Specialization in plant-hummingbird networks is associated with species richness, contemporary precipitation and quaternary climate-change velocity. PloS One, 6(10), e25891. doi:10.1371/journal.pone.0025891
+    * Historical effect on specialization.
