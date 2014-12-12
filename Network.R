@@ -59,6 +59,7 @@ dat<-dat[,colnames(dat) %in% c("ID","Video","Date","Iplant_Double","Time","Hummi
 #Fix date format
 dat$Month<-as.numeric(format(as.Date(dat$Date,"%m/%d/%Y"),"%m"))
 
+
 ####Bring in interaction matrix for the flower transects, see FlowerTransects.R
 transect.FL<-read.csv("C:/Users/Ben/Dropbox/Thesis/Maquipucuna_SantaLucia/Results/HummingbirdTransects/HumTransectRows.csv",row.names=1)
 
@@ -167,6 +168,7 @@ datf<-droplevels(dat_e[!dat_e$Iplant_Double %in% sp_r,])
 #################Data Cleaning Complete################
 
 
+
 ############################################
 #Run Network Function for the entire dataset
 NetworkC(datf=datf,naming="Total",plots=T)
@@ -191,6 +193,35 @@ for (x in 1:length(torun)){
   NetworkC(datf=torun[[x]],naming=paste("Temporal",names(torun)[[x]],sep="/"))
 }}
 
+##Broken by elevation
+dat.split<-split(datf,list(datf$Month,datf$Year),drop=TRUE)
+
+#which months have been run?
+torun<-dat.split[!names(dat.split) %in% list.files(paste("Figures","Temporal",sep="/"))]
+
+#not 1.2013
+torun<-torun[!names(torun) %in% "1.2013"]
+
+#############################################
+#Compute metrics for each month and elevation
+#############################################
+
+#cut into elevation pieces
+datf$ElevT<-cut(datf$ele,c(0,1700,2500),c("Low","High"))
+##Broken by elevation
+dat.split<-split(datf,list(datf$Month,datf$Year,datf$ElevT),drop=TRUE)
+
+#which months have been run?
+torun<-dat.split[!names(dat.split) %in% list.files(paste("Figures","Elevation",sep="/"))]
+
+#need more than 10 records
+
+torun<-torun[sapply(torun,nrow) > 10]
+if(length(torun)>0){
+  for (x in 1:length(torun)){
+    NetworkC(datf=torun[[x]],naming=paste("Elevation",names(torun)[[x]],sep="/"))
+  }}
+
 ############################################
 ##############Networks Created##############
 ############################################
@@ -201,7 +232,7 @@ for (x in 1:length(torun)){
 ##################################
 
 #Get the desired files from paths - within time?
-fil.list<-list.files(paste("Figures","Temporal",sep="/"),pattern="NetworkProperties.csv",recursive=TRUE,full.names=TRUE)
+fil.list<-list.files(paste("Figures","Elevation",sep="/"),pattern="NetworkProperties.csv",recursive=TRUE,full.names=TRUE)
 
 fil<-list()
 #Read and name each file

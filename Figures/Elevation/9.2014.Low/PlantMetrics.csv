@@ -1,0 +1,4 @@
+"","degree","normalised.degree","species.strength","interaction.push.pull","nestedrank","PDI","species.specificity.index","resource.range","PSI","node.specialisation.index.NSI","betweenness","weighted.betweenness","closeness","weighted.closeness","Fisher.alpha","partner.diversity","effective.partners","proportional.similarity","proportional.generality","d"
+"Besleria solanoides",1,0.2,0.666666666666667,-0.333333333333333,1,1,1,1,1,1,0,0,0.5,1.33333333333333,NA,0,1,0.352941176470588,0.267663736266136,0.655125138471273
+"Meriania tomentosa",3,0.6,3,0.666666666666667,0,0.928571428571429,0.73282810879294,0.5,1,NA,0,0,0,NA,NA,0.683738905848754,1.98127168926922,0.529411764705882,0.530314582908117,1
+"Sarcopera anomala",2,0.4,1.33333333333333,0.166666666666667,0.5,0.75,0.612372435695795,0.75,1,1,0,0,0.5,0.666666666666667,NA,0.693147180559945,2,0.470588235294118,0.535327472532271,0.532778834292323

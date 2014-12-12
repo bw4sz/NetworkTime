@@ -1,0 +1,4 @@
+"","degree","normalised.degree","species.strength","interaction.push.pull","nestedrank","PDI","species.specificity.index","resource.range","PSI","node.specialisation.index.NSI","betweenness","weighted.betweenness","closeness","weighted.closeness","Fisher.alpha","partner.diversity","effective.partners","proportional.similarity","proportional.generality","d"
+"Besleria solanoides",3,0.5,1.91448825875055,0.304829419583518,0.5,0.916666666666667,0.684479445072417,0.6,1,1,0,0,0.5,0.979591836734694,NA,0.752974682765889,2.12330679576051,0.76421973748177,0.592916629543089,0.018054962994735
+"Columnea mastersonii",2,0.333333333333333,2,0.5,1,0.8,0.632455532033676,0.8,1,NA,0,0,0,NA,NA,0.693147180559945,2,0.12396694214876,0.558484182056905,1
+"Sarcopera anomala",3,0.5,2.08551174124945,0.361837247083149,0,0.76,0.552978411845293,0.6,1,1,0,0,0.5,1.02040816326531,NA,0.934769897858279,2.54662740589544,0.801652892561983,0.711125561892606,0

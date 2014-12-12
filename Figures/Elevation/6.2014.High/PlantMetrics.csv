@@ -1,0 +1,6 @@
+"","degree","normalised.degree","species.strength","interaction.push.pull","nestedrank","PDI","species.specificity.index","resource.range","PSI","node.specialisation.index.NSI","betweenness","weighted.betweenness","closeness","weighted.closeness","Fisher.alpha","partner.diversity","effective.partners","proportional.similarity","proportional.generality","d"
+"Besleria solanoides",1,0.25,0.5,-0.5,0.25,1,1,1,1,1.33333333333333,0,0,0.25,0.228571428571429,0.427945957592403,0,1,0.5,0.30718516896136,0.472640767885182
+"Centropogon solanifolius",1,0.25,1,0,0.5,1,1,1,1,NA,0,0,0,NA,0.525261466517939,0,1,0.1875,0.30718516896136,1
+"Palicourea demissa",1,0.25,0.25,-0.75,1,1,1,1,1,1.33333333333333,0,0,0.25,0.16,0.795926633452104,0,1,0.5,0.30718516896136,0.2
+"Psammisia ulbrichiana",3,0.75,1.5,0.166666666666667,0,0.666666666666667,0.408248290463863,0.333333333333333,1,1,1,1,0.3,0.2,5.4525555311395,1.03972077083992,2.82842712474619,0.8125,0.868850864210051,0.208961151827773
+"Renealmia sessilifolia",1,0.25,0.75,-0.25,0.75,1,1,1,1,1.66666666666667,0,0,0.2,0.2,0.525261466517939,0,1,0.25,0.30718516896136,0.810915780051872

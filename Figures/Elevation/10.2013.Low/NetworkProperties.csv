@@ -1,0 +1,33 @@
+"","HummingbirdNetwork","HummingbirdNetwork.1"
+"connectance",0.444444444444444,0.444444444444444
+"web asymmetry",0,0
+"links per species",0.666666666666667,0.666666666666667
+"number of compartments",2,2
+"compartment diversity",1.88988157484231,1.88988157484231
+"cluster coefficient",0.333333333333333,0.333333333333333
+"nestedness",24.2091330513394,24.2091330513394
+"weighted nestedness",NA,NA
+"weighted NODF",0,0
+"interaction strength asymmetry",-0.5,-0.5
+"specialisation asymmetry",0.0334501163469714,0.0334501163469714
+"linkage density",1.19015000699413,1.19015000699413
+"weighted connectance",0.198358334499021,0.198358334499021
+"Fisher alpha",NA,NA
+"Shannon diversity",1.14327520619421,1.14327520619421
+"interaction evenness",0.52032696975393,0.52032696975393
+"Alatalo interaction evenness",0.806449843631107,0.806449843631107
+"H2",1,1
+"number.of.species.HL",3,3
+"mean.number.of.shared.partners.HL",0.333333333333333,0.333333333333333
+"cluster.coefficient.HL",0.458333333333333,0.395833333333333
+"weighted.cluster.coefficient.HL",NA,NA
+"niche.overlap.HL",0.064516129032258,0.142857142857143
+"togetherness.HL",0.166666666666667,0.166666666666667
+"C.score.HL",0.666666666666667,0.666666666666667
+"V.ratio.HL",0.333333333333333,0.333333333333333
+"discrepancy.HL",1,1
+"extinction.slope.HL",1.43996697820947,1.40216119363507
+"robustness.HL",0.585,0.57
+"functional.complementarity.HL",11.4160318726666,11.1063704749871
+"partner.diversity.HL",0.168960453324864,0.119346406555277
+"generality.HL",1.21344721870532,1.16685279528293

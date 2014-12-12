@@ -1,0 +1,6 @@
+"","degree","normalised.degree","species.strength","interaction.push.pull","nestedrank","PDI","resource.range","species.specificity.index","PSI","node.specialisation.index.NSI","betweenness","weighted.betweenness","closeness","weighted.closeness","Fisher.alpha","partner.diversity","effective.partners","proportional.generality","proportional.similarity","d"
+"Booted Racket-tail",1,0.2,0.5,-0.5,0.75,1,1,1,0.5,1,0,0,0.25,1,NA,0,1,0.262567849311194,0.0930232558139535,0.710935173682112
+"Sparkling Violetear",1,0.2,1,0,0.5,1,1,1,1,NA,0,0,0,NA,NA,0,1,0.262567849311194,0.13953488372093,1
+"Stripe-throated Hermit",1,0.2,0.5,-0.5,1,1,1,1,0.5,1,0,0,0.25,1,NA,0,1,0.262567849311194,0.0930232558139535,0.710935173682112
+"Tawny-bellied Hermit",2,0.4,1.24242424242424,0.121212121212121,0.25,0.9875,0.75,0.941605711108819,0.881673881673882,1,0,0,0.25,NA,NA,0.191444081957717,1.21099711465881,0.317968907918024,0.559246954595792,0.796691644702282
+"White-whiskered Hermit",3,0.6,1.75757575757576,0.252525252525253,0,0.875,0.5,0.612372435695794,0.792929292929293,1,0,0,0.25,NA,NA,0.867563228481461,2.3811015779523,0.625200720314426,0.422480620155039,0.603815870994557

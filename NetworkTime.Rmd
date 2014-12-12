@@ -100,14 +100,14 @@ fl.totals$Year<-as.factor(fl.totals$Year)
 
 #Flowers at each elevation over time without Karen's data
 ggplot(fl.totals,aes(x=Month.a,TotalFlowers,shape=as.factor(Year))) + geom_point(size=3) + theme_bw()  + geom_smooth(aes(group=1)) + ylab("Flowers") + xlab("Month") + facet_wrap(~Elev,scales="free_y")
-
-#Flowers at each elevation over time without Karen's data
-ggplot(fl.totals,aes(x=Month.a,TotalFlowers,shape=as.factor(Year),col=as.factor(Elev))) + geom_point(size=3) + theme_bw()  + geom_smooth(aes(group=Elev),family="poisson",method="glm",formula=y~poly(x,2)) + ylab("Available Flowers") + labs(x="Month",col="Elevation Transect",shape="Year") 
-
-fl.totals$DateP<-as.Date(strptime(as.character(fl.totals$Date),"%d/%m/%y"))
-
-#Flowers at each elevation over time without Karen's data
-ggplot(fl.totals,aes(x=DateP,TotalFlowers,shape=as.factor(Year),col=as.factor(Elev))) + geom_point(size=3) + theme_bw()  + geom_smooth(aes(group=1)) + ylab("Available Flowers") + labs(x="Month",col="Elevation Transect",shape="Year") + scale_x_date(labels = date_format("%m/%y"),breaks= "1 months") 
+# 
+# #Flowers at each elevation over time without Karen's data
+# ggplot(fl.totals,aes(x=Month.a,TotalFlowers,shape=as.factor(Year),col=as.factor(Elev))) + geom_point(size=3) + theme_bw()  + geom_smooth(aes(group=Elev),family="poisson",method="glm",formula=y~poly(x,2)) + ylab("Available Flowers") + labs(x="Month",col="Elevation Transect",shape="Year") 
+# 
+# fl.totals$DateP<-as.Date(strptime(as.character(fl.totals$Date),"%d/%m/%y"))
+# 
+# #Flowers at each elevation over time without Karen's data
+# ggplot(fl.totals,aes(x=DateP,TotalFlowers,shape=as.factor(Year),col=as.factor(Elev))) + geom_point(size=3) + theme_bw()  + geom_smooth(aes(group=1)) + ylab("Available Flowers") + labs(x="Month",col="Elevation Transect",shape="Year") + scale_x_date(labels = date_format("%m/%y"),breaks= "1 months") 
 ```
 
 
