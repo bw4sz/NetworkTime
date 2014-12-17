@@ -1,13 +1,14 @@
 "","Booted Racket-tail","Brown Inca","Buff-tailed Coronet","Collared Inca","Gorgeted Sunangel","Green-fronted Lancebill","Hoary Puffleg","Sparkling Violetear","Speckled Hummingbird","Stripe-throated Hermit","Tawny-bellied Hermit","Violet-tailed Sylph"
-"Bomarea pardina",0,12,0,0,0,0,0,0,0,0,4,0
-"Columnea medicinalis",0,0,0,0,0,0,0,0,0,0,2,0
+"Bomarea pardina",0,1,0,0,0,0,0,0,0,0,1,0
+"Columnea medicinalis",0,0,0,0,0,0,0,0,0,0,1,0
+"Columnea picta",0,0,0,0,0,0,0,0,0,0,0,1
 "Gasteranthus quitensis",0,0,0,0,0,0,0,0,0,0,1,1
 "Glossoloma oblongicalyx",0,0,0,0,1,0,0,0,0,0,1,0
-"Guzmania amplectens",0,5,0,0,0,0,0,0,0,0,1,0
-"Guzmania jaramilloi",0,1.5,0,0,0,0,0,0,0,0,0,2.5
-"Macleania bullata",0,2,0,0,0,0,0,0,0,0,0,0
-"Meriania tomentosa",0.5,0,6,1,1,0,0,0,7,0,0,5
-"Palicourea acetosoides",0,0,0,0,0,3,0,0,0,0,0,0
+"Guzmania amplectens",0,1,0,0,0,0,0,0,0,0,1,0
+"Guzmania jaramilloi",0,1,0,0,0,0,0,0,0,0,0,1
+"Macleania bullata",0,1,0,0,0,0,0,0,0,0,0,0
+"Meriania tomentosa",1,0,1,1,1,0,0,0,1,0,0,1
+"Palicourea acetosoides",0,0,0,0,0,1,0,0,0,0,0,0
 "Palicourea demissa",1,0,0,0,0,0,0,0,0,1,0,0
-"Psammisia sodiroi",0,0,0,0,0.5,0,3,0,2.5,0,0,2
-"Sarcopera anomala",6.5,0,0,0,0,0,0,7.5,0,0,0,0
+"Psammisia sodiroi",0,0,0,0,1,0,1,0,1,0,0,1
+"Sarcopera anomala",1,0,0,0,0,0,0,1,0,0,0,0

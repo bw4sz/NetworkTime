@@ -1,0 +1,4 @@
+"","degree","normalised.degree","species.strength","interaction.push.pull","nestedrank","PDI","species.specificity.index","resource.range","PSI","node.specialisation.index.NSI","betweenness","weighted.betweenness","closeness","weighted.closeness","Fisher.alpha","partner.diversity","effective.partners","proportional.similarity","proportional.generality","d"
+"Heliconia griggsiana",1,0.2,1,0,0.5,1,1,1,1,NA,0,NA,NA,NA,1677720700.50048,0,1,0.2,0.2,NA
+"Palicourea demissa",3,0.6,3,0.666666666666667,0,0.5,0.408248290463863,0.5,1,NA,0,NA,NA,NA,419430397.854167,1.09861228866811,3,0.6,0.6,0
+"Psammisia ulbrichiana",1,0.2,1,0,1,1,1,1,1,NA,0,NA,NA,NA,1677720700.50048,0,1,0.2,0.2,NA

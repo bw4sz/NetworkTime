@@ -1,7 +1,13 @@
-"","Booted Racket-tail","Brown Inca","Collared Inca","Green-crowned Woodnymph","Fawn-breasted Brilliant","Gorgeted Sunangel","Green-fronted Lancebill","Hoary Puffleg","Speckled Hummingbird","Tawny-bellied Hermit","Violet-tailed Sylph"
-"Bomarea pardina",0,1,8,0,0,0,0,0,0,0,0
-"Drymonia tenuis",0,0,0,0,0,1,0,0.5,3,0,2.5
-"Mezobromelia capituligera",0,0,0.333333333333333,0,0.333333333333333,0,0,0,0,0,13.3333333333333
-"Palicourea acetosoides",0,0,1.5,0,0,0,0.5,0,0,0,8
-"Palicourea demissa",2,0,0,1.5,0,0,0,0,0,0,0
-"Wercklea ferox",0,0,0,0,0,0,0,0,0,2,0
+"","Booted Racket-tail","Brown Inca","Collared Inca","Green-crowned Woodnymph","Fawn-breasted Brilliant","Gorgeted Sunangel","Green-fronted Lancebill","Hoary Puffleg","Speckled Hummingbird","Stripe-throated Hermit","Tawny-bellied Hermit","Violet-tailed Sylph"
+"Bomarea pardina",0,1,1,0,0,0,0,0,0,0,0,0
+"Centropogon solanifolius",0,0,0,0,0,0,0,0,0,0,1,0
+"Columnea mastersonii",0,0,0,0,0,0,0,0,0,0,1,0
+"Drymonia tenuis",0,0,0,0,0,1,0,1,1,0,0,1
+"Fuchsia macrostigma",0,1,0,0,0,0,0,0,0,0,1,0
+"Glossoloma tetragonoides",0,0,0,0,0,0,0,0,0,0,0,1
+"Mezobromelia capituligera",0,0,1,0,1,0,0,0,0,0,0,1
+"Palicourea acetosoides",0,0,1,0,0,0,1,0,0,0,0,1
+"Palicourea demissa",1,0,0,1,0,0,0,0,0,0,0,0
+"Pitcairnia squarrosa",0,0,0,0,1,0,0,0,0,0,0,0
+"Salvia quitensis",0,0,0,0,0,0,0,0,0,1,0,0
+"Wercklea ferox",0,0,0,0,0,0,0,0,0,0,1,0

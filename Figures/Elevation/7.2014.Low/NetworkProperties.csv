@@ -6,16 +6,16 @@
 "compartment diversity",NA,NA
 "cluster coefficient",1,1
 "nestedness",NA,NA
-"weighted nestedness",-0.890359168241963,-0.743679163033997
+"weighted nestedness",NA,NA
 "weighted NODF",NA,NA
-"interaction strength asymmetry",0.916666666666667,0.916666666666667
+"interaction strength asymmetry",NA,NA
 "specialisation asymmetry",NA,NA
-"linkage density",2.5536063779352,2.5536063779352
-"weighted connectance",0.4256010629892,0.4256010629892
-"Fisher alpha",NA,NA
-"Shannon diversity",1.41274463686385,1.41274463686385
-"interaction evenness",0.877787596495242,0.877787596495242
-"Alatalo interaction evenness",0.835393288067245,0.835393288067245
+"linkage density",3,3
+"weighted connectance",0.5,0.5
+"Fisher alpha",838860790,838860790
+"Shannon diversity",1.6094379124341,1.6094379124341
+"interaction evenness",1,1
+"Alatalo interaction evenness",1,1
 "H2",NA,NA
 "number.of.species.HL",5,1
 "mean.number.of.shared.partners.HL",1,NA
@@ -28,6 +28,8 @@
 "discrepancy.HL",0,0
 "extinction.slope.HL",NA,0.390978531045961
 "robustness.HL",NA,0.531481474595331
-"functional.complementarity.HL",4.16666666666667,0
-"partner.diversity.HL",0,1.41274463686385
-"generality.HL",1,4.1072127558704
+"functional.complementarity.HL",0,0
+"partner.diversity.HL",0,1.6094379124341
+"generality.HL",1,5
+"Raw.Camera",0,0
+"Raw.Transect",13,13

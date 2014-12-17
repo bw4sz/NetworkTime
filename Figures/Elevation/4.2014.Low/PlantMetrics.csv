@@ -1,3 +1,5 @@
 "","degree","normalised.degree","species.strength","interaction.push.pull","nestedrank","PDI","species.specificity.index","resource.range","PSI","node.specialisation.index.NSI","betweenness","weighted.betweenness","closeness","weighted.closeness","Fisher.alpha","partner.diversity","effective.partners","proportional.similarity","proportional.generality","d"
-"Palicourea demissa",2,0.666666666666667,2,0.5,0,0.625,0.515078753637713,0.5,1,NA,0,NA,NA,NA,NA,0.682908104700472,1.97962633005252,0.636363636363636,0.665543316899117,1
-"Wercklea ferox",1,0.333333333333333,1,0,1,1,1,1,1,NA,0,NA,NA,NA,NA,0,1,0.363636363636364,0.336196436062487,1
+"Columnea mastersonii",1,0.25,0.5,-0.5,0.333333333333333,1,1,1,1,1,0,0,0.5,1,1677720700.50048,0,1,0.4,0.263901582154579,0
+"Palicourea demissa",2,0.5,2,0.5,0,0.666666666666667,0.577350269189626,0.666666666666667,1,NA,0,0,0,NA,2941562359.8741,0.693147180559945,2,0.4,0.527803164309158,1
+"Salvia quitensis",1,0.25,1,0,0.666666666666667,1,1,1,1,NA,0,0,0,NA,1677720700.50048,0,1,0.2,0.263901582154579,1
+"Wercklea ferox",1,0.25,0.5,-0.5,1,1,1,1,1,1,0,0,0.5,1,1677720700.50048,0,1,0.4,0.263901582154579,0

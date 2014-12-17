@@ -1,8 +1,12 @@
-"","Booted Racket-tail","Brown Inca","Buff-tailed Coronet","Collared Inca","Fawn-breasted Brilliant","Gorgeted Sunangel","Purple-bibbed Whitetip","Sparkling Violetear","Speckled Hummingbird","Stripe-throated Hermit","Violet-tailed Sylph"
-"Besleria solanoides",3.25,0,0,0,0,0,0.25,0,0,0,2
-"Gasteranthus quitensis",0,0,0,0,0,0,0,0,2,1,0
-"Macleania stricta",0,0,0,0.333333333333333,0,1,0.333333333333333,0,0,0,0.333333333333333
-"Meriania tomentosa",0,0,1.66666666666667,0,0,0.666666666666667,0,0,0,0,0
-"Psammisia ecuadorensis",0,6,0,0,0,0,0,0,0,0,0
-"Psammisia sodiroi",0,0,0,0,0,2,0,0,4,0,4
-"Sarcopera anomala",0.5,0,0,0,1,0,0,7.5,0,0,0
+"","Booted Racket-tail","Brown Inca","Buff-tailed Coronet","Collared Inca","Fawn-breasted Brilliant","Gorgeted Sunangel","Purple-bibbed Whitetip","Sparkling Violetear","Speckled Hummingbird","Stripe-throated Hermit","Tawny-bellied Hermit","Violet-tailed Sylph"
+"Besleria solanoides",1,0,0,0,0,0,1,0,0,0,0,1
+"Centropogon solanifolius",0,0,0,0,0,0,0,0,0,0,1,0
+"Columnea medicinalis",0,0,0,0,0,0,0,0,0,0,1,0
+"Gasteranthus quitensis",0,0,0,0,0,0,0,0,1,1,0,0
+"Guzmania squarrosa",0,0,0,1,0,0,0,0,0,0,0,0
+"Macleania stricta",0,0,0,1,0,1,1,0,0,0,0,1
+"Meriania tomentosa",0,0,1,0,0,1,0,0,0,0,0,0
+"Mezobromelia capituligera",0,0,0,0,0,0,1,0,0,0,0,0
+"Psammisia ecuadorensis",0,1,0,0,0,0,0,0,0,0,0,0
+"Psammisia sodiroi",0,0,0,0,0,1,0,0,1,0,0,1
+"Sarcopera anomala",1,0,0,0,1,0,0,1,0,0,0,0

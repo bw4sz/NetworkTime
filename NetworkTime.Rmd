@@ -13,6 +13,7 @@ require(reshape2)
 require(ggplot2)
 library(scales)
 library(dplyr)
+library(stringr)
 #Set Dropbox Location
 #setwd to dropbox
 droppath<-"C:/Users/Ben/Dropbox/"
@@ -22,7 +23,7 @@ gitpath<-"C:/Users/Ben/Documents/NetworkTime/"
 
 setwd(gitpath)
 
-opts_chunk$set(message=FALSE,warning=FALSE,fig.width=13,echo=FALSE)
+opts_chunk$set(message=FALSE,warning=FALSE,fig.width=12,echo=FALSE,cache=TRUE,cache.path = 'NetworkTime_cache/', fig.path='figure/')
 ```
 
 #Introduction
@@ -90,7 +91,7 @@ We use two parallel methods to estimate the role of available resources in shapi
 
 ```{r}
 #Write flower totals
-fl.totals<-read.csv("C:/Users/Ben/Dropbox/Thesis/Maquipucuna_SantaLucia/Results/FlowerTransects/FlowerAvailability.csv")
+fl.totals<-read.csv("C:/Users/Ben/Dropbox/Thesis/Maquipucuna_SantaLucia/Results/FlowerTransects/FlowerAvailability.csv",row.names=1)
 
 #Make month abbreviation column, with the right order
 fl.totals$Month.a<-factor(month.abb[fl.totals$Month],month.abb[c(1:12)])
@@ -106,8 +107,6 @@ ggplot(fl.totals,aes(x=Month.a,TotalFlowers,shape=as.factor(Year))) + geom_point
 # 
 # fl.totals$DateP<-as.Date(strptime(as.character(fl.totals$Date),"%d/%m/%y"))
 # 
-# #Flowers at each elevation over time without Karen's data
-# ggplot(fl.totals,aes(x=DateP,TotalFlowers,shape=as.factor(Year),col=as.factor(Elev))) + geom_point(size=3) + theme_bw()  + geom_smooth(aes(group=1)) + ylab("Available Flowers") + labs(x="Month",col="Elevation Transect",shape="Year") + scale_x_date(labels = date_format("%m/%y"),breaks= "1 months") 
 ```
 
 
@@ -118,64 +117,67 @@ source("Network.R")
 
 
 #Network measures over time
-```{r}
+```{r,fig.height=7}
 #write csv to file
-month.Prop<-read.csv("TimeMetrics.csv",row.names=1)
+month.Prop<-read.csv("ElevationTimeMetrics.csv",row.names=1)
 
 month.Prop$Time<-as.character(month.Prop$Time)
 
 #format time
-month.Prop$Month<-as.numeric(sapply(month.Prop$Time,function(x){  strsplit(x,"\\.")[[1]][1]}))
+#month.Prop$Month<-as.numeric(sapply(month.Prop$Time,function(x){  strsplit(x,"\\.")[[1]][1]}))
+j<-str_match(month.Prop$Time,pattern="(\\d+)")
+month.Prop$Month<-apply(j,1,function(x){
+  round(mean(as.numeric(x)))
+})
+
+#just level of hummingbirds for now
+month.Prop<-month.Prop[month.Prop$Level=="Hummingbirds",]
 month.Prop$Year<-as.numeric(sapply(month.Prop$Time,function(x){  strsplit(x,"\\.")[[1]][2]}))
+month.Prop$Elev<-as.character(sapply(month.Prop$Time,function(x){  strsplit(x,"\\.")[[1]][3]}))
 month.Prop$Date<-paste("1",month.Prop$Month,month.Prop$Year,sep="/")
 month.Prop$Date<-as.Date(month.Prop$Date,format="%d/%m/%Y")
 
-metricskeep<-c("connectance","H2","cluster.coefficient.HL","niche.overlap.HL")
+metricskeep<-c("connectance","H2","cluster.coefficient.HL","niche.overlap.HL","Raw.Transect","Raw.Camera")
 
 m<-month.Prop[month.Prop$Metric %in% metricskeep,]
 
 m<-dcast(m,...~Metric)
 m$H2i<-1-m$H2
 
-m<-melt(m,measure.vars=c("H2i",metricskeep))
+m<-melt(m,measure.vars=c("H2i",c("connectance","H2","cluster.coefficient.HL","niche.overlap.HL")))
 
 m<-m[!m$variable %in% "H2",]
 
-m<-group_by(m,variable) %>% mutate(stand=value/max(value)) 
+m<-group_by(m,variable) %>% mutate(stand=value/max(value,na.rm=TRUE)) 
 
 #Plot metrics over time
-p<-ggplot(m[!(m$Month==12 & m$Year==2014),],aes(x=Date,y=value,col=variable,shape=Level))+ geom_point(size=3) + geom_line() + facet_wrap(~variable,scales="free_y",ncol=1) 
-p<-p + theme_bw() + scale_x_date(labels = date_format("%m/%y"),breaks= "2 months") 
+p<-ggplot(m[,],aes(x=Date,y=value,col=variable))+ geom_point(aes(size=Raw.Camera+Raw.Transect)) + geom_line() + facet_wrap(~variable,scales="free_y",ncol=1) 
+p<-p + theme_bw() + scale_x_date(labels = date_format("%b"),breaks= "3 months") + labs(size="Interactions")
 p
 
-# # or together
-# p<-ggplot(m[!(m$Month==12 & m$Year==2014),],aes(x=Date,y=stand,col=variable,shape=Level))+ geom_point(size=1) + geom_line() 
-# p<-p + theme_bw() + scale_x_date(labels = date_format("%m/%y"),breaks= "2 months") 
-# p
-# ggsave("MetricsFacet.svg",height=8,width=11)
 ```
 
 #Specialization, Connectance and Niche Overlap as a function of available resources.
 
-The flower data needs to be much more finely tuned in terms of geographic proximity, what does it matter how many flowers were at at 2500 for an interaction at 1200m.
 
-```{r,eval=FALSE}
-fl.totals<-read.csv("C:/Users/Ben/Dropbox/Thesis/Maquipucuna_SantaLucia/Results/FlowerTransects/FlowerAvailability.csv")
-
-#aggregate by month for now, not elev split
-month.totals<-aggregate(fl.totals$TotalFlowers,list(fl.totals$Month,fl.totals$Year),sum)
-colnames(month.totals)<-c("Month","Year","Flowers")
-
-#combine the flower totals and network metrics
-network.fl<-merge(month.totals,m,by=c("Month","Year"))
-
-#Quick visualization 
-p<-ggplot(network.fl,aes(Flowers,value,shape=as.factor(Year),col=as.factor(Month))) + facet_wrap(~variable,scale="free") + geom_point(size=3) + geom_smooth(method="lm",aes(group=1)) + theme_bw()
-print(p)
-ggsave(paste(netPath,"NetworkPropFlowers.svg",sep=""),height=8,width=11,dpi=300)
-
-p<-ggplot(network.fl[ network.fl$Metric %in% c("connectance","cluster coefficient"),],aes(Flowers,value,shape=Year,col=as.factor(Month))) + facet_wrap(~Metric,scale="free",nrow=2) + geom_point(size=3) + geom_smooth(method="lm",aes(group=Year)) + theme_bw() + labs(col="Month")
-ggsave(paste(netPath,"NetworkConnectance.jpeg",sep=""),height=11,width=8,dpi=300) 
+```{r,fig.height=8}
+  full.fl<-read.csv("C:/Users/Ben/Dropbox/Thesis/Maquipucuna_SantaLucia/Results/FlowerTransects/FlowerTransectClean.csv",row.names=1)
+  
+  #month should be capital
+  colnames(full.fl)[colnames(full.fl) %in% "month"]<-"Month"
+  
+  full.fl$chunk<-cut(as.numeric(full.fl$Month),c(0,4,9,12),labels=c(2,6,10))
+  
+  full.fl$Elev<-cut(full.fl$ele,c(0,1700,2500),c("Low","High"))
+  
+  flower.month<-group_by(full.fl,Month,Elev,Year) %>% dplyr::summarise(Flowers=sum(Total_Flowers,na.rm=TRUE)) %>% filter(!is.na(Elev))
+  
+  #combine the flower totals and network metrics
+  network.fl<-merge(flower.month,m,by=c("Elev","Month","Year"))
+  
+  #Quick visualization 
+  p<-ggplot(network.fl,aes(Flowers,value,shape=as.factor(Year),col=as.factor(Month))) + facet_wrap(Elev~variable,scale="free")  + geom_point(aes(size=Raw.Camera+Raw.Transect),col="black")+ geom_smooth(aes(group=1),method="lm") + theme_bw() + labs(col="Month",shape="Year",size="Interactions") + geom_text(aes(label=Month))
+  print(p)
 ```
 
 #Results
