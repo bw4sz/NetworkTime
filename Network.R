@@ -136,15 +136,15 @@ levels(dat$Hummingbird) <- h
 
 #Take our any bad data
 dat_e<-droplevels(dat[!dat$Hummingbird %in% c("","NANA","UKWN","Ukwn","Western Emerald"),])
-
-#Remove out piercing events for now?
-table(dat$Pierce)
-datPierce<-dat_e[dat_e$Pierce%in% c("Yes","YES","y","Y"),]
-
-#Piercing over time
-ggplot(datPierce,aes(x=DateP,y=Hummingbird)) + geom_point(size=3)
-
-dat_e<-dat_e[!dat_e$Pierce %in% c("Yes","YES","y","Y"),]
+# 
+# # #Remove out piercing events for now?
+# # table(dat$Pierce)
+# # datPierce<-dat_e[dat_e$Pierce%in% c("Yes","YES","y","Y"),]
+# 
+# #Piercing over time
+# ggplot(datPierce,aes(x=DateP,y=Hummingbird)) + geom_point(size=3)
+# 
+# dat_e<-dat_e[!dat_e$Pierce %in% c("Yes","YES","y","Y"),]
 
 #Drop any unused factors?
 dat_e<-droplevels(dat_e)
@@ -271,6 +271,7 @@ if(length(torun)>0){
 #Get the desired files from paths - within time
 fil.dir<-list.dirs("Figures",full.names=F,recursive = F)
 
+fil.dir<-fil.dir[!fil.dir %in% "Total"]
 lapply(fil.dir,function(y){
   #for each split of the data, plot the results.
   fil.list<-list.files(paste("Figures",sep="/",y),pattern="NetworkProperties.csv",recursive=TRUE,full.names=TRUE)
@@ -337,3 +338,4 @@ lapply(fil.dir,function(y){
 #Save image to file
 save.image("NetworkData.Rdata")
 setwd(gitpath)
+

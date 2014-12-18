@@ -5,10 +5,10 @@
 "Columnea ciliata",1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
 "Columnea medicinalis",0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0
 "Columnea picta",0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1
-"Columnea strigosa",0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0
-"Drymonia collegarum",0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+"Columnea strigosa",0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1
+"Drymonia collegarum",0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,1
 "Drymonia tenuis",0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0
-"Fuchsia macrostigma",0,1,0,0,0,0,0,0,0,0,0,0,0,0,1,0
+"Fuchsia macrostigma",0,1,0,0,0,0,0,0,0,0,0,0,0,0,1,1
 "Gasteranthus quitensis",1,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1
 "Glossoloma oblongicalyx",0,0,0,0,0,0,1,0,0,0,0,0,0,0,1,0
 "Guzmania amplectens",0,1,0,0,0,0,0,0,0,0,0,0,0,0,1,1

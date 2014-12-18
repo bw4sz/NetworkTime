@@ -1,7 +1,7 @@
 "","Booted Racket-tail","Buff-tailed Coronet","Green-crowned Woodnymph","Rufous-tailed Hummingbird","Sparkling Violetear","Stripe-throated Hermit","Tawny-bellied Hermit","White-whiskered Hermit"
 "Besleria solanoides",1,0,0,0,0,0,0,0
-"Columnea ciliata",1,0,0,0,0,0,1,0
-"Columnea mastersonii",0,0,0,0,0,0,1,1
+"Columnea ciliata",1,0,0,0,0,1,1,0
+"Columnea mastersonii",0,0,0,0,0,1,1,1
 "Gasteranthus quitensis",1,0,0,0,0,0,0,0
 "Glossoloma purpureum",0,0,0,0,0,0,1,0
 "Guzmania amplectens",0,0,0,0,0,0,0,1
@@ -10,3 +10,4 @@
 "Palicourea demissa",1,0,1,1,0,1,0,1
 "Psammisia aberrans",0,0,0,0,0,0,0,1
 "Sarcopera anomala",1,0,0,0,1,0,0,0
+"Stromanthe stromanthoides",1,0,1,0,0,1,0,0

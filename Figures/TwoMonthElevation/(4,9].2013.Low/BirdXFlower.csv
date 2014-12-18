@@ -2,7 +2,8 @@
 "Besleria solanoides",0,1,1,0,0,0,0,0,1,0,0,0,0,0,0
 "Bomarea pardina",0,0,1,0,0,1,0,0,0,0,0,0,0,0,0
 "Centropogon solanifolius",0,0,0,0,0,0,0,0,0,0,1,0,1,0,0
-"Columnea mastersonii",0,0,0,0,0,0,0,0,0,0,1,0,0,0,1
+"Columnea ciliata",0,0,0,0,0,0,0,0,0,1,0,0,0,0,1
+"Columnea mastersonii",0,0,0,0,0,0,0,0,0,1,1,0,0,0,1
 "Columnea picta",0,0,0,0,0,0,0,0,0,1,1,0,0,0,1
 "Drymonia teuscheri",0,0,0,0,0,0,0,0,0,1,1,0,0,0,1
 "Glossoloma purpureum",0,0,0,0,0,0,0,0,0,1,1,0,0,0,1
@@ -12,7 +13,7 @@
 "Heliconia virginalis",0,0,0,0,1,0,0,0,0,1,1,0,0,0,1
 "Meriania tomentosa",0,0,0,0,0,0,0,0,0,0,0,1,0,0,0
 "Palicourea acetosoides",0,0,0,0,0,1,0,0,0,0,0,0,0,0,0
-"Palicourea demissa",1,1,1,1,1,1,1,1,0,1,1,1,1,1,1
+"Palicourea demissa",1,1,1,1,1,1,1,1,0,1,1,0,1,1,1
 "Psammisia aberrans",0,0,0,0,0,0,0,0,0,0,1,0,0,0,1
 "Psammisia sodiroi",0,1,0,0,0,0,0,0,0,0,0,0,0,0,0
 "Psammisia ulbrichiana",0,1,1,0,0,0,0,0,0,0,1,0,0,0,1

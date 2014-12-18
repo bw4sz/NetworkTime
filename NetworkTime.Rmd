@@ -151,7 +151,7 @@ m<-m[!m$variable %in% "H2",]
 m<-group_by(m,variable) %>% mutate(stand=value/max(value,na.rm=TRUE)) 
 
 #Plot metrics over time
-p<-ggplot(m[,],aes(x=Date,y=value,col=variable))+ geom_point(aes(size=Raw.Camera+Raw.Transect)) + geom_line() + facet_wrap(~variable,scales="free_y",ncol=1) 
+p<-ggplot(m[,],aes(x=Date,y=value,col=variable))+ geom_point(aes(size=Raw.Camera+Raw.Transect)) + geom_line() + facet_wrap(Elev~variable,scales="free_y",ncol=1) 
 p<-p + theme_bw() + scale_x_date(labels = date_format("%b"),breaks= "3 months") + labs(size="Interactions")
 p
 
