@@ -164,6 +164,9 @@ l<-sapply(sp_l,function(x){
 sp_r<-names(which(l==1))
 
 datf<-droplevels(dat_e[!dat_e$Iplant_Double %in% sp_r,])
+
+write.csv(datf,"Thesis/Maquipucuna_SantaLucia/Results/Network/HummingbirdInteractions.csv")
+
 #################Data Cleaning Complete################
 
 ############################################
@@ -253,6 +256,7 @@ dat.split<-split(datf,list(datf$chunk,datf$Year,datf$ElevT),drop=TRUE)
 torun<-dat.split[!names(dat.split) %in% list.files(paste("Figures","TwoMonthElevation",sep="/"))]
 
 #need more than 10 records
+
 
 torun<-torun[sapply(torun,nrow) > 10]
 if(length(torun)>0){

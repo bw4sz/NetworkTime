@@ -23,7 +23,7 @@ gitpath<-"C:/Users/Ben/Documents/NetworkTime/"
 
 setwd(gitpath)
 
-opts_chunk$set(message=FALSE,warning=FALSE,fig.width=12,echo=FALSE,cache=TRUE,cache.path = 'NetworkTime_cache/', fig.path='figure/')
+opts_chunk$set(message=FALSE,warning=FALSE,fig.width=13,echo=FALSE,cache=TRUE,cache.path = 'NetworkTime_cache/', fig.path='figure/')
 ```
 
 #Introduction
@@ -117,9 +117,9 @@ source("Network.R")
 
 
 #Network measures over time
-```{r,fig.height=7}
+```{r,fig.height=8}
 #write csv to file
-month.Prop<-read.csv("ElevationTimeMetrics.csv",row.names=1)
+month.Prop<-read.csv("TemporalTimeMetrics.csv",row.names=1)
 
 month.Prop$Time<-as.character(month.Prop$Time)
 
@@ -163,21 +163,22 @@ p
 ```{r,fig.height=8}
   full.fl<-read.csv("C:/Users/Ben/Dropbox/Thesis/Maquipucuna_SantaLucia/Results/FlowerTransects/FlowerTransectClean.csv",row.names=1)
   
-  #month should be capital
+  #month should be capital 
   colnames(full.fl)[colnames(full.fl) %in% "month"]<-"Month"
   
-  full.fl$chunk<-cut(as.numeric(full.fl$Month),c(0,4,9,12),labels=c(2,6,10))
-  
-  full.fl$Elev<-cut(full.fl$ele,c(0,1700,2500),c("Low","High"))
-  
-  flower.month<-group_by(full.fl,Month,Elev,Year) %>% dplyr::summarise(Flowers=sum(Total_Flowers,na.rm=TRUE)) %>% filter(!is.na(Elev))
+  flower.month<-group_by(full.fl,Month,Year) %>% dplyr::summarise(Flowers=sum(Total_Flowers,na.rm=TRUE))
   
   #combine the flower totals and network metrics
-  network.fl<-merge(flower.month,m,by=c("Elev","Month","Year"))
+  network.fl<-merge(flower.month,m,by=c("Month","Year"))
   
   #Quick visualization 
-  p<-ggplot(network.fl,aes(Flowers,value,shape=as.factor(Year),col=as.factor(Month))) + facet_wrap(Elev~variable,scale="free")  + geom_point(aes(size=Raw.Camera+Raw.Transect),col="black")+ geom_smooth(aes(group=1),method="lm") + theme_bw() + labs(col="Month",shape="Year",size="Interactions") + geom_text(aes(label=Month))
-  print(p)
+  p<-ggplot(network.fl[!(network.fl$Month %in% 12 & network.fl$Year %in% 2014),],aes(log(Flowers),value,shape=as.factor(Year),col=as.factor(Month))) + facet_wrap(~variable,scale="free")  + geom_point(aes(size=Raw.Camera+Raw.Transect),col="black")+ geom_smooth(aes(group=1),method="lm") + theme_bw() + labs(col="Month",shape="Year",size="Interactions") + geom_text(aes(label=month.abb[Month]),hjust=-0.25,size=4)
+  print(p) 
+```
+
+## Trait matching
+```{r,fig.width=9,fig.align='center'}
+source("PhenotypicMatching.R")      
 ```
 
 #Results

@@ -10,6 +10,7 @@ maptools
 nlme
 permute
 picante
+plyr
 reshape
 reshape2
 scales
