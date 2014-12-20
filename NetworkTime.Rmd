@@ -117,6 +117,7 @@ source("Network.R")
 
 
 #Network measures over time
+
 ```{r,fig.height=8}
 #write csv to file
 month.Prop<-read.csv("TemporalTimeMetrics.csv",row.names=1)
@@ -157,8 +158,13 @@ p
 
 ```
 
-#Specialization, Connectance and Niche Overlap as a function of available resources.
+##Compare to randomization of the interaction matrix (what is this preserving?)
 
+```{r}
+source(paste(gitpath,"NullModels.R",sep=""))
+```
+
+#Specialization, Connectance and Niche Overlap as a function of available resources.
 
 ```{r,fig.height=8}
   full.fl<-read.csv("C:/Users/Ben/Dropbox/Thesis/Maquipucuna_SantaLucia/Results/FlowerTransects/FlowerTransectClean.csv",row.names=1)
