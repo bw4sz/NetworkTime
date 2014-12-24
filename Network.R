@@ -165,7 +165,7 @@ sp_r<-names(which(l==1))
 
 datf<-droplevels(dat_e[!dat_e$Iplant_Double %in% sp_r,])
 
-write.csv(datf,"Thesis/Maquipucuna_SantaLucia/Results/Network/HummingbirdInteractions.csv")
+write.csv(datf,"C:/Users/Ben/Dropbox/Thesis/Maquipucuna_SantaLucia/Results/Network/HummingbirdInteractions.csv")
 
 #################Data Cleaning Complete################
 

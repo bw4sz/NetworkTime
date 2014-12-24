@@ -4,13 +4,13 @@ bipartite
 chron
 dplyr
 ggplot2
+igraph
 knitr
 lattice
 maptools
 nlme
 permute
 picante
-plyr
 reshape
 reshape2
 scales
