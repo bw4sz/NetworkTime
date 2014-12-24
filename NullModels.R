@@ -29,15 +29,15 @@ int.M<-split(int,list(int$Month,int$Year),drop=TRUE)
 nullC<-function(x){
   x<-droplevels(x)
   month.inter<-table(x$Hummingbird,x$Iplant_Double)
-  month.inter<-(month.inter>0)*1
-  true_stat<-networklevel(month.inter,c("connectance","H2","cluster coefficient","niche overlap"))[c(1,3,4,6)]
+  month.interB<-(month.inter>0)*1
+  true_stat<-networklevel(month.interB,c("connectance","H2","cluster coefficient","niche overlap"))[c(1,3,4,6)]
   
 true_stat<-melt(true_stat)
 
 true_stat$variable<-rownames(true_stat)
 
 # Create 199 random matrixes
-r.int<-permatfull(month.inter,times=200,mtype="prab",fixedmar="none")
+r.int<-permatfull(month.inter,times=200)
 
 #compute connectance and clustering on each
 
