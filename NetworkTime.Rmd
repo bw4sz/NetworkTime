@@ -104,14 +104,14 @@ fl.totals$Month.a<-factor(month.abb[fl.totals$Month],month.abb[c(1:12)])
 fl.totals$Year<-as.factor(fl.totals$Year)
 
 #Flowers at each elevation over time without Karen's data
-ggplot(fl.totals,aes(x=Month.a,TotalFlowers,shape=as.factor(Year))) + geom_point(size=3) + theme_bw()  + geom_smooth(aes(group=1)) + ylab("Flowers") + xlab("Month") + facet_wrap(~Elev,scales="free_y")
+ggplot(fl.totals,aes(x=Month.a,log(TotalFlowers),shape=as.factor(Year))) + geom_point(size=3) + theme_bw()  + geom_smooth(aes(group=1)) + ylab("Flowers") + xlab("Month") + facet_wrap(~Elev,scales="free_y")
 
 ```
 
 
 ```{r network,fig.height=15}
 #Compute network measures
-source("Network.R")
+#source("Network.R")
 ```
 
 
@@ -120,12 +120,6 @@ source("Network.R")
 
 ```{r}
 #Goal to create randomized networks for each month and redo the entire analysis
-
-#Read in interaction data
-#setwd to dropbox
-droppath<-"C:/Users/Ben/Dropbox/"
-#Set github path
-gitpath<-"C:/Users/Ben/Documents/NetworkTime/"
 
 int<-read.csv(paste(droppath,"Thesis/Maquipucuna_SantaLucia/Results/Network/HummingbirdInteractions.csv",sep=""),row.names=1)
 int$Year<-years(int$DateP)
@@ -139,9 +133,10 @@ int.M<-split(int,list(int$Month,int$Year),drop=TRUE)
 #design null function
 nullC<-function(x){
   x<-droplevels(x)
-  month.inter<-table(x$Hummingbird,x$Iplant_Double)
+  N=nrow(x)
+  month.inter<-t(table(x$Hummingbird,x$Iplant_Double))
   month.interB<-(month.inter>0)*1
-  true_stat<-networklevel(month.interB,c("connectance","H2","cluster coefficient","niche overlap"))[c(1,3,4,6)]
+  true_stat<-networklevel(month.interB,c("connectance","cluster coefficient","niche overlap"))[c(1,3,5)]
   
 true_stat<-melt(true_stat)
 
@@ -156,7 +151,7 @@ r.int<-permatfull(month.inter,times=200)
 null_total<-as.data.frame(
   t(sapply(r.int$perm,function(x){
 #Compute netowkr statistics
-out<-networklevel(x,c("connectance","H2","cluster coefficient","niche overlap"))[c(1,3,4,6)]
+out<-networklevel(x,c("connectance","cluster coefficient","niche overlap"))[c(1,3,5)]
 return(out)}))
 )
 
@@ -170,13 +165,14 @@ nullq$Month<-unique(x$Month)
 nullq$Year<-unique(x$Year)
 
 colnames(nullq)<-c("Quantile","Metric","value","Month","Year")
+
 #cast into desired format
 castq<-dcast(nullq,Year+Month+Metric~Quantile)
 
 #append true information
 out<-merge(castq,true_stat,by.x="Metric",by.y="variable")
 colnames(out)[colnames(out) %in% "value"]<-"True"
-
+out$N<-N
 return(out)}
 
 #apply function to each month
@@ -188,13 +184,12 @@ colnames(dat)[5]<-"Upper"
 
 #format date
 dat$Date<-as.Date(paste(1,dat$Month,dat$Year,sep="/"),format="%d/%m/%Y")
-#write.csv(dat,"Thesis/Maquipucuna_SantaLucia/Results/NullNetwork.csv")
 
 #plot distribution of  values
-p<-ggplot(dat,aes(x=Date,fill=Metric)) + geom_line(aes(y=True)) 
+p<-ggplot(dat,aes(x=Date,fill=Metric)) + geom_point(aes(size=N,y=True)) + geom_line(aes(y=True)) 
 p<-p + geom_ribbon(aes(ymin=Lower,ymax=Upper),alpha=.4)+ facet_wrap(~Metric,nrow=2,scales="free") + theme_bw() 
-p<-p+scale_fill_discrete(guide="none") + scale_x_date(breaks="3 months",label=date_format("%m/%y"))
-print(p)
+p<-p+scale_fill_discrete(guide="none") + scale_x_date(breaks="3 months",label=date_format("%m/%y")) + scale_size_continuous(range=c(2.5,5),"Number of Observations")
+print(p) 
 
 #ggsave("Thesis/Maquipucuna_SantaLucia/Results/NullNetwork.jpeg",dpi=300,height=8,width=8)
 ```
@@ -213,13 +208,13 @@ print(p)
   network.fl<-merge(flower.month,dat,by=c("Month","Year"))
   
   #Quick visualization 
-  p<-ggplot(network.fl[!(network.fl$Month %in% 12 & network.fl$Year %in% 2014),],aes(log(Flowers),y=True,shape=as.factor(Year),col=as.factor(Month))) + facet_wrap(~Metric,scale="free")  + geom_smooth(aes(group=1),method="lm") + theme_bw() + labs(col="Month",shape="Year",size="Interactions") + geom_text(aes(label=month.abb[Month]),hjust=-0.25,size=4)
+  p<-ggplot(network.fl[,],aes(log(Flowers),y=True,shape=as.factor(Year))) + geom_point(aes(size=N)) + facet_wrap(~Metric,scale="free")  + geom_smooth(aes(group=1),method="lm") + theme_bw() + labs(col="Month",shape="Year",size="Interactions") + geom_text(aes(label=month.abb[Month]),hjust=-0.25,size=4) + scale_size_continuous(range=c(2.5,5),"# of Interactions")
   print(p) 
 ```
 
 ## Trait matching
 
-```{r,fig.width=9,fig.align='center'}
+```{r,fig.width=10,fig.height=7,fig.align='center'}
 
 #read in flower morphology data, comes from Nectar.R
 fl.morph<-read.csv(paste(droppath,"Thesis/Maquipucuna_SantaLucia/Results/FlowerMorphology.csv",sep=""))
@@ -300,12 +295,12 @@ sdat<-sdat[sapply(sdat,nrow)>30]
 ######Correlation coefficient, which method to use?
 coeff<-rbind_all(lapply(sdat,function(x){
   mod.c<-cor.test(x$Bill,x$TotalCorolla)
-  data.frame(Month=unique(x$Month),Year=as.numeric(as.character(unique(x$Year))),cor=mod.c$estimate,p=mod.c$p.value)
+  data.frame(Month=unique(x$Month),Year=as.numeric(as.character(unique(x$Year))),cor=mod.c$estimate,p=mod.c$p.value,N=nrow(x))
 }))
 
 nStats<-merge(flower.month,coeff,by=c("Month","Year"))
 
-p<-ggplot(data=nStats,aes(x=log(Flowers),y=cor,shape=as.factor(Year))) + geom_point(size=3) + geom_smooth(method="lm",aes(group=1)) #+ geom_text(size=3.5,vjust=-.5)
+p<-ggplot(data=nStats,aes(x=log(Flowers),y=cor,shape=as.factor(Year))) + geom_point(aes(size=N)) + geom_smooth(method="lm",aes(group=1)) #+ geom_text(size=3.5,vjust=-.5)
 p<-p+ theme_bw()  + labs(y="Cor (Bill~Corolla)",x="Available Resources") + labs(shape="Year")
 p<-p + geom_text(aes(label=month.abb[Month]),size=3.5,vjust=-.5)
 
@@ -352,11 +347,50 @@ finaldat<-merge(nullcorq,nStats)
 
 p<-ggplot(data=finaldat,aes(x=log(Flowers))) 
 p<-p+geom_ribbon(aes(ymin=Lower,ymax=Upper),alpha=0.5)
-p<-p + geom_point(aes(y=cor,shape=as.factor(Year)),size=3) + geom_smooth(method="lm",aes(group=1,y=cor)) 
-p<-p+ theme_bw()  + labs(y="Cor (Bill~Corolla)",x="Available Resources") + labs(shape="Year")
-p<-p + geom_text(aes(y=cor,label=month.abb[Month]),size=3.5,vjust=-.5)
+p<-p + geom_point(aes(y=cor,shape=as.factor(Year),size=N)) + geom_smooth(method="lm",aes(group=1,y=cor)) 
+p<-p+ theme_bw()  + labs(y="Correlaton between Bill and Corolla Length)",x="Log Available Resources") + labs(shape="Year")
+p<-p + geom_text(aes(y=cor,label=month.abb[Month]),size=3.5,vjust=-.5) + scale_y_continuous(limits=c(-.35,.9),breaks=c(-.3,0,.2,.4,.6,.8))
 print(p)
 ```
+
+#Species level specialization
+
+```{r}
+specmonth<-function(x){
+
+  monthdata<-droplevels(x)
+
+#make interaction matrix
+month.inter<-table(monthdata$Hummingbird,monthdata$Iplant_Double)
+month.interB<-(month.inter>0)*1
+
+#What flowers are present
+fl.present<-levels(monthdata$Iplant_Double)
+
+sp_total<-dplyr::group_by(full.fl,Iplant_Double,Month,year) %>% filter(Iplant_Double %in% fl.present, Month %in% monthdata$Month & year %in% monthdata$Year)%>% summarize(N_Flowers=sum(Total_Flowers,na.rm=T)) %>% select(N_Flowers)
+
+if(nrow(sp_total)==0){return(NA)}
+
+missing<-colnames(month.interB)[!colnames(month.interB) %in% sp_total$Iplant_Double]
+
+if(length(missing)>0){
+print(paste("Abundance missing for species:",missing))
+return(NA)}
+N_Flowers<-sp_total$N_Flowers
+names(N_Flowers)<-sp_total$Iplant_Double
+
+#order 
+N_Flowers<-N_Flowers[which(names(N_Flowers) == colnames(month.interB))]
+
+spec<-dfun(month.interB,abuns=sample(N_Flowers))
+data.frame(Species=names(spec$dprime),Dprime=spec$dprime,Month=unique(monthdata$Month),Year=unique(monthdata$Year))
+return(spec)
+}
+
+specmonth(sdat[[10]])
+#lapply(sdat,specmonth)
+```
+
 
 #Results
 

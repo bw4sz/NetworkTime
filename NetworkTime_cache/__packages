@@ -7,15 +7,11 @@ ggplot2
 igraph
 knitr
 lattice
-maptools
 nlme
 permute
 picante
-reshape
 reshape2
 scales
 sna
-sp
 stringr
-taxize
 vegan
