@@ -37,12 +37,11 @@ opts_chunk$set(message=FALSE,warning=FALSE,fig.width=13,echo=FALSE,cache=TRUE,ca
 
 * The tightness and fidelity of these interactions are shaped by evolutionary forces promoting specialization and generalization.
 
-* In additon, the stability of these interactions depends on their relative specialization and generalization. Generalist interactions are likley to be more robust to climatic changes and maintain ecosystem services. 
+* In additon, the stability of these interactions depends on their relative specialization and generalization. Generalist interactions are likly to be more robust to climatic changes and maintain ecosystem services. 
 
 * The dominant theory for pollinator specialization posits that selection should promote adaptations for the most effecive pollinator.
 
 * However, this hypothesis ignores how a pollinator interactions with the surrounding biotic enviroment.
-
 
 * In nature, biotic interactions occur against a shifting background of resource availability.
 
@@ -58,18 +57,19 @@ opts_chunk$set(message=FALSE,warning=FALSE,fig.width=13,echo=FALSE,cache=TRUE,ca
 
 * In light of this variation in resource abundance, we test two opposing theories exist for how pollinators should specialize for potential nectar resources. 
 
-###Specialization should increase as available resources increases
+###Specialization should decrease as available resources increases
 
 * When there are an abundance of available resources, species do not suffer as much cost from competition. The plethora of option leads to decreased specialization as species maximize amount of time feeding and reduced time foraging for their specialized resource.
 The observation that many morphological specialists forage as generalists during periods of high resource availability led to Liem’s Paradox in cichlids. Sloan-Wilson () suggested that the solution to this paradox is that the specialists fall back on private resources in time of low scarcity, which promotes greater morphological specialization.
 
   * MacArthur and Levins 1967, Abrams 1983), and niche partitioning (sensu MacArthur 1958, Pianka 1974, 1976, Schoener 1974) predict that stable coexistence of competing species is achieved through niche differenti- ation that reduces overlap among competitors. Thus, during periods of relative food scarcity, animals are expected to adjust feeding to reduce niche overlap with competitors.
 
-###Specialization should decrease as available resources increases
+###Specialization should increase as available resources increases
 * Optimal foraging suggests that as resource availability increases, species should specialize on resources which reduce handling time and increase efficiency. 
 
-  * At times of low resource availablity species cannot be choosy, and must forgage on whatever plants are available. Species should prefer to partition resource space when possible, as to reduced competition among species. 
-
+  * At times of low resource availablity species cannot be choosy, and must forgage on whatever plants are available. 
+  
+  * Species should prefer to partition resource space when possible, as to reduced competition among species. 
 
 * We divide the plant-pollinator assemblage into temporal partitions to evaluate how co-occuring plants and pollinators partition resource space.
 
@@ -85,29 +85,48 @@ The above hypothesis predict a pattern of specialization and resources, but prov
 
 #Methods
 
-# Specialization over time
+* Transects
+* Cameras
+* Network Analysis
+    * Why was each measure chosen?
+* Null models
 
-We use two parallel methods to estimate the role of available resources in shaping specialization and trait matching in hummingbirds.
+#Results
+* How many plant records?
+* How many bird records?
+* How many interactions?
 
-##Figure 1 - Conceptual figure for specialization and changing available resources.
+************
+**Figure 1. Conceptual figure showing patterns of interactions between birds and flowers for high and low niche overlap, connectance and clustering. The bottom panel shows two hypothezied relationship between available resources, specialization, and trait matching.**
 
-##Figure 2 -
+![ConceptualFigure](C:\Users\Ben\Documents\NetworkTime\Figures\ConceptualFigure.png)
+
+************
+
+**Figure 2. Flower abundance per month for each transect. **
 
 ```{r}
-#Write flower totals
-fl.totals<-read.csv("C:/Users/Ben/Dropbox/Thesis/Maquipucuna_SantaLucia/Results/FlowerTransects/FlowerAvailability.csv",row.names=1)
+#Get flower transect data
+full.fl<-read.csv("C:/Users/Ben/Dropbox/Thesis/Maquipucuna_SantaLucia/Results/FlowerTransects/FlowerTransectClean.csv",row.names=1)
 
+ #month should be capital 
+colnames(full.fl)[colnames(full.fl) %in% "month"]<-"Month"
+
+#group by month and replicate, remove date errors by making a max of 10 flowers, couple times where the gps places it in wrong transect by 1 to 2 meters. 
+flower.month<-group_by(full.fl,Month,Year,Transect_R,Date_F) %>% dplyr::summarise(Flowers=sum(Total_Flowers,na.rm=TRUE))  %>% filter(Flowers>40)
+  
 #Make month abbreviation column, with the right order
-fl.totals$Month.a<-factor(month.abb[fl.totals$Month],month.abb[c(1:12)])
+flower.month$Month.a<-factor(month.abb[flower.month$Month],month.abb[c(1:12)])
 
 #Make year factor column
-fl.totals$Year<-as.factor(fl.totals$Year)
+flower.month$Year<-as.factor(flower.month$Year)
 
 #Flowers at each elevation over time without Karen's data
-ggplot(fl.totals,aes(x=Month.a,log(TotalFlowers),shape=as.factor(Year))) + geom_point(size=3) + theme_bw()  + geom_smooth(aes(group=1)) + ylab("Flowers") + xlab("Month") + facet_wrap(~Elev,scales="free_y")
+ggplot(flower.month,aes(x=Month.a,log(Flowers),shape=as.factor(Year))) + geom_point(size=3) + theme_bw()  + geom_smooth(aes(group=1)) + ylab("Flowers") + xlab("Month") + facet_wrap(~Transect_R,scales="free_y") + labs(shape="Year")
 
 ```
 
+************
 
 ```{r network,fig.height=15}
 #Compute network measures
@@ -115,10 +134,10 @@ ggplot(fl.totals,aes(x=Month.a,log(TotalFlowers),shape=as.factor(Year))) + geom_
 ```
 
 
-#Network measures over time
-###Compare to randomization of the interaction matrix to account for differences in sampling. 
 
-```{r}
+**Figure 3. Measures of hummingbird plant interactions through time (points) as compared to a null model maintaining the number of observations (shaded region).The size of the point is proportional to the number of interactions measured for each month.**
+
+```{r,fig.width=14}
 #Goal to create randomized networks for each month and redo the entire analysis
 
 int<-read.csv(paste(droppath,"Thesis/Maquipucuna_SantaLucia/Results/Network/HummingbirdInteractions.csv",sep=""),row.names=1)
@@ -187,34 +206,33 @@ dat$Date<-as.Date(paste(1,dat$Month,dat$Year,sep="/"),format="%d/%m/%Y")
 
 #plot distribution of  values
 p<-ggplot(dat,aes(x=Date,fill=Metric)) + geom_point(aes(size=N,y=True)) + geom_line(aes(y=True)) 
-p<-p + geom_ribbon(aes(ymin=Lower,ymax=Upper),alpha=.4)+ facet_wrap(~Metric,nrow=2,scales="free") + theme_bw() 
-p<-p+scale_fill_discrete(guide="none") + scale_x_date(breaks="3 months",label=date_format("%m/%y")) + scale_size_continuous(range=c(2.5,5),"Number of Observations")
+p<-p + geom_ribbon(aes(ymin=Lower,ymax=Upper),alpha=.4)+ facet_wrap(~Metric,nrow=1,scales="free") + theme_bw() 
+p<-p+scale_fill_discrete(guide="none") + scale_x_date(breaks="3 months",label=date_format("%m/%y")) + scale_size_continuous(range=c(2.5,5),"Number of Observations") + labs(y="")
 print(p) 
 
 #ggsave("Thesis/Maquipucuna_SantaLucia/Results/NullNetwork.jpeg",dpi=300,height=8,width=8)
 ```
 
-#Specialization, Connectance and Niche Overlap as a function of available resources.
+********
 
-```{r,fig.height=8}
-  full.fl<-read.csv("C:/Users/Ben/Dropbox/Thesis/Maquipucuna_SantaLucia/Results/FlowerTransects/FlowerTransectClean.csv",row.names=1)
+**Figure 4. Connectance, clustering and niche overlap as a function of available resources. Point size is proportional to number of interactions observed that month.**
+
+```{r,fig.height=5,fig.width=12}
+    
+#get average for each month
+flowerMean<-group_by(flower.month,Month,Year,Transect_R) %>% summarize(mFlowers=mean(Flowers,na.rm=TRUE)) %>% group_by(Month,Year) %>% summarize(Flowers=sum(mFlowers,na.rm=TRUE))
   
-  #month should be capital 
-  colnames(full.fl)[colnames(full.fl) %in% "month"]<-"Month"
-  
-  flower.month<-group_by(full.fl,Month,Year) %>% dplyr::summarise(Flowers=sum(Total_Flowers,na.rm=TRUE))
-  
-  #combine the flower totals and network metrics
-  network.fl<-merge(flower.month,dat,by=c("Month","Year"))
+#combine the flower totals and network metrics
+  network.fl<-merge(flowerMean,dat,by=c("Month","Year"))
   
   #Quick visualization 
-  p<-ggplot(network.fl[,],aes(log(Flowers),y=True,shape=as.factor(Year))) + geom_point(aes(size=N)) + facet_wrap(~Metric,scale="free")  + geom_smooth(aes(group=1),method="lm") + theme_bw() + labs(col="Month",shape="Year",size="Interactions") + geom_text(aes(label=month.abb[Month]),hjust=-0.25,size=4) + scale_size_continuous(range=c(2.5,5),"# of Interactions")
+  p<-ggplot(network.fl[,],aes(log(Flowers),y=True,shape=as.factor(Year))) + geom_point(aes(size=N)) + facet_wrap(~Metric,scale="free")  + geom_smooth(aes(group=1),method="lm") + theme_bw() + labs(col="Month",shape="Year",size="Interactions") + geom_text(aes(label=month.abb[Month]),hjust=-0.25,size=3) + scale_size_continuous(range=c(2.5,5),"# of Interactions")
   print(p) 
 ```
 
 ## Trait matching
 
-```{r,fig.width=10,fig.height=7,fig.align='center'}
+```{r,fig.width=9,fig.height=7,fig.align='center'}
 
 #read in flower morphology data, comes from Nectar.R
 fl.morph<-read.csv(paste(droppath,"Thesis/Maquipucuna_SantaLucia/Results/FlowerMorphology.csv",sep=""))
@@ -253,43 +271,33 @@ print(paste("Missing Trait Information:",missingTraits))
 m.datH<-merge(m.datH,fl.morph, by.x="Iplant_Double",by.y="X")
 
 #Drop piercing events, since they don't represent correlation
-
 m.datH<-m.datH[!m.datH$Pierce %in% c("y","Y"),]
+```
 
-#Time Cycles
 
+```{r}
+#Time Cycles in correlation between bills and corollas
 
 #Start by plotting monthly breaks of corolla matching
 
 p<-ggplot(m.datH[!is.na(m.datH$Month),],aes(x=factor(Bill),TotalCorolla,col=Hummingbird)) + geom_point() 
 p<-p + geom_smooth(aes(group=1),method="lm") + facet_wrap(~Month) + theme_bw()
-#ggsave("Thesis/Maquipucuna_SantaLucia/Results/Phenotype/Matching_TimeGroup.svg")
 
 p<-ggplot(m.datH[!is.na(m.datH$Month),],aes(x=Bill,TotalCorolla,col=Month)) + geom_point() 
 p<-p + geom_smooth(aes(group=Month),method="lm") + theme_bw() + scale_color_continuous(low="blue",high="red")
 
-
-#####################################################################
 #Difference Between Corolla and Bill Length of interactions measured
-#####################################################################
-
 m.datH$BD<-m.datH$Bill-m.datH$TotalCorolla
 p<-ggplot(m.datH,aes(y=BD,x=Hummingbird)) + geom_boxplot(position="dodge")
 p<-p + coord_flip()
 
-####################################################################
+#######################################
 #Compared usage to available resources
-####################################################################
-
-full.fl<-read.csv("C:/Users/Ben/Dropbox/Thesis/Maquipucuna_SantaLucia/Results/FlowerTransects/FlowerTransectClean.csv",row.names=1)
-
-#month should be capital 
-colnames(full.fl)[colnames(full.fl) %in% "month"]<-"Month"
-flower.month<-group_by(full.fl,Month,Year) %>% dplyr::summarise(Flowers=sum(Total_Flowers,na.rm=TRUE))
+#######################################
 
 sdat<-split(m.datH,list(m.datH$Month,m.datH$Year))
 
-#atleast 10 observations
+#atleast 30 observations
 sdat<-sdat[sapply(sdat,nrow)>30]
 
 ######Correlation coefficient, which method to use?
@@ -298,7 +306,7 @@ coeff<-rbind_all(lapply(sdat,function(x){
   data.frame(Month=unique(x$Month),Year=as.numeric(as.character(unique(x$Year))),cor=mod.c$estimate,p=mod.c$p.value,N=nrow(x))
 }))
 
-nStats<-merge(flower.month,coeff,by=c("Month","Year"))
+nStats<-merge(flowerMean,coeff,by=c("Month","Year"))
 
 p<-ggplot(data=nStats,aes(x=log(Flowers),y=cor,shape=as.factor(Year))) + geom_point(aes(size=N)) + geom_smooth(method="lm",aes(group=1)) #+ geom_text(size=3.5,vjust=-.5)
 p<-p+ theme_bw()  + labs(y="Cor (Bill~Corolla)",x="Available Resources") + labs(shape="Year")
@@ -306,10 +314,11 @@ p<-p + geom_text(aes(label=month.abb[Month]),size=3.5,vjust=-.5)
 
 
 setwd(gitpath)
+```
 
-##
+```{r,fig.height=8}
+
 #Randomization of correlation
-##
 
 #Define replication function, shuffle corolla length values
 shufflecor<-function(x){
@@ -327,7 +336,7 @@ shufflecor<-function(x){
     data.frame(Month=unique(x$Month),Year=as.numeric(as.character(unique(x$Year))),cor=mod.c$estimate,p=mod.c$p.value)
   }))
   
-  nStats<-merge(flower.month,coeff,by=c("Month","Year"))
+  nStats<-merge(flowerMean,coeff,by=c("Month","Year"))
 }
 
 nullcor<-replicate(10,shufflecor(),simplify = F)
@@ -348,12 +357,13 @@ finaldat<-merge(nullcorq,nStats)
 p<-ggplot(data=finaldat,aes(x=log(Flowers))) 
 p<-p+geom_ribbon(aes(ymin=Lower,ymax=Upper),alpha=0.5)
 p<-p + geom_point(aes(y=cor,shape=as.factor(Year),size=N)) + geom_smooth(method="lm",aes(group=1,y=cor)) 
-p<-p+ theme_bw()  + labs(y="Correlaton between Bill and Corolla Length)",x="Log Available Resources") + labs(shape="Year")
-p<-p + geom_text(aes(y=cor,label=month.abb[Month]),size=3.5,vjust=-.5) + scale_y_continuous(limits=c(-.35,.9),breaks=c(-.3,0,.2,.4,.6,.8))
+p<-p+ theme_bw()  + labs(y="Correlaton between Bill and Corolla Length",x="Log Available Resources",shape="Year",y="")
+
+p<-p + geom_text(aes(y=cor,label=month.abb[Month]),size=3.5,vjust=-.5) + scale_y_continuous(limits=c(-.35,.9),breaks=c(-.3,0,.2,.4,.6,.8)) + scale_size_continuous(range=c(2.5,5))
 print(p)
 ```
 
-#Species level specialization
+#To do: Species level specialization
 
 ```{r}
 specmonth<-function(x){
@@ -371,28 +381,55 @@ sp_total<-dplyr::group_by(full.fl,Iplant_Double,Month,year) %>% filter(Iplant_Do
 
 if(nrow(sp_total)==0){return(NA)}
 
-missing<-colnames(month.interB)[!colnames(month.interB) %in% sp_total$Iplant_Double]
+missp<-colnames(month.interB)[!colnames(month.interB) %in% sp_total$Iplant_Double]
 
-if(length(missing)>0){
-print(paste("Abundance missing for species:",missing))
-return(NA)}
+#get average of the month before and after if missing (pretty rare)
+if(length(missp)>0){
+print(paste("Abundance missing for species:",missp))
+sp_missing<-dplyr::group_by(full.fl,Iplant_Double,Month,year) %>% filter(Iplant_Double %in% fl.present, Month %in% c(monthdata$Month+1,monthdata$Month,monthdata$Month-1) & year %in% monthdata$Year) %>% filter(Iplant_Double %in% missp)%>% summarize(N_Flowers=sum(Total_Flowers,na.rm=T)) %>% group_by(Iplant_Double) %>% summarize(N_Flowers=mean(N_Flowers)) %>% mutate(Month=unique(monthdata$Month))
+sp_total<-rbind_all(list(sp_total,sp_missing))
+}
+
 N_Flowers<-sp_total$N_Flowers
 names(N_Flowers)<-sp_total$Iplant_Double
 
 #order 
-N_Flowers<-N_Flowers[which(names(N_Flowers) == colnames(month.interB))]
-
-spec<-dfun(month.interB,abuns=sample(N_Flowers))
-data.frame(Species=names(spec$dprime),Dprime=spec$dprime,Month=unique(monthdata$Month),Year=unique(monthdata$Year))
-return(spec)
+out<-vector()
+for (g in 1:length(N_Flowers)){
+  ord<-match(names(N_Flowers)[g],colnames(month.interB))
+  out[ord]<-N_Flowers[g]
+  names(out)[ord]<-names(N_Flowers)[g]
 }
-
-specmonth(sdat[[10]])
-#lapply(sdat,specmonth)
+spec<-dfun(month.interB,abuns=sample(N_Flowers))
+toreturn<-data.frame(Species=names(spec$dprime),Dprime=spec$dprime,Month=unique(monthdata$Month),Year=unique(monthdata$Year))
+return(toreturn)
+}
 ```
 
+```{r}
+hlist<-list()
+for(d in 1:length(sdat)){
+  try(hlist[[d]]<-specmonth(sdat[[d]]))
+  }
 
-#Results
+names(hlist)<-names(sdat)
+#remove NA rows for today
+hlist<-hlist[sapply(hlist,length)==4]
+mlist<-melt(hlist,id.vars=c("Month","Year","Species"))
+
+```
+
+```{r,fig.height=9}
+
+ggplot(mlist,aes(x=as.factor(Month),y=value,col=Species,shape=Year)) + facet_wrap(~Species) + geom_point(size=3) + geom_line(aes(group=Species)) + theme_bw()
+
+```
+
+```{r,fig.height=9}
+h2flowers<-merge(mlist,flowerMean)
+
+ggplot(h2flowers,aes(x=log(Flowers),y=value,col=Species,shape=Year)) + facet_wrap(~Species) + geom_point(size=3) + geom_smooth(aes(group=Species),method="glm",family="binomial") + theme_bw()
+```
 
 #Discussion
 
