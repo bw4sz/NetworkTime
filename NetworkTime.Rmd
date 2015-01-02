@@ -300,19 +300,22 @@ sdat<-split(m.datH,list(m.datH$Month,m.datH$Year))
 #atleast 30 observations
 sdat<-sdat[sapply(sdat,nrow)>30]
 
-######Correlation coefficient, which method to use?
+######Correlation coefficient
+#calculate it for all birds, then short and longbilled (30cm)
 coeff<-rbind_all(lapply(sdat,function(x){
-  mod.c<-cor.test(x$Bill,x$TotalCorolla)
-  data.frame(Month=unique(x$Month),Year=as.numeric(as.character(unique(x$Year))),cor=mod.c$estimate,p=mod.c$p.value,N=nrow(x))
+  mod.c<-cor(x$Bill,x$TotalCorolla)
+
+  data.frame(Month=unique(x$Month),Year=as.numeric(as.character(unique(x$Year))),all=mod.c)
 }))
 
-nStats<-merge(flowerMean,coeff,by=c("Month","Year"))
+#observed correlation
+observed<-melt(coeff,measure.vars=c("all"))
 
-p<-ggplot(data=nStats,aes(x=log(Flowers),y=cor,shape=as.factor(Year))) + geom_point(aes(size=N)) + geom_smooth(method="lm",aes(group=1)) #+ geom_text(size=3.5,vjust=-.5)
+#view observed and add date column, just call it the firt of the month for plotting
+observed$Date<-as.Date(paste(observed$Month,1,observed$Year,sep="/"),format="%m/%d/%Y")
+p<-ggplot(data=observed,aes(x=Date,y=value,shape=as.factor(Year),col=variable)) + geom_point() + geom_smooth(aes(group=variable)) 
 p<-p+ theme_bw()  + labs(y="Cor (Bill~Corolla)",x="Available Resources") + labs(shape="Year")
-p<-p + geom_text(aes(label=month.abb[Month]),size=3.5,vjust=-.5)
-
-
+p
 setwd(gitpath)
 ```
 
@@ -323,47 +326,56 @@ setwd(gitpath)
 #Define replication function, shuffle corolla length values
 shufflecor<-function(x){
   #sample draw
-  m.datH$NewCorolla<-sample(m.datH$TotalCorolla,replace=F)
+  x$NewCorolla<-sample(x$TotalCorolla,replace=F)
+  splitdat<-split(x,list(x$Month,x$Year))
   
-  sdat<-split(m.datH,list(m.datH$Month,m.datH$Year))
-  
-  #atleast 10 observations
-  sdat<-sdat[sapply(sdat,nrow)>30]
+  #atleast 20 observations
+  splitdat<-splitdat[sapply(splitdat,nrow)>20]
   
   ######Correlation coefficient, which method to use?
-  coeff<-rbind_all(lapply(sdat,function(x){
-    mod.c<-cor.test(x$Bill,x$NewCorolla)
-    data.frame(Month=unique(x$Month),Year=as.numeric(as.character(unique(x$Year))),cor=mod.c$estimate,p=mod.c$p.value)
-  }))
-  
-  nStats<-merge(flowerMean,coeff,by=c("Month","Year"))
-}
+  coef<-lapply(splitdat,function(y){
+    mc<-cor(y$Bill,y$NewCorolla)
+    
+    out<-data.frame(Month=unique(y$Month),Year=as.numeric(as.character(unique(y$Year))),all=mc)
+    return(out)}
+    )
+  nullc<-rbind_all(coef)
+  return(nullc)
+  }
 
-nullcor<-replicate(10,shufflecor(),simplify = F)
-for(x in 1:length(nullcor)){
-  nullcor[[x]]$Iteration<-x
-}
+nullcor<-replicate(100,shufflecor(m.datH),simplify = F)
+nullcor<-rbind_all(nullcor)
+#bind with resource dataframe
+nullcor<-merge(flowerMean,nullcor,by=c("Month","Year"))
 
 #Bind into one data frame
-nullcor<-rbind_all(nullcor)
+nullcorm<-melt(nullcor,measure.vars=c("all"))
 
 #Get upper and lower quantile of null correlation
-nullcorq<-dplyr::group_by(nullcor,Month,Year) %>% summarize(Flowers=unique(Flowers),Upper=quantile(cor,0.025),Lower=quantile(cor,0.975))
-
+nullcorq<-dplyr::group_by(nullcorm,Month,Year,variable) %>% dplyr::summarize(Flowers=unique(Flowers),Upper=quantile(value,0.025),Lower=quantile(value,0.975))
 
 #merge with original data
-finaldat<-merge(nullcorq,nStats)
+finaldat<-merge(nullcorq,observed)
 
-p<-ggplot(data=finaldat,aes(x=log(Flowers))) 
-p<-p+geom_ribbon(aes(ymin=Lower,ymax=Upper),alpha=0.5)
-p<-p + geom_point(aes(y=cor,shape=as.factor(Year),size=N)) + geom_smooth(method="lm",aes(group=1,y=cor)) 
+#get data size for each month
+
+sizeall<-group_by(m.datH,Month,Year) %>% mutate(Billtype=cut(Bill,breaks=c(0,60),labels=c("all"))) %>% group_by(Month,Year,Billtype) %>% summarize(N=n())
+
+#bind size with observed and null data
+finaldat<-merge(finaldat,sizeall)
+
+p<-ggplot(data=finaldat,aes(x=log(Flowers),fill=variable))
+p<-p+geom_ribbon(aes(ymin=Lower,ymax=Upper),fill="grey20",alpha=.15)
+p<-p + geom_point(aes(y=value,shape=as.factor(Year),size=N)) 
 p<-p+ theme_bw()  + labs(y="Correlaton between Bill and Corolla Length",x="Log Available Resources",shape="Year",y="")
 
-p<-p + geom_text(aes(y=cor,label=month.abb[Month]),size=3.5,vjust=-.5) + scale_y_continuous(limits=c(-.35,.9),breaks=c(-.3,0,.2,.4,.6,.8)) + scale_size_continuous(range=c(2.5,5))
+p<-p + geom_text(aes(y=value,label=month.abb[Month]),size=3.5,vjust=-.5) + scale_y_continuous(breaks=c(-.3,0,.2,.4,.6,.8)) + scale_size_continuous(range=c(2.5,5)) + facet_wrap(~variable) + geom_smooth(aes(y=value),method="lm") + scale_fill_discrete(guide="none")
 print(p)
 ```
 
-#To do: Species level specialization
+#Species specialization
+
+* The working hypothesis is that long billed species tend to feed more on mismatched corolla values during periods of high resource abundance. 
 
 ```{r}
 specmonth<-function(x){
@@ -371,8 +383,7 @@ specmonth<-function(x){
   monthdata<-droplevels(x)
 
 #make interaction matrix
-month.inter<-table(monthdata$Hummingbird,monthdata$Iplant_Double)
-month.interB<-(month.inter>0)*1
+month.interB<-table(monthdata$Hummingbird,monthdata$Iplant_Double)
 
 #What flowers are present
 fl.present<-levels(monthdata$Iplant_Double)
@@ -386,7 +397,7 @@ missp<-colnames(month.interB)[!colnames(month.interB) %in% sp_total$Iplant_Doubl
 #get average of the month before and after if missing (pretty rare)
 if(length(missp)>0){
 print(paste("Abundance missing for species:",missp))
-sp_missing<-dplyr::group_by(full.fl,Iplant_Double,Month,year) %>% filter(Iplant_Double %in% fl.present, Month %in% c(monthdata$Month+1,monthdata$Month,monthdata$Month-1) & year %in% monthdata$Year) %>% filter(Iplant_Double %in% missp)%>% summarize(N_Flowers=sum(Total_Flowers,na.rm=T)) %>% group_by(Iplant_Double) %>% summarize(N_Flowers=mean(N_Flowers)) %>% mutate(Month=unique(monthdata$Month))
+sp_missing<-dplyr::group_by(full.fl,Iplant_Double,Month,year) %>% filter(Iplant_Double %in% fl.present, Month %in% c(monthdata$Month+2,monthdata$Month-2,monthdata$Month+1,monthdata$Month,monthdata$Month-1) & year %in% monthdata$Year) %>% filter(Iplant_Double %in% missp)%>% summarize(N_Flowers=sum(Total_Flowers,na.rm=T)) %>% group_by(Iplant_Double) %>% summarize(N_Flowers=mean(N_Flowers)) %>% mutate(Month=unique(monthdata$Month))
 sp_total<-rbind_all(list(sp_total,sp_missing))
 }
 
@@ -420,15 +431,33 @@ mlist<-melt(hlist,id.vars=c("Month","Year","Species"))
 ```
 
 ```{r,fig.height=9}
+#just keep species with atleast six months of data
+spkeep<-names(which(table(mlist$Species)>=5))
+mlist<-mlist[mlist$Species %in% spkeep,]
+#merge with traits
+mlistt<-merge(mlist,hum.morph[,colnames(hum.morph) %in% c("Mass","Bill","English")],by.x="Species",by.y="English")
 
-ggplot(mlist,aes(x=as.factor(Month),y=value,col=Species,shape=Year)) + facet_wrap(~Species) + geom_point(size=3) + geom_line(aes(group=Species)) + theme_bw()
-
+mlistt$BillT<-cut(mlistt$Bill,c(0,30,70),c("Short","Long"))
 ```
 
 ```{r,fig.height=9}
-h2flowers<-merge(mlist,flowerMean)
+#match the trait and bill data with available flowers
+h2flowers<-merge(mlistt,flowerMean)
 
-ggplot(h2flowers,aes(x=log(Flowers),y=value,col=Species,shape=Year)) + facet_wrap(~Species) + geom_point(size=3) + geom_smooth(aes(group=Species),method="glm",family="binomial") + theme_bw()
+ggplot(h2flowers,aes(x=log(Flowers),y=value,col=BillT,shape=Year)) + facet_wrap(~Species) + geom_point(size=3) + geom_smooth(aes(group=Species),method="glm") + theme_bw()
+
+#match with bill differences
+billmatch<-group_by(m.datH,Hummingbird,Month,Year) %>% summarize(BD=mean(BD,na.rm=T),N=n()) %>% filter(N>3) %>% rename(Species=Hummingbird)
+h2match<-merge(billmatch,h2flowers)
+
+#merge with original network measures
+nm<-dcast(network.fl,Month+Year~Metric,value.var="True")
+h2final<-merge(h2match,nm)
+
+p<-ggplot(h2final,aes(x=connectance,y=BD)) + geom_smooth(method="lm") + geom_point()
+p + theme_bw()
+p 
++ facet_wrap(~Species,scales="free") 
 ```
 
 #Discussion
