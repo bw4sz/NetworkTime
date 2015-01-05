@@ -455,9 +455,8 @@ nm<-dcast(network.fl,Month+Year~Metric,value.var="True")
 h2final<-merge(h2match,nm)
 
 p<-ggplot(h2final,aes(x=connectance,y=BD)) + geom_smooth(method="lm") + geom_point()
-p + theme_bw()
-p 
-+ facet_wrap(~Species,scales="free") 
+p<-p + theme_bw()
+p + facet_wrap(~Species,scales="free") 
 ```
 
 #Discussion
