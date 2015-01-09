@@ -122,7 +122,7 @@ flower.month$Month.a<-factor(month.abb[flower.month$Month],month.abb[c(1:12)])
 flower.month$Year<-as.factor(flower.month$Year)
 
 #Flowers at each elevation over time without Karen's data
-ggplot(flower.month,aes(x=Month.a,log(Flowers),shape=as.factor(Year))) + geom_point(size=3) + theme_bw()  + geom_smooth(aes(group=1)) + ylab("Flowers") + xlab("Month") + facet_wrap(~Transect_R,scales="free_y") + labs(shape="Year")
+ggplot(flower.month,aes(x=Month.a,log(Flowers),shape=as.factor(Year),col=log(Flowers)>9)) + geom_point(size=3) + theme_bw()  + geom_smooth(aes(group=1)) + ylab("Flowers") + xlab("Month") + facet_wrap(~Transect_R,scales="free_y") + labs(shape="Year")
 
 ```
 
@@ -440,23 +440,54 @@ mlistt<-merge(mlist,hum.morph[,colnames(hum.morph) %in% c("Mass","Bill","English
 mlistt$BillT<-cut(mlistt$Bill,c(0,30,70),c("Short","Long"))
 ```
 
+Corolla matching versus all available resources.
+
 ```{r,fig.height=9}
 #match the trait and bill data with available flowers
 h2flowers<-merge(mlistt,flowerMean)
 
-ggplot(h2flowers,aes(x=log(Flowers),y=value,col=BillT,shape=Year)) + facet_wrap(~Species) + geom_point(size=3) + geom_smooth(aes(group=Species),method="glm") + theme_bw()
-
-#match with bill differences
-billmatch<-group_by(m.datH,Hummingbird,Month,Year) %>% summarize(BD=mean(BD,na.rm=T),N=n()) %>% filter(N>3) %>% rename(Species=Hummingbird)
-h2match<-merge(billmatch,h2flowers)
+h2match<-merge(m.datH,h2flowers,by.y=c("Month","Year","Species"),by.x=c("Month","Year","Hummingbird"))
 
 #merge with original network measures
 nm<-dcast(network.fl,Month+Year~Metric,value.var="True")
 h2final<-merge(h2match,nm)
 
-p<-ggplot(h2final,aes(x=connectance,y=BD)) + geom_smooth(method="lm") + geom_point()
+p<-ggplot(h2final[!h2final$Iplant_Double %in% "Fuchsia macrostigma",],aes(x=log(Flowers),y=Bill.x-TotalCorolla,col=BillT)) + geom_smooth(method="lm") + geom_point() + geom_text(aes(label=paste(Species,Iplant_Double)),size=2)
 p<-p + theme_bw()
-p + facet_wrap(~Species,scales="free") 
+p
+```
+
+Corolla matching versus species specific available resources. Why should species care if there are a ton of gasternathus flowers in bloom if they never use that resource? Resource scarcity may be different for each species, not synchronized.
+
+```{r,fig.height=10}
+#for each species get the list of resources.
+keep<-names(which(table(m.datH$Hummingbird) > 30))
+
+hum<-levels(m.datH$Hummingbird)
+hum<-hum[hum %in% keep]
+flowerh<-lapply(hum,function(h){
+  #Find plant species
+  plants<-m.datH %>% filter(Hummingbird==h) %>% select(Iplant_Double) %>% distinct()
+  
+  #Query the transect for availability of these plants
+  full.fl %>% filter(Iplant_Double %in% levels(factor(plants$Iplant_Double))) %>% group_by(Month,Year,Transect_R,Date_F) %>% dplyr::summarise(Flowers=sum(Total_Flowers,na.rm=TRUE))  %>% filter(Flowers>2) %>% mutate(Hummingbird=h) %>% group_by(Month,Year,Transect_R,Hummingbird) %>% summarize(TFlowers=mean(Flowers,na.rm=T)) %>% filter(TFlowers>30)
+  })
+flowerh<-droplevels(rbind_all(flowerh))
+
+#sum by transects
+flowerh<-flowerh %>% group_by(Month,Year,Transect_R,Hummingbird) %>% summarize(TF=mean(TFlowers)) %>% group_by(Month,Year,Hummingbird) %>% summarize(Flowers=sum(TF))
+
+ggplot(flowerh,aes(y=log(Flowers),x=Month,shape=as.factor(Year),fill=Hummingbird),alpha=.1) + geom_smooth(aes(group=Hummingbird)) + geom_point(size=2) + theme_bw() + scale_x_continuous(breaks=1:12,labels=month.abb) + ylab("Available Resources")
+
+idflower<-merge(m.datH,flowerh,by=c("Month","Year","Hummingbird"))
+
+#remove species with less than 5 records
+
+p<-ggplot(idflower,aes(x=Hummingbird,y=(Bill-TotalCorolla) + Bill*.5,fill=log(Flowers)>9)) + geom_boxplot()
+p<-p + theme_bw() + geom_smooth(method="lm") + facet_wrap(~Hummingbird,scales="free")
+p + scale_fill_discrete("Available Resources",labels=c("Low","High"))
+
+
 ```
 
 #Discussion
