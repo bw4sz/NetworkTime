@@ -1,5 +1,5 @@
 ---
-title: "Specialization decreases with increasing resource availability in a tropical plant-pollinator network."
+title: "Niche overlap decreases with increasing resource availability in a tropical plant-pollinator network."
 author: "Ben Weinstein"
 date: "Tuesday, October 14, 2014"
 output:
@@ -39,7 +39,7 @@ opts_chunk$set(message=FALSE,warning=FALSE,fig.width=13,echo=FALSE,cache=TRUE,ca
 
 * In additon, the stability of these interactions depends on their relative specialization and generalization. Generalist interactions are likly to be more robust to climatic changes and maintain ecosystem services. 
 
-* The dominant theory for pollinator specialization posits that selection should promote adaptations for the most effecive pollinator.
+* The dominant theory for pollinator niche breadth posits that selection should promote adaptations for the most effecive pollinator. This assumes that hummingbirds suffer tradeoffs between visiting a variety of plants, that those tradeoffs are manifested in morphological traits, and that those tradeoffs are ever present. 
 
 * However, this hypothesis ignores how a pollinator interactions with the surrounding biotic enviroment.
 
@@ -49,7 +49,7 @@ opts_chunk$set(message=FALSE,warning=FALSE,fig.width=13,echo=FALSE,cache=TRUE,ca
 
     * Liem's paradox.
     
-* In this work we evaluate the effect of resource availability on niche overlap and specialization in Andean Hummingbirds.
+* In this work we evaluate the effect of resource availability on niche overlap in Andean Hummingbirds.
 
 * Nectar is the non-equilibirial resource with niche breadth measured as the diversity of plants visited and specialization the diversity of plants visited versus the number of available plants.
 
@@ -57,14 +57,14 @@ opts_chunk$set(message=FALSE,warning=FALSE,fig.width=13,echo=FALSE,cache=TRUE,ca
 
 * In light of this variation in resource abundance, we test two opposing theories exist for how pollinators should specialize for potential nectar resources. 
 
-###Specialization should decrease as available resources increases
+###Niche Overlap should decrease as available resources increases
 
 * When there are an abundance of available resources, species do not suffer as much cost from competition. The plethora of option leads to decreased specialization as species maximize amount of time feeding and reduced time foraging for their specialized resource.
 The observation that many morphological specialists forage as generalists during periods of high resource availability led to Liem’s Paradox in cichlids. Sloan-Wilson () suggested that the solution to this paradox is that the specialists fall back on private resources in time of low scarcity, which promotes greater morphological specialization.
 
   * MacArthur and Levins 1967, Abrams 1983), and niche partitioning (sensu MacArthur 1958, Pianka 1974, 1976, Schoener 1974) predict that stable coexistence of competing species is achieved through niche differenti- ation that reduces overlap among competitors. Thus, during periods of relative food scarcity, animals are expected to adjust feeding to reduce niche overlap with competitors.
 
-###Specialization should increase as available resources increases
+###Niche Overlap should increase as available resources increases
 * Optimal foraging suggests that as resource availability increases, species should specialize on resources which reduce handling time and increase efficiency. 
 
   * At times of low resource availablity species cannot be choosy, and must forgage on whatever plants are available. 
@@ -73,7 +73,7 @@ The observation that many morphological specialists forage as generalists during
 
 * We divide the plant-pollinator assemblage into temporal partitions to evaluate how co-occuring plants and pollinators partition resource space.
 
-####Trait-Matching and Specialization
+####Trait-Matching and Niche Overlap
 
 The above hypothesis predict a pattern of specialization and resources, but provide no direct mechanism by which species choose which resource for specialization. It has been repeated suggested that hummingbird foodplant specialization is mediated through bill-corolla phenotype matching. We therefore expect that as specialization increase, the strength of phenotypic matching should decrease. When given a choice, species should pick the flowers which reduce competition and closely match their bill morphology.
 
@@ -90,11 +90,6 @@ The above hypothesis predict a pattern of specialization and resources, but prov
 * Network Analysis
     * Why was each measure chosen?
 * Null models
-
-#Results
-* How many plant records?
-* How many bird records?
-* How many interactions?
 
 ************
 **Figure 1. Conceptual figure showing patterns of interactions between birds and flowers for high and low niche overlap, connectance and clustering. The bottom panel shows two hypothezied relationship between available resources, specialization, and trait matching.**
@@ -230,7 +225,15 @@ flowerMean<-group_by(flower.month,Month,Year,Transect_R) %>% summarize(mFlowers=
   print(p) 
 ```
 
-## Trait matching
+## Figure 5. Trait matching
+
+I'm not sure which of the following figures best show what i believe is happenning. The essential idea is:
+
+* Hummingbirds in general match the corolla resources based on their bill length.
+
+* This relationship changes over time
+
+* During periods of high resource availability, trait matching is decreased. This is most pronounced in long billed species.
 
 ```{r,fig.width=9,fig.height=7,fig.align='center'}
 
@@ -274,20 +277,23 @@ m.datH<-merge(m.datH,fl.morph, by.x="Iplant_Double",by.y="X")
 m.datH<-m.datH[!m.datH$Pierce %in% c("y","Y"),]
 ```
 
+###Potential Figure
+
+The correlation coefficient among bill and corolla lengths decreases as a function of available resources. The gray ribbon is a null randomization of the correlation structure for each month.
 
 ```{r}
 #Time Cycles in correlation between bills and corollas
 
 #Start by plotting monthly breaks of corolla matching
 
-p<-ggplot(m.datH[!is.na(m.datH$Month),],aes(x=factor(Bill),TotalCorolla,col=Hummingbird)) + geom_point() 
+p<-ggplot(m.datH[!is.na(m.datH$Month),],aes(x=factor(Total_Culmen),TotalCorolla,col=Hummingbird)) + geom_point() 
 p<-p + geom_smooth(aes(group=1),method="lm") + facet_wrap(~Month) + theme_bw()
 
-p<-ggplot(m.datH[!is.na(m.datH$Month),],aes(x=Bill,TotalCorolla,col=Month)) + geom_point() 
+p<-ggplot(m.datH[!is.na(m.datH$Month),],aes(x=Total_Culmen,TotalCorolla,col=Month)) + geom_point() 
 p<-p + geom_smooth(aes(group=Month),method="lm") + theme_bw() + scale_color_continuous(low="blue",high="red")
 
 #Difference Between Corolla and Bill Length of interactions measured
-m.datH$BD<-m.datH$Bill-m.datH$TotalCorolla
+m.datH$BD<-m.datH$Total_Culmen-m.datH$TotalCorolla
 p<-ggplot(m.datH,aes(y=BD,x=Hummingbird)) + geom_boxplot(position="dodge")
 p<-p + coord_flip()
 
@@ -303,7 +309,7 @@ sdat<-sdat[sapply(sdat,nrow)>30]
 ######Correlation coefficient
 #calculate it for all birds, then short and longbilled (30cm)
 coeff<-rbind_all(lapply(sdat,function(x){
-  mod.c<-cor(x$Bill,x$TotalCorolla)
+  mod.c<-cor(x$Total_Culmen,x$TotalCorolla)
 
   data.frame(Month=unique(x$Month),Year=as.numeric(as.character(unique(x$Year))),all=mod.c)
 }))
@@ -334,7 +340,7 @@ shufflecor<-function(x){
   
   ######Correlation coefficient, which method to use?
   coef<-lapply(splitdat,function(y){
-    mc<-cor(y$Bill,y$NewCorolla)
+    mc<-cor(y$Total_Culmen,y$NewCorolla)
     
     out<-data.frame(Month=unique(y$Month),Year=as.numeric(as.character(unique(y$Year))),all=mc)
     return(out)}
@@ -359,7 +365,7 @@ finaldat<-merge(nullcorq,observed)
 
 #get data size for each month
 
-sizeall<-group_by(m.datH,Month,Year) %>% mutate(Billtype=cut(Bill,breaks=c(0,60),labels=c("all"))) %>% group_by(Month,Year,Billtype) %>% summarize(N=n())
+sizeall<-group_by(m.datH,Month,Year) %>% mutate(Billtype=cut(Total_Culmen,breaks=c(0,60),labels=c("all"))) %>% group_by(Month,Year,Billtype) %>% summarize(N=n())
 
 #bind size with observed and null data
 finaldat<-merge(finaldat,sizeall)
@@ -372,8 +378,6 @@ p<-p+ theme_bw()  + labs(y="Correlaton between Bill and Corolla Length",x="Log A
 p<-p + geom_text(aes(y=value,label=month.abb[Month]),size=3.5,vjust=-.5) + scale_y_continuous(breaks=c(-.3,0,.2,.4,.6,.8)) + scale_size_continuous(range=c(2.5,5)) + facet_wrap(~variable) + geom_smooth(aes(y=value),method="lm") + scale_fill_discrete(guide="none")
 print(p)
 ```
-
-#Species specialization
 
 * The working hypothesis is that long billed species tend to feed more on mismatched corolla values during periods of high resource abundance. 
 
@@ -435,9 +439,9 @@ mlist<-melt(hlist,id.vars=c("Month","Year","Species"))
 spkeep<-names(which(table(mlist$Species)>=5))
 mlist<-mlist[mlist$Species %in% spkeep,]
 #merge with traits
-mlistt<-merge(mlist,hum.morph[,colnames(hum.morph) %in% c("Mass","Bill","English")],by.x="Species",by.y="English")
+mlistt<-merge(mlist,hum.morph[,colnames(hum.morph) %in% c("Mass","Total_Culmen","English")],by.x="Species",by.y="English")
 
-mlistt$BillT<-cut(mlistt$Bill,c(0,30,70),c("Short","Long"))
+mlistt$BillT<-cut(mlistt$Total_Culmen,c(0,30,70),c("Short","Long"))
 ```
 
 Corolla matching versus all available resources.
@@ -452,7 +456,7 @@ h2match<-merge(m.datH,h2flowers,by.y=c("Month","Year","Species"),by.x=c("Month",
 nm<-dcast(network.fl,Month+Year~Metric,value.var="True")
 h2final<-merge(h2match,nm)
 
-p<-ggplot(h2final[!h2final$Iplant_Double %in% "Fuchsia macrostigma",],aes(x=log(Flowers),y=Bill.x-TotalCorolla,col=BillT)) + geom_smooth(method="lm") + geom_point() + geom_text(aes(label=paste(Species,Iplant_Double)),size=2)
+p<-ggplot(h2final[!h2final$Iplant_Double %in% "Fuchsia macrostigma",],aes(x=log(Flowers),y=Total_Culmen.x-TotalCorolla,col=BillT)) + geom_smooth(method="lm") + geom_point() + geom_text(aes(label=paste(Species,Iplant_Double)),size=2)
 p<-p + theme_bw()
 p
 ```
@@ -470,7 +474,7 @@ flowerh<-lapply(hum,function(h){
   plants<-m.datH %>% filter(Hummingbird==h) %>% select(Iplant_Double) %>% distinct()
   
   #Query the transect for availability of these plants
-  full.fl %>% filter(Iplant_Double %in% levels(factor(plants$Iplant_Double))) %>% group_by(Month,Year,Transect_R,Date_F) %>% dplyr::summarise(Flowers=sum(Total_Flowers,na.rm=TRUE))  %>% filter(Flowers>2) %>% mutate(Hummingbird=h) %>% group_by(Month,Year,Transect_R,Hummingbird) %>% summarize(TFlowers=mean(Flowers,na.rm=T)) %>% filter(TFlowers>30)
+  full.fl %>% filter(Iplant_Double %in% levels(factor(plants$Iplant_Double))) %>% group_by(Month,Year,Transect_R,Date_F) %>% dplyr::summarise(Flowers=sum(Total_Flowers,na.rm=TRUE))  %>% filter(Flowers>2) %>% mutate(Hummingbird=h) %>% group_by(Month,Year,Transect_R,Hummingbird) %>% summarize(TFlowers=mean(Flowers,na.rm=T)) %>% filter(TFlowers>10)
   })
 flowerh<-droplevels(rbind_all(flowerh))
 
@@ -481,14 +485,26 @@ ggplot(flowerh,aes(y=log(Flowers),x=Month,shape=as.factor(Year),fill=Hummingbird
 
 idflower<-merge(m.datH,flowerh,by=c("Month","Year","Hummingbird"))
 
-#remove species with less than 5 records
+#Get the 75% quantile for each species
+th<-idflower %>% group_by(Hummingbird) %>% summarize(Threshold=quantile(log(Flowers),0.5))
 
-p<-ggplot(idflower,aes(x=Hummingbird,y=(Bill-TotalCorolla) + Bill*.5,fill=log(Flowers)>9)) + geom_boxplot()
-p<-p + theme_bw() + geom_smooth(method="lm") + facet_wrap(~Hummingbird,scales="free")
-p + scale_fill_discrete("Available Resources",labels=c("Low","High"))
+idflower<-merge(idflower,th)
+idflower$HL<-log(idflower$Flowers) > idflower$Threshold
 
+#reorder species levels
+ord<-idflower %>% group_by(Hummingbird) %>% summarize(BL=unique(Total_Culmen)) %>% arrange(BL)
+idflower$Hummingbird <- factor(idflower$Hummingbird,levels=ord$Hummingbird)
+
+p<-ggplot(idflower,aes(y=Total_Culmen-TotalCorolla,x=HL,fill=Total_Culmen>30)) + geom_boxplot()
+p<-p + theme_bw() + facet_wrap(~Hummingbird,scales="free")
+p + scale_x_discrete("Available Resources",labels=c("Low","High")) + scale_fill_discrete("Bill Length",labels=c("Short","Long"))
 
 ```
+
+#Results
+* How many plant records?
+* How many bird records?
+* How many interactions?
 
 #Discussion
 
@@ -500,5 +516,6 @@ p + scale_fill_discrete("Available Resources",labels=c("Low","High"))
 * Trait packing, coexsitance and tropical specialization
   * This niche partitioning mechanism is central to many explanations of the latitudinal gradient in species diversity, i.e that greater resources lead to finer subdivision of niche space, and promotes reproductive isolation. 
   
+* In this paper we have avoided abundance weighted measures of specialization (see Schluening and Bluthgen) due to the ongoing confusion in this literature. Specialization seems often defined as the fidelity of interactions with respect the abundance of the partners. Quantatitive approachs to network specialization (see H2') only consider 
   * Dalsgaard, B., Magård, E., Fjeldså, J., Martín González, A. M., Rahbek, C., Olesen, J. M., … Svenning, J.-C. (2011). Specialization in plant-hummingbird networks is associated with species richness, contemporary precipitation and quaternary climate-change velocity. PloS One, 6(10), e25891. doi:10.1371/journal.pone.0025891
     * Historical effect on specialization.
