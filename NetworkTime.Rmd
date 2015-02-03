@@ -1,10 +1,12 @@
 ---
-title: "Niche overlap decreases with increasing resource availability in a tropical plant-pollinator network."
+title: Niche overlap decreases with increasing resource availability in a tropical
+  plant-pollinator network.
 author: "Ben Weinstein"
 date: "Tuesday, October 14, 2014"
 output:
   html_document:
     theme: spacelab
+  word_document: default
 ---
 
 ```{r,echo=FALSE,warning=FALSE,message=FALSE}
@@ -33,63 +35,69 @@ opts_chunk$set(message=FALSE,warning=FALSE,fig.width=13,echo=FALSE,cache=TRUE,ca
 
 #Introduction
 
-* Species mutualisms are under growing threat from climate change. 
+* Changing climates will alter ecological communities by reshaping the timing of species interactions. These interactions include pollination ecosystem services that depend on the synchrony of plant flowering and animal pollinators in space and time (Schleuning et al. 2014). 
 
-* The tightness and fidelity of these interactions are shaped by evolutionary forces promoting specialization and generalization.
+*	The tightness and fidelity of these interactions are shaped by evolutionary forces promoting specialization and generalization (Vázquez et al. 2009).
+  
+  * Generalist interactions are likely to be more robust to climatic changes and maintain ecosystem services (Lever et al. 2014).
 
-* In additon, the stability of these interactions depends on their relative specialization and generalization. Generalist interactions are likly to be more robust to climatic changes and maintain ecosystem services. 
+*The dominant theory for pollinator niche breadth posits that selection should promote adaptations for the most effective pollinator (Stebbins 19XX). 
 
-* The dominant theory for pollinator niche breadth posits that selection should promote adaptations for the most effecive pollinator. This assumes that hummingbirds suffer tradeoffs between visiting a variety of plants, that those tradeoffs are manifested in morphological traits, and that those tradeoffs are ever present. 
+*	In hummingbirds tradeoffs are manifested in morphological traits, where tend to forage on corollas that match their bill length (Stiles et al. 1978; Vizentin-bugoni et al. 2014). Mismatches in bill morphology reduce foraging efficiency, creating a tradeoff between specialized morphology and niche breadth (Maglianesi et al. 2014). 
 
-* However, this hypothesis ignores how a pollinator interactions with the surrounding biotic enviroment.
-
-* In nature, biotic interactions occur against a shifting background of resource availability.
+*	However, this hypothesis ignores how a pollinator interacts with the surrounding biotic environment and assumes that fitness costs based on morphological tradeoffs are constant throughout the year (Thomson 2003).
+  
+  *	In nature, biotic interactions occur against a shifting background of resource availability (Petanidou et al. 2008). In the tropical cloud forest, flower availability changes drastically throughout the year (Stiles 1975).
 
 * In addition many specialist show temporal change in feeding behavior.
+  *This is well known in cichlid fishes, where the cranial morphology suggest highly specialized behavior, but observation often show wide niche breadth. Wilson (1998) suggested that the cichlid undermine the assumption of tradeoffs in foraging efficiency where the presence of abundant easy to use resources come at no cost for morphological specialization.
 
-    * Liem's paradox.
-    
-* In this work we evaluate the effect of resource availability on niche overlap in Andean Hummingbirds.
-
-* Nectar is the non-equilibirial resource with niche breadth measured as the diversity of plants visited and specialization the diversity of plants visited versus the number of available plants.
-
-* Nectar availability changes drastically thoughout the year (Jun-Oct high availability)
-
-* In light of this variation in resource abundance, we test two opposing theories exist for how pollinators should specialize for potential nectar resources. 
-
-###Niche Overlap should decrease as available resources increases
-
-* When there are an abundance of available resources, species do not suffer as much cost from competition. The plethora of option leads to decreased specialization as species maximize amount of time feeding and reduced time foraging for their specialized resource.
-The observation that many morphological specialists forage as generalists during periods of high resource availability led to Liem’s Paradox in cichlids. Sloan-Wilson () suggested that the solution to this paradox is that the specialists fall back on private resources in time of low scarcity, which promotes greater morphological specialization.
-
-  * MacArthur and Levins 1967, Abrams 1983), and niche partitioning (sensu MacArthur 1958, Pianka 1974, 1976, Schoener 1974) predict that stable coexistence of competing species is achieved through niche differenti- ation that reduces overlap among competitors. Thus, during periods of relative food scarcity, animals are expected to adjust feeding to reduce niche overlap with competitors.
-
-###Niche Overlap should increase as available resources increases
-* Optimal foraging suggests that as resource availability increases, species should specialize on resources which reduce handling time and increase efficiency. 
-
-  * At times of low resource availablity species cannot be choosy, and must forgage on whatever plants are available. 
+*	In this work we evaluate two hypothesis for hummingbird foraging behavior based on optimal foraging theory and competition theory. 
   
-  * Species should prefer to partition resource space when possible, as to reduced competition among species. 
+  *In our study nectar is the non-equilibirial resource with niche breadth measured as the diversity of plants visited and specialization the diversity of plants visited versus the number of available plants.
 
-* We divide the plant-pollinator assemblage into temporal partitions to evaluate how co-occuring plants and pollinators partition resource space.
+* In light of this variation in resource abundance, we test two opposing theories exist for how pollinators should choose potential nectar resources.
 
-####Trait-Matching and Niche Overlap
+##Niche Overlap should increase as available resources increases (‘Optimal Foraging’)
 
-The above hypothesis predict a pattern of specialization and resources, but provide no direct mechanism by which species choose which resource for specialization. It has been repeated suggested that hummingbird foodplant specialization is mediated through bill-corolla phenotype matching. We therefore expect that as specialization increase, the strength of phenotypic matching should decrease. When given a choice, species should pick the flowers which reduce competition and closely match their bill morphology.
+* When there are an abundance of available resources, species do not suffer energy loss from exploitative competition. Local patches are resource rich and difficult to exhaust before nectar replenishes. Species reduce time spent between patches as they minimize foraging for their specialized resource and choose more general resources.
 
-####Hummingbird network ecology
+##Niche Overlap should decrease as available resources increases (‘Competition’)
+* Stable coexistence of competing species is achieved through niche differentiation that reduces overlap among competitors. During periods of relative food scarcity, animals are expected to adjust feeding to reduce niche overlap with competitors.
 
-* Previous work
-  * Maglianesi, M., Blüthgen, N., Böhning-Gaese, K., & Schleuning, M. (2014). Morphological traits determine specialization and resource use in plant-hummingbird networks in the Neotropics. Ecology, In press.
-  * Vizentin-bugoni, J., Maruyama, P. K., & Sazima, M. (2014). Processes entangling interactions in communities: forbidden links are more important than abundance in a hummingbird–plant network. Proceedings of the Royal Society B: Biological Sciences, 281.
+  * MacArthur and Levins 1967, Abrams 1983), and niche partitioning (sensu MacArthur 1958, Pianka 1974, 1976, Schoener 1974) 
+
+*	At times of low resource availability species cannot be choosy, and must forage on whatever plants are available. When resource availability is high, species could reduce interspecific competition by eliminating potential competitors. 
+
+##Trait-Matching and Niche Overlap
+The above hypothesis predict a pattern of niche overlap and resources, but provide no direct mechanism by which species choose resources. It has been repeated suggested that hummingbird foodplant specialization is mediated through bill-corolla phenotype matching (Feinsinger and Colwell 1978). We therefore expect that as specialization increase, the strength of phenotypic matching should decrease. When given a choice, species should pick the flowers which reduce competition and closely match their bill morphology.
 
 #Methods
+###	Data Collection
+  
+  *Data were collected at the Maquipucuna Research Station and Santa Lucia Ecolodge, Ecuador (0.118 S,-78.612 W) between June and August 2013 along an elevation gradient from 1300 m to 2500 m. The area contains regenerating secondary and primary cloud-forest, and has a warmer dry season from June to September (Webster and Rhodes 2005).
+  
+  * To measure available resources, we counted the number of hummingbird pollinated plants within 5 m of pre-established trails along six 1 km transects. Each transect covered approximately 200 m of elevation change. For each plant, we estimated the number of total flowers by taking the average number of flowers on 3-5 stalks and multiplying this value by the total number of stalks on a plant. Surveys were repeated two times a month. All hummingbirds visiting flowers were noted during these transects and tagged with a GPS point. 
 
-* Transects
-* Cameras
-* Network Analysis
-    * Why was each measure chosen?
-* Null models
+* In addition, we used time-lapse cameras to monitor hummingbird visitation. Flowers in bloom were noted during each transect, and cameras were placed 1-3 meters from focal flowers. Cameras turned on automatically at dawn and recorded an image every second for at least two days. 
+
+*We used the computer vision program MotionMeerkat to identify images where hummingbirds were observed (Weinstein 2014).
+
+##Network Analysis
+
+###Measures of niche overlap
+
+*Niche Overlap
+
+*Connectance
+
+*Clustering
+  *	Why was each measure chosen?
+
+*	Null models
+  *	To address sampling constraints (Blüthgen 2010)
+  * Randomization Methods
+
 
 ************
 **Figure 1. Conceptual figure showing patterns of interactions between birds and flowers for high and low niche overlap, connectance and clustering. The bottom panel shows two hypothezied relationship between available resources, specialization, and trait matching.**
@@ -108,7 +116,7 @@ full.fl<-read.csv("C:/Users/Ben/Dropbox/Thesis/Maquipucuna_SantaLucia/Results/Fl
 colnames(full.fl)[colnames(full.fl) %in% "month"]<-"Month"
 
 #group by month and replicate, remove date errors by making a max of 10 flowers, couple times where the gps places it in wrong transect by 1 to 2 meters. 
-flower.month<-group_by(full.fl,Month,Year,Transect_R,Date_F) %>% dplyr::summarise(Flowers=sum(Total_Flowers,na.rm=TRUE))  %>% filter(Flowers>40)
+flower.month<-group_by(full.fl,Month,Year,Transect_R,Date_F) %>% dplyr::summarise(Flowers=sum(Total_Flowers,na.rm=TRUE))  %>% filter(Flowers>50)
   
 #Make month abbreviation column, with the right order
 flower.month$Month.a<-factor(month.abb[flower.month$Month],month.abb[c(1:12)])
@@ -117,8 +125,8 @@ flower.month$Month.a<-factor(month.abb[flower.month$Month],month.abb[c(1:12)])
 flower.month$Year<-as.factor(flower.month$Year)
 
 #Flowers at each elevation over time without Karen's data
-ggplot(flower.month,aes(x=Month.a,log(Flowers),shape=as.factor(Year),col=log(Flowers)>9)) + geom_point(size=3) + theme_bw()  + geom_smooth(aes(group=1)) + ylab("Flowers") + xlab("Month") + facet_wrap(~Transect_R,scales="free_y") + labs(shape="Year")
-
+ggplot(flower.month,aes(x=Month.a,log(Flowers),shape=as.factor(Year))) + geom_point(size=3) + theme_bw()  + geom_smooth(aes(group=1)) + ylab("Flowers") + xlab("Month") + facet_wrap(~Transect_R,scales="free_y") + labs(shape="Year", y= "Log Available Flowers") + scale_x_discrete(breaks=month.abb[seq(1,12,2)])
+ggsave("Figures/AvailableFlowers.jpg",dpi=600,units="in",width=11,height=7)
 ```
 
 ************
@@ -202,10 +210,10 @@ dat$Date<-as.Date(paste(1,dat$Month,dat$Year,sep="/"),format="%d/%m/%Y")
 #plot distribution of  values
 p<-ggplot(dat,aes(x=Date,fill=Metric)) + geom_point(aes(size=N,y=True)) + geom_line(aes(y=True)) 
 p<-p + geom_ribbon(aes(ymin=Lower,ymax=Upper),alpha=.4)+ facet_wrap(~Metric,nrow=1,scales="free") + theme_bw() 
-p<-p+scale_fill_discrete(guide="none") + scale_x_date(breaks="3 months",label=date_format("%m/%y")) + scale_size_continuous(range=c(2.5,5),"Number of Observations") + labs(y="")
+p<-p+scale_fill_discrete(guide="none") + scale_x_date(breaks="3 months",label=date_format("%m/%y")) + scale_size_continuous(range=c(2.5,5),"Observations") + labs(y="")
 print(p) 
 
-#ggsave("Thesis/Maquipucuna_SantaLucia/Results/NullNetwork.jpeg",dpi=300,height=8,width=8)
+ggsave("Figures/NullNetwork.jpg",dpi=600,quality=100,pointsize=14,height=4.5,width=12)
 ```
 
 ********
@@ -221,8 +229,9 @@ flowerMean<-group_by(flower.month,Month,Year,Transect_R) %>% summarize(mFlowers=
   network.fl<-merge(flowerMean,dat,by=c("Month","Year"))
   
   #Quick visualization 
-  p<-ggplot(network.fl[,],aes(log(Flowers),y=True,shape=as.factor(Year))) + geom_point(aes(size=N)) + facet_wrap(~Metric,scale="free")  + geom_smooth(aes(group=1),method="lm") + theme_bw() + labs(col="Month",shape="Year",size="Interactions") + geom_text(aes(label=month.abb[Month]),hjust=-0.25,size=3) + scale_size_continuous(range=c(2.5,5),"# of Interactions")
+  p<-ggplot(network.fl[,],aes(log(Flowers),y=True,shape=as.factor(Year))) + geom_point(aes(size=N)) + facet_wrap(~Metric,scale="free")  + geom_smooth(aes(group=1),method="lm") + theme_bw() + labs(col="Month",shape="Year",size="Interactions") + geom_text(aes(label=month.abb[Month]),hjust=-0.25,size=3) + scale_size_continuous(range=c(2.5,5),"Observations") + labs(x="Log Available Resources") + ylab("Score")
   print(p) 
+ggsave("Figures/Network_Resources.jpg",height=4,width=10,dpi=300,units="in")
 ```
 
 ## Figure 5. Trait matching
@@ -319,9 +328,10 @@ observed<-melt(coeff,measure.vars=c("all"))
 
 #view observed and add date column, just call it the firt of the month for plotting
 observed$Date<-as.Date(paste(observed$Month,1,observed$Year,sep="/"),format="%m/%d/%Y")
-p<-ggplot(data=observed,aes(x=Date,y=value,shape=as.factor(Year),col=variable)) + geom_point() + geom_smooth(aes(group=variable)) 
-p<-p+ theme_bw()  + labs(y="Cor (Bill~Corolla)",x="Available Resources") + labs(shape="Year")
+p<-ggplot(data=observed,aes(x=Date,y=value)) + geom_point() + geom_smooth(aes(group=variable)) 
+p<-p+ theme_bw()  + labs(y="Correlation between Bill and Corolla Length",x="Available Resources") + labs(shape="Year")
 p
+ggsave("Figures/CorrelationTime.jpg",height=5,width=8,units="in",dpi=600)
 setwd(gitpath)
 ```
 
@@ -372,11 +382,12 @@ finaldat<-merge(finaldat,sizeall)
 
 p<-ggplot(data=finaldat,aes(x=log(Flowers),fill=variable))
 p<-p+geom_ribbon(aes(ymin=Lower,ymax=Upper),fill="grey20",alpha=.15)
-p<-p + geom_point(aes(y=value,shape=as.factor(Year),size=N)) 
+p<-p 
 p<-p+ theme_bw()  + labs(y="Correlaton between Bill and Corolla Length",x="Log Available Resources",shape="Year",y="")
 
-p<-p + geom_text(aes(y=value,label=month.abb[Month]),size=3.5,vjust=-.5) + scale_y_continuous(breaks=c(-.3,0,.2,.4,.6,.8)) + scale_size_continuous(range=c(2.5,5)) + facet_wrap(~variable) + geom_smooth(aes(y=value),method="lm") + scale_fill_discrete(guide="none")
+p<-p + scale_y_continuous(breaks=c(-.3,0,.2,.4,.6,.8)) + scale_size_continuous(range=c(2.5,5)) + scale_fill_discrete(guide="none") + geom_smooth(aes(y=value),method="lm",fill="grey60",alpha=.8)  + labs(size="Observations") + geom_point(aes(y=value,shape=as.factor(Year),size=N)) + geom_text(aes(y=value,label=month.abb[Month]),size=3.5,vjust=-.5)
 print(p)
+ggsave("Figures/TraitMatching_Resource.jpg",height=6,width=8,units="in",dpi=600)
 ```
 
 * The working hypothesis is that long billed species tend to feed more on mismatched corolla values during periods of high resource abundance. 
@@ -458,7 +469,7 @@ h2final<-merge(h2match,nm)
 
 p<-ggplot(h2final[!h2final$Iplant_Double %in% "Fuchsia macrostigma",],aes(x=log(Flowers),y=Total_Culmen.x-TotalCorolla,col=BillT)) + geom_smooth(method="lm") + geom_point() + geom_text(aes(label=paste(Species,Iplant_Double)),size=2)
 p<-p + theme_bw()
-p
+
 ```
 
 Corolla matching versus species specific available resources. Why should species care if there are a ton of gasternathus flowers in bloom if they never use that resource? Resource scarcity may be different for each species, not synchronized.
