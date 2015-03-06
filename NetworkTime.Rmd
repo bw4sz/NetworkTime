@@ -1,5 +1,5 @@
 ---
-title: Niche overlap decreases with increasing resource availability in a tropical
+title: Niche overlap increases with increasing resource availability in a tropical
   plant-pollinator network.
 author: "Ben Weinstein"
 date: "Tuesday, October 14, 2014"
@@ -33,57 +33,12 @@ setwd(gitpath)
 opts_chunk$set(message=FALSE,warning=FALSE,fig.width=13,echo=FALSE,cache=TRUE,cache.path = 'NetworkTime_cache/', fig.path='figure/')
 ```
 
-#Introduction
+#Exploratory Network Analysis
 
-* Changing climates will alter ecological communities by reshaping the timing of species interactions. These interactions include pollination ecosystem services that depend on the synchrony of plant flowering and animal pollinators in space and time (Schleuning et al. 2014). 
-
-*	The tightness and fidelity of these interactions are shaped by evolutionary forces promoting specialization and generalization (Vázquez et al. 2009).
-  
-  * Generalist interactions are likely to be more robust to climatic changes and maintain ecosystem services (Lever et al. 2014).
-
-*The dominant theory for pollinator niche breadth posits that selection should promote adaptations for the most effective pollinator (Stebbins 19XX). 
-
-*	In hummingbirds tradeoffs are manifested in morphological traits, where tend to forage on corollas that match their bill length (Stiles et al. 1978; Vizentin-bugoni et al. 2014). Mismatches in bill morphology reduce foraging efficiency, creating a tradeoff between specialized morphology and niche breadth (Maglianesi et al. 2014). 
-
-*	However, this hypothesis ignores how a pollinator interacts with the surrounding biotic environment and assumes that fitness costs based on morphological tradeoffs are constant throughout the year (Thomson 2003).
-  
-  *	In nature, biotic interactions occur against a shifting background of resource availability (Petanidou et al. 2008). In the tropical cloud forest, flower availability changes drastically throughout the year (Stiles 1975).
-
-* In addition many specialist show temporal change in feeding behavior.
-  *This is well known in cichlid fishes, where the cranial morphology suggest highly specialized behavior, but observation often show wide niche breadth. Wilson (1998) suggested that the cichlid undermine the assumption of tradeoffs in foraging efficiency where the presence of abundant easy to use resources come at no cost for morphological specialization.
-
-*	In this work we evaluate two hypothesis for hummingbird foraging behavior based on optimal foraging theory and competition theory. 
-  
-  *In our study nectar is the non-equilibirial resource with niche breadth measured as the diversity of plants visited and specialization the diversity of plants visited versus the number of available plants.
-
-* In light of this variation in resource abundance, we test two opposing theories exist for how pollinators should choose potential nectar resources.
-
-##Niche Overlap should increase as available resources increases (‘Optimal Foraging’)
-
-* When there are an abundance of available resources, species do not suffer energy loss from exploitative competition. Local patches are resource rich and difficult to exhaust before nectar replenishes. Species reduce time spent between patches as they minimize foraging for their specialized resource and choose more general resources.
-
-##Niche Overlap should decrease as available resources increases (‘Competition’)
-* Stable coexistence of competing species is achieved through niche differentiation that reduces overlap among competitors. During periods of relative food scarcity, animals are expected to adjust feeding to reduce niche overlap with competitors.
-
-  * MacArthur and Levins 1967, Abrams 1983), and niche partitioning (sensu MacArthur 1958, Pianka 1974, 1976, Schoener 1974) 
-
-*	At times of low resource availability species cannot be choosy, and must forage on whatever plants are available. When resource availability is high, species could reduce interspecific competition by eliminating potential competitors. 
-
-##Trait-Matching and Niche Overlap
-The above hypothesis predict a pattern of niche overlap and resources, but provide no direct mechanism by which species choose resources. It has been repeated suggested that hummingbird foodplant specialization is mediated through bill-corolla phenotype matching (Feinsinger and Colwell 1978). We therefore expect that as specialization increase, the strength of phenotypic matching should decrease. When given a choice, species should pick the flowers which reduce competition and closely match their bill morphology.
-
-#Methods
-###	Data Collection
-  
-  *Data were collected at the Maquipucuna Research Station and Santa Lucia Ecolodge, Ecuador (0.118 S,-78.612 W) between June and August 2013 along an elevation gradient from 1300 m to 2500 m. The area contains regenerating secondary and primary cloud-forest, and has a warmer dry season from June to September (Webster and Rhodes 2005).
-  
-  * To measure available resources, we counted the number of hummingbird pollinated plants within 5 m of pre-established trails along six 1 km transects. Each transect covered approximately 200 m of elevation change. For each plant, we estimated the number of total flowers by taking the average number of flowers on 3-5 stalks and multiplying this value by the total number of stalks on a plant. Surveys were repeated two times a month. All hummingbirds visiting flowers were noted during these transects and tagged with a GPS point. 
-
-* In addition, we used time-lapse cameras to monitor hummingbird visitation. Flowers in bloom were noted during each transect, and cameras were placed 1-3 meters from focal flowers. Cameras turned on automatically at dawn and recorded an image every second for at least two days. 
-
-*We used the computer vision program MotionMeerkat to identify images where hummingbirds were observed (Weinstein 2014).
-
-##Network Analysis
+```{r}
+#Exploratory analysis
+source("Network.R")
+```
 
 ###Measures of niche overlap
 
@@ -98,7 +53,6 @@ The above hypothesis predict a pattern of niche overlap and resources, but provi
   *	To address sampling constraints (Blüthgen 2010)
   * Randomization Methods
 
-
 ************
 **Figure 1. Conceptual figure showing patterns of interactions between birds and flowers for high and low niche overlap, connectance and clustering. The bottom panel shows two hypothezied relationship between available resources, specialization, and trait matching.**
 
@@ -110,7 +64,7 @@ The above hypothesis predict a pattern of niche overlap and resources, but provi
 
 ```{r}
 #Get flower transect data
-full.fl<-read.csv("C:/Users/Ben/Dropbox/Thesis/Maquipucuna_SantaLucia/Results/FlowerTransects/FlowerTransectClean.csv",row.names=1)
+full.fl<-read.csv("C:/Users/Ben/Dropbox/Thesis/Maquipucuna_SantaLucia/Results/FlowerTransects/FlowerTransectClean.csv")[,-1]
 
  #month should be capital 
 colnames(full.fl)[colnames(full.fl) %in% "month"]<-"Month"
@@ -129,14 +83,7 @@ ggplot(flower.month,aes(x=Month.a,log(Flowers),shape=as.factor(Year))) + geom_po
 ggsave("Figures/AvailableFlowers.jpg",dpi=600,units="in",width=11,height=7)
 ```
 
-************
-
-```{r network,fig.height=15}
-#Compute network measures
-#source("Network.R")
-```
-
-
+****
 
 **Figure 3. Measures of hummingbird plant interactions through time (points) as compared to a null model maintaining the number of observations (shaded region).The size of the point is proportional to the number of interactions measured for each month.**
 
@@ -149,16 +96,22 @@ int$Year[int$Year %in% 2012]<-2013
 
 int[int$Year %in% 2013 & int$Month %in% 1,"Year"]<-2014
 
-#break up network by month
+#break up network by two months
 int.M<-split(int,list(int$Month,int$Year),drop=TRUE)
+
+#remove months with less than 15 records
+int.M<-int.M[sapply(int.M,nrow)>20]
 
 #design null function
 nullC<-function(x){
   x<-droplevels(x)
   N=nrow(x)
   month.inter<-t(table(x$Hummingbird,x$Iplant_Double))
-  month.interB<-(month.inter>0)*1
-  true_stat<-networklevel(month.interB,c("connectance","cluster coefficient","niche overlap"))[c(1,3,5)]
+  #month.interB<-(month.inter>0)*1
+
+metricskeep<-c("connectance","cluster coefficient","niche overlap","togetherness","linkage density","partner diversity","mean number of shared partners","nestedness","number of compartments")
+
+true_stat<-networklevel(month.inter)
   
 true_stat<-melt(true_stat)
 
@@ -167,18 +120,20 @@ true_stat$variable<-rownames(true_stat)
 # Create 199 random matrixes
 r.int<-permatfull(month.inter,times=200)
 
-#compute connectance and clustering on each
+#Compute nestendness seperately.
+nested.test<-nestedness(month.inter)
 
 #Create a function that computes network metrics
 null_total<-as.data.frame(
   t(sapply(r.int$perm,function(x){
 #Compute netowkr statistics
-out<-networklevel(x,c("connectance","cluster coefficient","niche overlap"))[c(1,3,5)]
+out<-networklevel(x)
 return(out)}))
 )
 
 #get the upper and lower 2.5th quantiles
-nullq<-melt(apply(null_total,2,quantile,c(.025,.975)))
+null_total<-melt(null_total)
+nullq<-group_by(null_total,variable) %>% summarize(Lower=quantile(value,0.025),Upper=quantile(value,0.975))
 
 #add month
 nullq$Month<-unique(x$Month)
@@ -186,13 +141,10 @@ nullq$Month<-unique(x$Month)
 #add Year
 nullq$Year<-unique(x$Year)
 
-colnames(nullq)<-c("Quantile","Metric","value","Month","Year")
-
-#cast into desired format
-castq<-dcast(nullq,Year+Month+Metric~Quantile)
+colnames(nullq)<-c("Metric","Lower","Upper","Month","Year")
 
 #append true information
-out<-merge(castq,true_stat,by.x="Metric",by.y="variable")
+out<-merge(nullq,true_stat,by.x="Metric",by.y="variable")
 colnames(out)[colnames(out) %in% "value"]<-"True"
 out$N<-N
 return(out)}
@@ -200,17 +152,16 @@ return(out)}
 #apply function to each month
 dat<-rbind_all(lapply(int.M,nullC))
 
-#name the column of the percentages
-colnames(dat)[4]<-"Lower"
-colnames(dat)[5]<-"Upper"
-
 #format date
-dat$Date<-as.Date(paste(1,dat$Month,dat$Year,sep="/"),format="%d/%m/%Y")
+dat$Date<-as.Date(paste(1,round(dat$Month),dat$Year,sep="/"),format="%d/%m/%Y")
+
+#Take out plant metrics for the moment
+datHL<-dat[!str_detect(dat$Metric,".LL"),]
 
 #plot distribution of  values
-p<-ggplot(dat,aes(x=Date,fill=Metric)) + geom_point(aes(size=N,y=True)) + geom_line(aes(y=True)) 
-p<-p + geom_ribbon(aes(ymin=Lower,ymax=Upper),alpha=.4)+ facet_wrap(~Metric,nrow=1,scales="free") + theme_bw() 
-p<-p+scale_fill_discrete(guide="none") + scale_x_date(breaks="3 months",label=date_format("%m/%y")) + scale_size_continuous(range=c(2.5,5),"Observations") + labs(y="")
+p<-ggplot(datHL,aes(x=Date,fill=Metric)) + facet_wrap(~Metric,scales='free') + geom_ribbon(aes(ymin=Lower,ymax=Upper))
+p<-p+ geom_point(aes(size=N,y=True)) + geom_line(aes(y=True)) 
+p<-p+scale_fill_discrete(guide="none") + scale_x_date(breaks="3 months",label=date_format("%m/%y")) + scale_size_continuous(range=c(2.5,5),"Observations") + labs(y="") + theme_bw()
 print(p) 
 
 ggsave("Figures/NullNetwork.jpg",dpi=600,quality=100,pointsize=14,height=4.5,width=12)
@@ -222,11 +173,10 @@ ggsave("Figures/NullNetwork.jpg",dpi=600,quality=100,pointsize=14,height=4.5,wid
 
 ```{r,fig.height=5,fig.width=12}
     
-#get average for each month
 flowerMean<-group_by(flower.month,Month,Year,Transect_R) %>% summarize(mFlowers=mean(Flowers,na.rm=TRUE)) %>% group_by(Month,Year) %>% summarize(Flowers=sum(mFlowers,na.rm=TRUE))
   
 #combine the flower totals and network metrics
-  network.fl<-merge(flowerMean,dat,by=c("Month","Year"))
+  network.fl<-merge(flowerMean,datHL,by=c("Month","Year"))
   
   #Quick visualization 
   p<-ggplot(network.fl[,],aes(log(Flowers),y=True,shape=as.factor(Year))) + geom_point(aes(size=N)) + facet_wrap(~Metric,scale="free")  + geom_smooth(aes(group=1),method="lm") + theme_bw() + labs(col="Month",shape="Year",size="Interactions") + geom_text(aes(label=month.abb[Month]),hjust=-0.25,size=3) + scale_size_continuous(range=c(2.5,5),"Observations") + labs(x="Log Available Resources") + ylab("Score")
@@ -257,6 +207,8 @@ hum.morph<-read.csv(paste(droppath,"Thesis/Maquipucuna_SantaLucia/Results/Hummin
 
 #Bring in Interaction Matrix from the Network.R script
 int<-read.csv(paste(droppath,"Thesis/Maquipucuna_SantaLucia/Results/Network/HummingbirdInteractions.csv",sep=""),row.names=1)
+
+int$Month<-cut(int$Month,seq(0,12,2),labels=seq(1,11,2))
 
 #Melt the interaction frame and match it with the traits
 m.dat<-int[colnames(int) %in% c("ID","Video","Time","Hummingbird","Sex","TransectID","Transect_R","Iplant_Double","Pierce","DateP","Month","ele")]
@@ -312,14 +264,13 @@ p<-p + coord_flip()
 
 sdat<-split(m.datH,list(m.datH$Month,m.datH$Year))
 
-#atleast 30 observations
-sdat<-sdat[sapply(sdat,nrow)>30]
+#atleast 20 observations
+sdat<-sdat[sapply(sdat,nrow)>20]
 
 ######Correlation coefficient
 #calculate it for all birds, then short and longbilled (30cm)
 coeff<-rbind_all(lapply(sdat,function(x){
   mod.c<-cor(x$Total_Culmen,x$TotalCorolla)
-
   data.frame(Month=unique(x$Month),Year=as.numeric(as.character(unique(x$Year))),all=mod.c)
 }))
 
@@ -359,7 +310,7 @@ shufflecor<-function(x){
   return(nullc)
   }
 
-nullcor<-replicate(100,shufflecor(m.datH),simplify = F)
+nullcor<-replicate(500,shufflecor(m.datH),simplify = F)
 nullcor<-rbind_all(nullcor)
 #bind with resource dataframe
 nullcor<-merge(flowerMean,nullcor,by=c("Month","Year"))
@@ -392,7 +343,7 @@ ggsave("Figures/TraitMatching_Resource.jpg",height=6,width=8,units="in",dpi=600)
 
 * The working hypothesis is that long billed species tend to feed more on mismatched corolla values during periods of high resource abundance. 
 
-```{r}
+```{r,eval=FALSE}
 specmonth<-function(x){
 
   monthdata<-droplevels(x)
@@ -445,7 +396,7 @@ mlist<-melt(hlist,id.vars=c("Month","Year","Species"))
 
 ```
 
-```{r,fig.height=9}
+```{r,fig.height=9,eval=F}
 #just keep species with atleast six months of data
 spkeep<-names(which(table(mlist$Species)>=5))
 mlist<-mlist[mlist$Species %in% spkeep,]
@@ -457,7 +408,7 @@ mlistt$BillT<-cut(mlistt$Total_Culmen,c(0,30,70),c("Short","Long"))
 
 Corolla matching versus all available resources.
 
-```{r,fig.height=9}
+```{r,fig.height=9,eval=FALSE}
 #match the trait and bill data with available flowers
 h2flowers<-merge(mlistt,flowerMean)
 
@@ -508,25 +459,7 @@ idflower$Hummingbird <- factor(idflower$Hummingbird,levels=ord$Hummingbird)
 
 p<-ggplot(idflower,aes(y=Total_Culmen-TotalCorolla,x=HL,fill=Total_Culmen>30)) + geom_boxplot()
 p<-p + theme_bw() + facet_wrap(~Hummingbird,scales="free")
-p + scale_x_discrete("Available Resources",labels=c("Low","High")) + scale_fill_discrete("Bill Length",labels=c("Short","Long"))
-
+p<-p + scale_x_discrete("Available Resources",labels=c("Low","High")) + scale_fill_discrete("Bill Length",labels=c("Short","Long")) 
+p + labs(y="Difference between bill and corolla Length")
+ggsave("Figures/BillLength_Resources.jpg",height=7,width=10,units="in",dpi=600)
 ```
-
-#Results
-* How many plant records?
-* How many bird records?
-* How many interactions?
-
-#Discussion
-
-##Comparable literature
-* Correa, S., & Winemiller, K. (2014). Niche partitioning among frugivorous fishes in response to fluctuating resources in the Amazonian floodplain forest. Ecology, 95(1), 210–224.
-
-  * In general, dietary shifts in response to changes in the availability of preferred foods reduced interspecific niche overlap and may be a mechanism that facilitates coexistence in this species-rich fish assem- blage. During the period of greatest fruit production, diets of all six species were dominated, to varying degrees, by fruits and seeds, yielding broadly overlap- ping trophic niches among species.
-  
-* Trait packing, coexsitance and tropical specialization
-  * This niche partitioning mechanism is central to many explanations of the latitudinal gradient in species diversity, i.e that greater resources lead to finer subdivision of niche space, and promotes reproductive isolation. 
-  
-* In this paper we have avoided abundance weighted measures of specialization (see Schluening and Bluthgen) due to the ongoing confusion in this literature. Specialization seems often defined as the fidelity of interactions with respect the abundance of the partners. Quantatitive approachs to network specialization (see H2') only consider 
-  * Dalsgaard, B., Magård, E., Fjeldså, J., Martín González, A. M., Rahbek, C., Olesen, J. M., … Svenning, J.-C. (2011). Specialization in plant-hummingbird networks is associated with species richness, contemporary precipitation and quaternary climate-change velocity. PloS One, 6(10), e25891. doi:10.1371/journal.pone.0025891
-    * Historical effect on specialization.

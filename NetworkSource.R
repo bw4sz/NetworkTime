@@ -13,8 +13,26 @@ NetworkC<-function(datf,naming,plots=F){
   #Drop any observations without 2 names in Iplant_Double
   datf<-droplevels(datf[!datf$Iplant_Double %in% c("",NA),])
   
-  #drop singletons
-  #datf<-datf[!datf$Iplant_Double %in% names(which(table(datf$Iplant_Double)==1)),]
+  
+  #Uncorrected for sampling:
+  rawdat<-as.data.frame.array(table(datf$Iplant_Double,datf$Hummingbird))
+  
+  #Interaction matrix
+  
+  orderflowers<-names(sort(apply(rawdat,1,sum),decreasing=FALSE))
+  
+  orderbirds<-names(sort(apply(rawdat,2,sum),decreasing=TRUE))
+  
+  rawdat<-melt(as.matrix(rawdat))
+  
+  colnames(rawdat)<-c("Flowers","Birds","value")
+  
+  rawdat$Flowers<-factor(rawdat$Flowers,levels=orderflowers)
+  rawdat$Birds<-factor(rawdat$Birds,levels=orderbirds)
+  
+  p<-ggplot(rawdat[rawdat$value>0,],aes(x=Birds,y=Flowers,fill=value)) + geom_tile()+ theme_bw() + scale_fill_continuous(low="blue",high="red") + theme(axis.text.x = element_text(angle = 90, hjust = 1)) + labs(fill="# of Visits")
+  ggsave("MatrixPlotCount.jpeg",dpi=300,height=9,width=8)
+  
   #camera data needs to be standardized
   camera<-datf[!is.na(datf$ID),]
   
@@ -39,13 +57,16 @@ NetworkC<-function(datf,naming,plots=F){
   n<-group_by(a,Iplant_Double) %>% dplyr::summarise(N=nlevels(droplevels(as.factor(Date))))
   
   trandat<-merge(h,n)
-  trandat$mean<-trandat$sum/trandat$N
+  if(exists("trandat")){
+  trandat$mean<-trandat$sum/trandat$N}
 }
-  if(exists("camdat")){
+  if(exists("camdat")& exists("trandat")){
     finaldat<-merge(camdat,trandat,by=c("Iplant_Double","Hummingbird"),all=T)
 } else {
-  #make a dummy variable to match syntax
-  finaldat<-trandat
+  
+  #make a dummy variable to match syntax, thats ugly.
+  if(exists("camdat") & !exists("trandat")){finaldat<-camdat}
+  
   colnames(finaldat)[  colnames(finaldat) %in% "mean"]<-"mean.y"
   finaldat$mean.x<-NA
 }
@@ -65,9 +86,6 @@ F_H<- (F_H>0) * 1
   
 #Create Interaction of flowers and birds matrix
 
-#Uncorrected for sampling:
-#F_H<-as.data.frame.array(table(datf$Iplant_Double,datf$Hummingbird))
-  
   #Save Input Matrix
   write.csv(F_H,"BirdXFlower.csv")
   
@@ -96,8 +114,8 @@ F_H<- (F_H>0) * 1
   a$Flowers<-factor(a$Flowers,levels=orderflowers)
   a$Birds<-factor(a$Birds,levels=orderbirds)
   
-  p<-ggplot(a[a$value>0,],aes(x=Birds,y=Flowers,fill=value)) + geom_tile()+ theme_bw() + scale_fill_continuous(low="blue",high="red") + theme(axis.text.x = element_text(angle = 90, hjust = 1)) + labs(fill="# of Visits/Sample")
-  ggsave("MatrixPlot.jpeg",dpi=300,height=10,width=8)
+  p<-ggplot(a[a$value>0,],aes(x=Birds,y=Flowers,fill=value)) + geom_tile()+ theme_bw()  + theme(axis.text.x = element_text(angle = 90, hjust = 1)) + labs(fill="Visitation")
+  ggsave("MatrixPlot.jpeg",dpi=300,height=9,width=8)
   if(plots){print(p)}  
 #ggsave("MatrixPlot.eps",dpi=300,height=10,width=8)
 

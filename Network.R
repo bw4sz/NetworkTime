@@ -7,7 +7,7 @@ require(chron)
 require(bipartite)
 require(ggplot2)
 require(ape)
-require(reshape)
+require(reshape2)
 require(sna)
 require(stringr)
 require(maptools)
@@ -171,7 +171,7 @@ write.csv(datf,"C:/Users/Ben/Dropbox/Thesis/Maquipucuna_SantaLucia/Results/Netwo
 
 ############################################
 #Run Network Function for the entire dataset
-NetworkC(datf=datf,naming="Total",plots=F)
+NetworkC(datf=datf,naming="Total",plots=T)
 ############################################
 
 #############################################
@@ -185,6 +185,9 @@ torun<-dat.split[!names(dat.split) %in% list.files(paste("Figures","Temporal",se
 #not 1.2013
 torun<-torun[!names(torun) %in% "1.2013"]
 
+#need atleast twenty observations
+torun<-torun[sapply(torun,nrow)>15]
+
 if(length(torun)>0){
 for (x in 1:length(torun)){
   NetworkC(datf=torun[[x]],naming=paste("Temporal",names(torun)[[x]],sep="/"))
@@ -194,10 +197,12 @@ for (x in 1:length(torun)){
 #############################################
 #Temporal Change in Network Structure
 #############################################
-#cut into two month chunks
-datf$chunk<-cut(datf$Month,c(0,4,9,12))
+#cut into seasonal chunks
+datf[datf$Month %in% c(12,1,2,3,4,5),"Season"]<-"Rainy"
+datf[datf$Month %in% c(6,7,8),"Season"]<-"Summer"
+datf[datf$Month %in% c(9,10,11),"Season"]<-"Dry"
 
-dat.split<-split(datf,list(datf$chunk,datf$Year),drop=TRUE)
+dat.split<-split(datf,list(datf$Season,datf$Year),drop=TRUE)
 
 #which months have been run?
 torun<-dat.split[!names(dat.split) %in% list.files(paste("Figures","TwoMonth",sep="/"))]
@@ -255,10 +260,6 @@ dat.split<-split(datf,list(datf$chunk,datf$Year,datf$ElevT),drop=TRUE)
 #which months have been run?
 torun<-dat.split[!names(dat.split) %in% list.files(paste("Figures","TwoMonthElevation",sep="/"))]
 
-#need more than 10 records
-
-
-torun<-torun[sapply(torun,nrow) > 10]
 if(length(torun)>0){
   for (x in 1:length(torun)){
     NetworkC(datf=torun[[x]],naming=paste("TwoMonthElevation",names(torun)[[x]],sep="/"))
@@ -276,8 +277,10 @@ if(length(torun)>0){
 fil.dir<-list.dirs("Figures",full.names=F,recursive = F)
 
 fil.dir<-fil.dir[!fil.dir %in% "Total"]
-lapply(fil.dir,function(y){
-  #for each split of the data, plot the results.
+#lapply(fil.dir,function(y){
+#Kill the loop for the moment
+y<-"TwoMonth"
+#for each split of the data, plot the results.
   fil.list<-list.files(paste("Figures",sep="/",y),pattern="NetworkProperties.csv",recursive=TRUE,full.names=TRUE)
   
   fil<-list()
@@ -303,12 +306,15 @@ lapply(fil.dir,function(y){
   month.Prop$Time<-as.character(month.Prop$Time)
   
   #format time
-  #month.Prop$Month<-as.numeric(sapply(month.Prop$Time,function(x){  strsplit(x,"\\.")[[1]][1]}))
-  j<-str_match(month.Prop$Time,pattern="\\d+")
-
-  month.Prop$Month<-apply(j,1,function(x){
-    round(mean(as.numeric(x)))
-  })
+  month.Prop$Month<-as.numeric(sapply(month.Prop$Time,function(x){  strsplit(x,"\\.")[[1]][1]}))
+  month.Prop$Year<-as.numeric(sapply(month.Prop$Time,function(x){  strsplit(x,"\\.")[[1]][2]}))
+  #j<-str_match(month.Prop$Time,pattern="\\d+")
+  month.Prop$Month.A<-factor(month.abb[month.Prop$Month],levels=month.abb)
+  #month.Prop$Month<-apply(j,1,function(x){
+   # round(mean(as.numeric(x)))
+  #})
+  
+  #view all the metrics
   
   #just level of hummingbirds for now
   month.Prop<-month.Prop[month.Prop$Level=="Hummingbirds",]
@@ -317,26 +323,23 @@ lapply(fil.dir,function(y){
   month.Prop$Date<-paste("1",month.Prop$Month,month.Prop$Year,sep="/")
   month.Prop$Date<-as.Date(month.Prop$Date,format="%d/%m/%Y")
   
-  metricskeep<-c("connectance","H2","cluster.coefficient.HL","niche.overlap.HL","Raw.Transect","Raw.Camera")
+  metricskeep<-c("connectance","cluster.coefficient.HL","niche.overlap.HL","Raw.Transect","Raw.Camera","togetherness.HL","linkage density","partner.diversity.HL","mean.number.of.shared.partners.HL","nestedness","number of compartments")
   
   m<-month.Prop[month.Prop$Metric %in% metricskeep,]
   
   m<-dcast(m,...~Metric)
-  m$H2i<-1-m$H2
   
-  m<-melt(m,measure.vars=c("H2i",c("connectance","H2","cluster.coefficient.HL","niche.overlap.HL")))
+  m<-melt(m,measure.vars=metricskeep[!metricskeep %in% c("Raw.Transect","Raw.Camera")])
   
-  m<-m[!m$variable %in% "H2",]
-  
-  m<-group_by(m,variable) %>% mutate(stand=value/max(value,na.rm=TRUE)) 
+  #m<-group_by(m,variable) %>% mutate(stand=value/max(value,na.rm=TRUE)) 
   
   #Plot metrics over time
-  p<-ggplot(m[,],aes(x=Date,y=value,col=variable,shape=Level))+ geom_point(aes(size=Raw.Camera+Raw.Transect)) + geom_line() + facet_wrap(Elev~variable,scales="free_y",ncol=1) 
-  p<-p + theme_bw() + scale_x_date(labels = date_format("%b"),breaks= "3 months") 
-  p
+  p<-ggplot(m[,],aes(x=Date,y=value,col=variable,shape=Level))+ geom_point(aes(size=Raw.Camera+Raw.Transect)) + geom_line() + facet_wrap(~variable,scales="free_y",ncol=2) 
+  p<-p + theme_bw() + scale_x_date(labels = date_format("%b'%y"),breaks= "3 months") 
+  p + stat_smooth()
   ggsave("TimeMetrics.jpeg",dpi=300,height=8,width=10)
 
-})
+#})
 
 
 #Save image to file
