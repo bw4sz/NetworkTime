@@ -37,21 +37,8 @@ opts_chunk$set(message=FALSE,warning=FALSE,fig.width=13,echo=FALSE,cache=TRUE,ca
 
 ```{r}
 #Exploratory analysis
-source("Network.R")
+#source("Network.R")
 ```
-
-###Measures of niche overlap
-
-*Niche Overlap
-
-*Connectance
-
-*Clustering
-  *	Why was each measure chosen?
-
-*	Null models
-  *	To address sampling constraints (Blüthgen 2010)
-  * Randomization Methods
 
 ************
 **Figure 1. Conceptual figure showing patterns of interactions between birds and flowers for high and low niche overlap, connectance and clustering. The bottom panel shows two hypothezied relationship between available resources, specialization, and trait matching.**
@@ -59,6 +46,15 @@ source("Network.R")
 ![ConceptualFigure](C:\Users\Ben\Documents\NetworkTime\Figures\ConceptualFigure.png)
 
 ************
+#Deliniate high and low resource availability periods.
+
+* A resource transect is one that is in the top quartile
+
+```{r}
+#Sum floral resources for each transect
+
+#Label each
+```
 
 **Figure 2. Flower abundance per month for each transect. **
 
@@ -70,7 +66,7 @@ full.fl<-read.csv("C:/Users/Ben/Dropbox/Thesis/Maquipucuna_SantaLucia/Results/Fl
 colnames(full.fl)[colnames(full.fl) %in% "month"]<-"Month"
 
 #group by month and replicate, remove date errors by making a max of 10 flowers, couple times where the gps places it in wrong transect by 1 to 2 meters. 
-flower.month<-group_by(full.fl,Month,Year,Transect_R,Date_F) %>% dplyr::summarise(Flowers=sum(Total_Flowers,na.rm=TRUE))  %>% filter(Flowers>50)
+flower.month<-group_by(full.fl,Month,Year,Transect_R,Date_F) %>% dplyr::summarise(Flowers=sum(Total_Flowers,na.rm=TRUE))  %>% filter(Flowers>20)
   
 #Make month abbreviation column, with the right order
 flower.month$Month.a<-factor(month.abb[flower.month$Month],month.abb[c(1:12)])
@@ -78,8 +74,13 @@ flower.month$Month.a<-factor(month.abb[flower.month$Month],month.abb[c(1:12)])
 #Make year factor column
 flower.month$Year<-as.factor(flower.month$Year)
 
-#Flowers at each elevation over time without Karen's data
-ggplot(flower.month,aes(x=Month.a,log(Flowers),shape=as.factor(Year))) + geom_point(size=3) + theme_bw()  + geom_smooth(aes(group=1)) + ylab("Flowers") + xlab("Month") + facet_wrap(~Transect_R,scales="free_y") + labs(shape="Year", y= "Log Available Flowers") + scale_x_discrete(breaks=month.abb[seq(1,12,2)])
+#get quantile for each transect
+thresh<-melt(group_by(flower.month,Transect_R) %>% summarize(Threshold=quantile(log(Flowers),0.666)) )
+flower.month<-merge(flower.month,thresh)
+flower.month$High<-log(flower.month$Flowers)>flower.month$value
+#plot
+ggplot(flower.month,aes(x=Month.a,log(Flowers),shape=as.factor(Year),col=High)) + geom_point(size=3) + theme_bw()  + geom_smooth(aes(group=1)) + ylab("Flowers") + xlab("Month") + facet_wrap(~Transect_R,scales="free_y") + labs(shape="Year", y= "Log Available Flowers") + scale_x_discrete(breaks=month.abb[seq(1,12,2)]) + scale_color_manual(labels=c("Low","High"),values=c("black","red")) + labs(col="Resource Availability")
+
 ggsave("Figures/AvailableFlowers.jpg",dpi=600,units="in",width=11,height=7)
 ```
 
@@ -109,7 +110,7 @@ nullC<-function(x){
   month.inter<-t(table(x$Hummingbird,x$Iplant_Double))
   #month.interB<-(month.inter>0)*1
 
-metricskeep<-c("connectance","cluster coefficient","niche overlap","togetherness","linkage density","partner diversity","mean number of shared partners","nestedness","number of compartments")
+metricskeep<-c("connectance","cluster coefficient","niche overlap","togetherness","linkage density","partner diversity","mean number of shared partners","nestedness","number of compartments","weighted connectance")
 
 true_stat<-networklevel(month.inter)
   
@@ -118,7 +119,7 @@ true_stat<-melt(true_stat)
 true_stat$variable<-rownames(true_stat)
 
 # Create 199 random matrixes
-r.int<-permatfull(month.inter,times=200)
+r.int<-permatfull(month.inter,times=50,fixedmar="columns")
 
 #Compute nestendness seperately.
 nested.test<-nestedness(month.inter)
@@ -126,14 +127,13 @@ nested.test<-nestedness(month.inter)
 #Create a function that computes network metrics
 null_total<-as.data.frame(
   t(sapply(r.int$perm,function(x){
-#Compute netowkr statistics
-out<-networklevel(x)
-return(out)}))
-)
-
+  #Compute network statistics
+    out<-networklevel(x)
+    return(out)
+    })))
 #get the upper and lower 2.5th quantiles
 null_total<-melt(null_total)
-nullq<-group_by(null_total,variable) %>% summarize(Lower=quantile(value,0.025),Upper=quantile(value,0.975))
+nullq<-group_by(null_total,variable) %>% summarize(Lower=quantile(value,0.025,na.rm=T),Upper=quantile(value,0.975,na.rm=T))
 
 #add month
 nullq$Month<-unique(x$Month)
@@ -208,7 +208,7 @@ hum.morph<-read.csv(paste(droppath,"Thesis/Maquipucuna_SantaLucia/Results/Hummin
 #Bring in Interaction Matrix from the Network.R script
 int<-read.csv(paste(droppath,"Thesis/Maquipucuna_SantaLucia/Results/Network/HummingbirdInteractions.csv",sep=""),row.names=1)
 
-int$Month<-cut(int$Month,seq(0,12,2),labels=seq(1,11,2))
+#int$Month<-cut(int$Month,seq(0,12,2),labels=seq(1,11,2))
 
 #Melt the interaction frame and match it with the traits
 m.dat<-int[colnames(int) %in% c("ID","Video","Time","Hummingbird","Sex","TransectID","Transect_R","Iplant_Double","Pierce","DateP","Month","ele")]
@@ -286,12 +286,12 @@ ggsave("Figures/CorrelationTime.jpg",height=5,width=8,units="in",dpi=600)
 setwd(gitpath)
 ```
 
-```{r,fig.height=8}
+```{r,fig.height=10}
 
 #Randomization of correlation
 
 #Define replication function, shuffle corolla length values
-shufflecor<-function(x){
+shufflecor<-function(x=m.datH){
   #sample draw
   x$NewCorolla<-sample(x$TotalCorolla,replace=F)
   splitdat<-split(x,list(x$Month,x$Year))
@@ -310,7 +310,7 @@ shufflecor<-function(x){
   return(nullc)
   }
 
-nullcor<-replicate(500,shufflecor(m.datH),simplify = F)
+nullcor<-replicate(200,shufflecor(m.datH),simplify = F)
 nullcor<-rbind_all(nullcor)
 #bind with resource dataframe
 nullcor<-merge(flowerMean,nullcor,by=c("Month","Year"))
@@ -325,7 +325,6 @@ nullcorq<-dplyr::group_by(nullcorm,Month,Year,variable) %>% dplyr::summarize(Flo
 finaldat<-merge(nullcorq,observed)
 
 #get data size for each month
-
 sizeall<-group_by(m.datH,Month,Year) %>% mutate(Billtype=cut(Total_Culmen,breaks=c(0,60),labels=c("all"))) %>% group_by(Month,Year,Billtype) %>% summarize(N=n())
 
 #bind size with observed and null data
@@ -377,7 +376,7 @@ for (g in 1:length(N_Flowers)){
   out[ord]<-N_Flowers[g]
   names(out)[ord]<-names(N_Flowers)[g]
 }
-spec<-dfun(month.interB,abuns=sample(N_Flowers))
+spec<-H2fun(month.interB,abuns=sample(N_Flowers))
 toreturn<-data.frame(Species=names(spec$dprime),Dprime=spec$dprime,Month=unique(monthdata$Month),Year=unique(monthdata$Year))
 return(toreturn)
 }
@@ -418,9 +417,9 @@ h2match<-merge(m.datH,h2flowers,by.y=c("Month","Year","Species"),by.x=c("Month",
 nm<-dcast(network.fl,Month+Year~Metric,value.var="True")
 h2final<-merge(h2match,nm)
 
-p<-ggplot(h2final[!h2final$Iplant_Double %in% "Fuchsia macrostigma",],aes(x=log(Flowers),y=Total_Culmen.x-TotalCorolla,col=BillT)) + geom_smooth(method="lm") + geom_point() + geom_text(aes(label=paste(Species,Iplant_Double)),size=2)
+p<-ggplot(h2final[!h2final$Iplant_Double %in% "Fuchsia macrostigma",],aes(x=Flowers,y=value)) + geom_smooth(method="lm") + geom_point() + geom_text(aes(label=paste(Species,Iplant_Double)),size=2)
 p<-p + theme_bw()
-
+p
 ```
 
 Corolla matching versus species specific available resources. Why should species care if there are a ton of gasternathus flowers in bloom if they never use that resource? Resource scarcity may be different for each species, not synchronized.

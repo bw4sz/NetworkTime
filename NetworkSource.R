@@ -33,57 +33,8 @@ NetworkC<-function(datf,naming,plots=F){
   p<-ggplot(rawdat[rawdat$value>0,],aes(x=Birds,y=Flowers,fill=value)) + geom_tile()+ theme_bw() + scale_fill_continuous(low="blue",high="red") + theme(axis.text.x = element_text(angle = 90, hjust = 1)) + labs(fill="# of Visits")
   ggsave("MatrixPlotCount.jpeg",dpi=300,height=9,width=8)
   
-  #camera data needs to be standardized
-  camera<-datf[!is.na(datf$ID),]
-  
-  #Sampling evaluation
-  #How many repeat sampling events per month
-  #dplyr doesn't like this date column
-  a<-camera[,!colnames(camera) %in% "DateP"]
-  if(!nrow(a)==0){
-  h<-group_by(a,Iplant_Double,Hummingbird) %>%  dplyr::summarize(sum=length(Hummingbird))
-  n<-group_by(a,Iplant_Double) %>% dplyr::summarise(N=nlevels(droplevels(ID)))
+  F_H<-acast(rawdat,Flowers~Birds,fill=0)
 
-  camdat<-merge(h,n)
-  camdat$mean<-camdat$sum/camdat$N
-  }
-  
-  #standardize for # of transects.
-  tran<-datf[is.na(datf$ID),]
-  a<-tran[,!colnames(tran) %in% "DateP"]
-  
-  if(!nrow(a)==0){
-  h<-group_by(a,Iplant_Double,Hummingbird) %>%  dplyr::summarize(sum=length(Hummingbird))
-  n<-group_by(a,Iplant_Double) %>% dplyr::summarise(N=nlevels(droplevels(as.factor(Date))))
-  
-  trandat<-merge(h,n)
-  if(exists("trandat")){
-  trandat$mean<-trandat$sum/trandat$N}
-}
-  if(exists("camdat")& exists("trandat")){
-    finaldat<-merge(camdat,trandat,by=c("Iplant_Double","Hummingbird"),all=T)
-} else {
-  
-  #make a dummy variable to match syntax, thats ugly.
-  if(exists("camdat") & !exists("trandat")){finaldat<-camdat}
-  
-  colnames(finaldat)[  colnames(finaldat) %in% "mean"]<-"mean.y"
-  finaldat$mean.x<-NA
-}
-  #fill Na's with 0's
-  finaldat$mean.x[is.na(finaldat$mean.x)]<-0
-  finaldat$mean.y[is.na(finaldat$mean.y)]<-0
-  
-  finalmatrix<-select(finaldat,Iplant_Double,Hummingbird,mean.x,mean.y) %>% dplyr::mutate(value=mean.x+mean.y) %>%
-  select(Iplant_Double,Hummingbird,value)
-  F_H<-acast(finalmatrix,Iplant_Double~Hummingbird,fill=0)
-
-#Turn into a binary network
-F_H<- (F_H>0) * 1
-
-  #Below the line is more detectable on the cameras
-  ggplot(finaldat,aes(x=mean.x,y=mean.y)) + geom_point() + geom_smooth(method="lm")
-  
 #Create Interaction of flowers and birds matrix
 
   #Save Input Matrix
@@ -144,8 +95,6 @@ F_H<- (F_H>0) * 1
   
   #Merge networks
   NetworkProp<-data.frame(birds.prop,plants.prop)
-  NetworkProp["Raw.Camera",]<-nrow(camera)
-  NetworkProp["Raw.Transect",]<-nrow(tran)
 
   #Write to file
   write.csv(NetworkProp,"NetworkProperties.csv")

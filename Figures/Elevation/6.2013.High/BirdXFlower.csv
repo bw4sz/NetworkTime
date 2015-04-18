@@ -1,14 +1,14 @@
-"","Booted Racket-tail","Brown Inca","Buff-tailed Coronet","Collared Inca","Fawn-breasted Brilliant","Gorgeted Sunangel","Hoary Puffleg","Speckled Hummingbird","Tawny-bellied Hermit","Violet-tailed Sylph"
-"Centropogon solanifolius",0,0,0,0,0,0,0,0,1,0
-"Columnea ciliata",0,0,0,0,0,0,0,0,1,0
-"Drymonia collegarum",0,0,0,0,0,0,0,0,1,0
-"Drymonia teuscheri",0,0,0,0,0,0,0,0,0,1
-"Glossoloma oblongicalyx",0,0,0,0,0,0,0,1,1,0
-"Heliconia burleana",0,1,0,0,0,0,0,0,1,0
-"Macleania bullata",0,0,0,1,0,0,0,0,0,0
-"Mezobromelia capituligera",0,0,1,1,0,0,0,0,0,0
-"Mikania websteri",0,0,0,0,0,0,1,0,0,0
-"Palicourea acetosoides",0,1,0,1,0,0,0,0,0,1
-"Palicourea demissa",1,1,1,0,1,0,0,0,0,0
-"Palicourea lineata",0,0,1,0,0,1,0,1,0,0
-"Psammisia ulbrichiana",0,1,1,1,0,1,0,0,0,1
+"","Buff-tailed Coronet","Violet-tailed Sylph","Brown Inca","Tawny-bellied Hermit","Collared Inca","Gorgeted Sunangel","Violet-tailed Slyph","Booted Racketail","Speckled Hummingbird","Fawn-breasted Brilliant","Hoary Puffleg"
+"Columnea ciliata",0,0,0,1,0,0,0,0,0,0,0
+"Mikania websteri",0,0,0,0,0,0,0,0,0,0,1
+"Centropogon solanifolius",0,0,0,2,0,0,0,0,0,0,0
+"Drymonia collegarum",0,0,0,2,0,0,0,0,0,0,0
+"Glossoloma oblongicalyx",0,0,0,1,0,0,0,0,1,0,0
+"Macleania bullata",0,0,0,0,4,0,0,0,0,0,0
+"Drymonia teuscheri",0,5,0,0,0,0,0,0,0,0,0
+"Heliconia burleana",0,0,1,4,0,0,0,0,0,0,0
+"Palicourea acetosoides",0,5,1,0,1,0,0,0,0,0,0
+"Mezobromelia capituligera",10,0,0,0,1,0,0,0,0,0,0
+"Palicourea lineata",3,0,0,0,0,6,0,0,2,0,0
+"Palicourea demissa",1,0,1,0,0,0,5,4,0,1,0
+"Psammisia ulbrichiana",2,1,7,0,3,3,0,0,0,0,0
