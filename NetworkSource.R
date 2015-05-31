@@ -13,14 +13,12 @@ NetworkC<-function(datf,naming,plots=F){
   #Drop any observations without 2 names in Iplant_Double
   datf<-droplevels(datf[!datf$Iplant_Double %in% c("",NA),])
   
-  
   #Uncorrected for sampling:
   rawdat<-as.data.frame.array(table(datf$Iplant_Double,datf$Hummingbird))
   
   #Interaction matrix
   
   orderflowers<-names(sort(apply(rawdat,1,sum),decreasing=FALSE))
-  
   orderbirds<-names(sort(apply(rawdat,2,sum),decreasing=TRUE))
   
   rawdat<-melt(as.matrix(rawdat))
@@ -32,7 +30,26 @@ NetworkC<-function(datf,naming,plots=F){
   
   p<-ggplot(rawdat[rawdat$value>0,],aes(x=Birds,y=Flowers,fill=value)) + geom_tile()+ theme_bw() + scale_fill_continuous(low="blue",high="red") + theme(axis.text.x = element_text(angle = 90, hjust = 1)) + labs(fill="# of Visits")
   ggsave("MatrixPlotCount.jpeg",dpi=300,height=9,width=8)
+  ggsave("MatrixPlotCount.svg",height=9,width=8)
   
+  #sort by bill length and corolla length
+  humord<-hum.morph[order(hum.morph$Bill),"English"]
+  flowerord<-fl.morph[order(fl.morph$TotalCorolla),"Group.1"]
+  
+  r<-names(sort(sapply(levels(rawdat$Birds),function(x) which(x == humord))))
+  o<-sapply(levels(rawdat$Flowers),function(x) which(x == flowerord))
+  o<-melt(o[!sapply(o,length)==0])
+  o<-o[order(o$value),"L1"]
+  
+  #make a copy of the data to refactor
+  refac<-rawdat
+  refac$Birds<-factor(refac$Birds,levels=r)
+  refac$Flowers<-factor(refac$Flowers,levels=o)
+  
+  refac<-refac[!is.na(refac$Flowers),]
+  p<-ggplot(refac[refac$value>0,],aes(x=Birds,y=Flowers,fill=value)) + geom_tile()+ theme_bw() + scale_fill_continuous(low="blue",high="red") + theme(axis.text.x = element_text(angle = 90, hjust = 1)) + labs(fill="# of Visits")
+  
+  #Make data.frame for analysis
   F_H<-acast(rawdat,Flowers~Birds,fill=0)
 
 #Create Interaction of flowers and birds matrix
@@ -66,13 +83,23 @@ NetworkC<-function(datf,naming,plots=F){
   a$Birds<-factor(a$Birds,levels=orderbirds)
   
   p<-ggplot(a[a$value>0,],aes(x=Birds,y=Flowers,fill=value)) + geom_tile()+ theme_bw()  + theme(axis.text.x = element_text(angle = 90, hjust = 1)) + labs(fill="Visitation")
+  p + scale_fill_continuous(low="blue",high="red")
   ggsave("MatrixPlot.jpeg",dpi=300,height=9,width=8)
+  
+  #order by bill length
+  
   if(plots){print(p)}  
 #ggsave("MatrixPlot.eps",dpi=300,height=10,width=8)
 
   jpeg("plotweb.jpg",res=300,height=10,width=15,units="in")
   plotweb(F_H)
   dev.off()
+  
+  
+  svg("plotweb.svg",height=10,width=15)
+  plotweb(F_H)
+  dev.off()
+  
 
   #Metrics across entire
   tryCatch(birds.prop<-data.frame(HummingbirdNetwork=networklevel(F_H,level="higher")),error=function(e)

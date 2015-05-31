@@ -1,0 +1,132 @@
+
+        <!DOCTYPE html>
+        <meta charset="utf-8">
+        <body> 
+ <style>
+.link {
+stroke: #666;
+opacity: 0.6;
+stroke-width: 1.5px;
+}
+.node circle {
+stroke: #fff;
+opacity: 0.6;
+stroke-width: 1.5px;
+}
+text {
+font: 7px serif;
+opacity: 0.6;
+pointer-events: none;
+}
+</style>
+
+<script src=http://d3js.org/d3.v3.min.js></script>
+
+<script> 
+ var links = [ { "source" : "Heliconia griggsiana", "target" : "Andean Emerald" }, { "source" : "Palicourea demissa", "target" : "Andean Emerald" }, { "source" : "Besleria solanoides", "target" : "Booted Racket-tail" }, { "source" : "Blakea", "target" : "Booted Racket-tail" }, { "source" : "Burmeistera cylindrocarpa", "target" : "Booted Racket-tail" }, { "source" : "Calathea ischnosiphonoides", "target" : "Booted Racket-tail" }, { "source" : "Clusia", "target" : "Booted Racket-tail" }, { "source" : "Columnea ciliata", "target" : "Booted Racket-tail" }, { "source" : "Drymonia teuscheri", "target" : "Booted Racket-tail" }, { "source" : "Erythrina", "target" : "Booted Racket-tail" }, { "source" : "Gasteranthus quitensis", "target" : "Booted Racket-tail" }, { "source" : "Guzmania", "target" : "Booted Racket-tail" }, { "source" : "Guzmania jaramilloi", "target" : "Booted Racket-tail" }, { "source" : "Heliconia griggsiana", "target" : "Booted Racket-tail" }, { "source" : "Kohleria", "target" : "Booted Racket-tail" }, { "source" : "Macleania", "target" : "Booted Racket-tail" }, { "source" : "Meriania", "target" : "Booted Racket-tail" }, { "source" : "Meriania tomentosa", "target" : "Booted Racket-tail" }, { "source" : "Mezobromelia capituligera", "target" : "Booted Racket-tail" }, { "source" : "Palicourea demissa", "target" : "Booted Racket-tail" }, { "source" : "Palicourea lineata", "target" : "Booted Racket-tail" }, { "source" : "Palicourea sodiroi", "target" : "Booted Racket-tail" }, { "source" : "Psammisia ecuadorensis", "target" : "Booted Racket-tail" }, { "source" : "Psammisia sodiroi", "target" : "Booted Racket-tail" }, { "source" : "Psammisia ulbrichiana", "target" : "Booted Racket-tail" }, { "source" : "Renealmia sessilifolia", "target" : "Booted Racket-tail" }, { "source" : "Sarcopera anomala", "target" : "Booted Racket-tail" }, { "source" : "Stromanthe stromanthoides", "target" : "Booted Racket-tail" }, { "source" : "Tillandsia complanata", "target" : "Booted Racket-tail" }, { "source" : "Besleria solanoides", "target" : "Brown Inca" }, { "source" : "Bomarea pardina", "target" : "Brown Inca" }, { "source" : "Burmeistera cylindrocarpa", "target" : "Brown Inca" }, { "source" : "Centropogon solanifolius", "target" : "Brown Inca" }, { "source" : "Columnea", "target" : "Brown Inca" }, { "source" : "Columnea ciliata", "target" : "Brown Inca" }, { "source" : "Columnea strigosa", "target" : "Brown Inca" }, { "source" : "Drymonia collegarum", "target" : "Brown Inca" }, { "source" : "Drymonia tenuis", "target" : "Brown Inca" }, { "source" : "Fuchsia macrostigma", "target" : "Brown Inca" }, { "source" : "Gasteranthus quitensis", "target" : "Brown Inca" }, { "source" : "Glossoloma tetragonoides", "target" : "Brown Inca" }, { "source" : "Guzmania amplectens", "target" : "Brown Inca" }, { "source" : "Guzmania jaramilloi", "target" : "Brown Inca" }, { "source" : "Guzmania lehmanniana", "target" : "Brown Inca" }, { "source" : "Guzmania squarrosa", "target" : "Brown Inca" }, { "source" : "Heliconia burleana", "target" : "Brown Inca" }, { "source" : "Heliconia griggsiana", "target" : "Brown Inca" }, { "source" : "Heliconia impudica", "target" : "Brown Inca" }, { "source" : "Kohleria affinis", "target" : "Brown Inca" }, { "source" : "Macleania", "target" : "Brown Inca" }, { "source" : "Macleania bullata", "target" : "Brown Inca" }, { "source" : "Macleania stricta", "target" : "Brown Inca" }, { "source" : "Meriania tomentosa", "target" : "Brown Inca" }, { "source" : "Mezobromelia", "target" : "Brown Inca" }, { "source" : "Mezobromelia capituligera", "target" : "Brown Inca" }, { "source" : "Palicourea acetosoides", "target" : "Brown Inca" }, { "source" : "Palicourea demissa", "target" : "Brown Inca" }, { "source" : "Pitcairnia sodiroi", "target" : "Brown Inca" }, { "source" : "Psammisia", "target" : "Brown Inca" }, { "source" : "Psammisia aberrans", "target" : "Brown Inca" }, { "source" : "Psammisia ecuadorensis", "target" : "Brown Inca" }, { "source" : "Psammisia sodiroi", "target" : "Brown Inca" }, { "source" : "Psammisia ulbrichiana", "target" : "Brown Inca" }, { "source" : "Renealmia sessilifolia", "target" : "Brown Inca" }, { "source" : "Stromanthe stromanthoides", "target" : "Brown Inca" }, { "source" : "Tillandsia complanata", "target" : "Brown Inca" }, { "source" : "Zingiberaceae", "target" : "Brown Inca" }, { "source" : "Besleria solanoides", "target" : "Buff-tailed Coronet" }, { "source" : "Clusia", "target" : "Buff-tailed Coronet" }, { "source" : "Faramea calyptrata", "target" : "Buff-tailed Coronet" }, { "source" : "Heliconia impudica", "target" : "Buff-tailed Coronet" }, { "source" : "Heppiella ulmifolia", "target" : "Buff-tailed Coronet" }, { "source" : "Macleania macrantha", "target" : "Buff-tailed Coronet" }, { "source" : "Macleania stricta", "target" : "Buff-tailed Coronet" }, { "source" : "Meriania tomentosa", "target" : "Buff-tailed Coronet" }, { "source" : "Mezobromelia", "target" : "Buff-tailed Coronet" }, { "source" : "Mezobromelia capituligera", "target" : "Buff-tailed Coronet" }, { "source" : "Palicourea demissa", "target" : "Buff-tailed Coronet" }, { "source" : "Palicourea lineata", "target" : "Buff-tailed Coronet" }, { "source" : "Pitcairnia sodiroi", "target" : "Buff-tailed Coronet" }, { "source" : "Psammisia ulbrichiana", "target" : "Buff-tailed Coronet" }, { "source" : "Sarcopera anomala", "target" : "Buff-tailed Coronet" }, { "source" : "Alloplectus", "target" : "Collared Inca" }, { "source" : "Bomarea multiflora", "target" : "Collared Inca" }, { "source" : "Bomarea pardina", "target" : "Collared Inca" }, { "source" : "Burmeistera", "target" : "Collared Inca" }, { "source" : "Centropogon solanifolius", "target" : "Collared Inca" }, { "source" : "Drymonia teuscheri", "target" : "Collared Inca" }, { "source" : "Faramea calyptrata", "target" : "Collared Inca" }, { "source" : "Fuchsia macrostigma", "target" : "Collared Inca" }, { "source" : "Glossoloma oblongicalyx", "target" : "Collared Inca" }, { "source" : "Guzmania squarrosa", "target" : "Collared Inca" }, { "source" : "Heliconia impudica", "target" : "Collared Inca" }, { "source" : "Kohleria affinis", "target" : "Collared Inca" }, { "source" : "Macleania bullata", "target" : "Collared Inca" }, { "source" : "Macleania stricta", "target" : "Collared Inca" }, { "source" : "Meriania tomentosa", "target" : "Collared Inca" }, { "source" : "Mezobromelia capituligera", "target" : "Collared Inca" }, { "source" : "Palicourea acetosoides", "target" : "Collared Inca" }, { "source" : "Psammisia sodiroi", "target" : "Collared Inca" }, { "source" : "Psammisia ulbrichiana", "target" : "Collared Inca" }, { "source" : "Centropogon solanifolius", "target" : "Green-crowned Woodnymph" }, { "source" : "Heliconia griggsiana", "target" : "Green-crowned Woodnymph" }, { "source" : "Heliconia virginalis", "target" : "Green-crowned Woodnymph" }, { "source" : "Justicia secunda", "target" : "Green-crowned Woodnymph" }, { "source" : "Macleania recumbens", "target" : "Green-crowned Woodnymph" }, { "source" : "Palicourea demissa", "target" : "Green-crowned Woodnymph" }, { "source" : "Pitcairnia nigra", "target" : "Green-crowned Woodnymph" }, { "source" : "Psammisia", "target" : "Green-crowned Woodnymph" }, { "source" : "Renealmia sessilifolia", "target" : "Green-crowned Woodnymph" }, { "source" : "Salvia quitensis", "target" : "Green-crowned Woodnymph" }, { "source" : "Stromanthe", "target" : "Green-crowned Woodnymph" }, { "source" : "Stromanthe stromanthoides", "target" : "Green-crowned Woodnymph" }, { "source" : "Bomarea pardina", "target" : "Fawn-breasted Brilliant" }, { "source" : "Centropogon solanifolius", "target" : "Fawn-breasted Brilliant" }, { "source" : "Drymonia collegarum", "target" : "Fawn-breasted Brilliant" }, { "source" : "Faramea calyptrata", "target" : "Fawn-breasted Brilliant" }, { "source" : "Fuchsia macrostigma", "target" : "Fawn-breasted Brilliant" }, { "source" : "Guzmania lehmanniana", "target" : "Fawn-breasted Brilliant" }, { "source" : "Kohleria affinis", "target" : "Fawn-breasted Brilliant" }, { "source" : "Mezobromelia capituligera", "target" : "Fawn-breasted Brilliant" }, { "source" : "Palicourea demissa", "target" : "Fawn-breasted Brilliant" }, { "source" : "Pitcairnia squarrosa", "target" : "Fawn-breasted Brilliant" }, { "source" : "Psammisia ulbrichiana", "target" : "Fawn-breasted Brilliant" }, { "source" : "Sarcopera anomala", "target" : "Fawn-breasted Brilliant" }, { "source" : "Besleria solanoides", "target" : "Gorgeted Sunangel" }, { "source" : "Bomarea multiflora", "target" : "Gorgeted Sunangel" }, { "source" : "Bromeliaceae", "target" : "Gorgeted Sunangel" }, { "source" : "Burmeistera", "target" : "Gorgeted Sunangel" }, { "source" : "Burmeistera cylindrocarpa", "target" : "Gorgeted Sunangel" }, { "source" : "Drymonia tenuis", "target" : "Gorgeted Sunangel" }, { "source" : "Glossoloma oblongicalyx", "target" : "Gorgeted Sunangel" }, { "source" : "Guzmania squarrosa", "target" : "Gorgeted Sunangel" }, { "source" : "Macleania bullata", "target" : "Gorgeted Sunangel" }, { "source" : "Macleania stricta", "target" : "Gorgeted Sunangel" }, { "source" : "Meriania tomentosa", "target" : "Gorgeted Sunangel" }, { "source" : "Mezobromelia capituligera", "target" : "Gorgeted Sunangel" }, { "source" : "Palicourea demissa", "target" : "Gorgeted Sunangel" }, { "source" : "Palicourea lineata", "target" : "Gorgeted Sunangel" }, { "source" : "Psammisia sodiroi", "target" : "Gorgeted Sunangel" }, { "source" : "Psammisia ulbrichiana", "target" : "Gorgeted Sunangel" }, { "source" : "Renealmia sessilifolia", "target" : "Gorgeted Sunangel" }, { "source" : "Tillandsia complanata", "target" : "Gorgeted Sunangel" }, { "source" : "Bomarea pardina", "target" : "Green-crowned Brilliant" }, { "source" : "Centropogon solanifolius", "target" : "Green-crowned Brilliant" }, { "source" : "Guzmania jaramilloi", "target" : "Green-crowned Brilliant" }, { "source" : "Heliconia", "target" : "Green-crowned Brilliant" }, { "source" : "Heliconia griggsiana", "target" : "Green-crowned Brilliant" }, { "source" : "Mezobromelia capituligera", "target" : "Green-crowned Brilliant" }, { "source" : "Palicourea acetosoides", "target" : "Green-crowned Brilliant" }, { "source" : "Palicourea demissa", "target" : "Green-crowned Brilliant" }, { "source" : "Pitcairnia nigra", "target" : "Green-crowned Brilliant" }, { "source" : "Psammisia sodiroi", "target" : "Green-crowned Brilliant" }, { "source" : "Macleania bullata", "target" : "Green-fronted Lancebill" }, { "source" : "Mezobromelia capituligera", "target" : "Green-fronted Lancebill" }, { "source" : "Palicourea acetosoides", "target" : "Green-fronted Lancebill" }, { "source" : "Psammisia aberrans", "target" : "Green-fronted Lancebill" }, { "source" : "Psammisia ulbrichiana", "target" : "Green-fronted Lancebill" }, { "source" : "Sarcopera anomala", "target" : "Green Violetear" }, { "source" : "Drymonia tenuis", "target" : "Hoary Puffleg" }, { "source" : "Meriania tomentosa", "target" : "Hoary Puffleg" }, { "source" : "Mikania websteri", "target" : "Hoary Puffleg" }, { "source" : "Psammisia sodiroi", "target" : "Hoary Puffleg" }, { "source" : "Besleria solanoides", "target" : "Purple-bibbed Whitetip" }, { "source" : "Clusia", "target" : "Purple-bibbed Whitetip" }, { "source" : "Heliconia impudica", "target" : "Purple-bibbed Whitetip" }, { "source" : "Macleania stricta", "target" : "Purple-bibbed Whitetip" }, { "source" : "Mezobromelia capituligera", "target" : "Purple-bibbed Whitetip" }, { "source" : "Palicourea demissa", "target" : "Purple-bibbed Whitetip" }, { "source" : "Sarcopera anomala", "target" : "Purple-bibbed Whitetip" }, { "source" : "Palicourea demissa", "target" : "Rufous-tailed Hummingbird" }, { "source" : "Besleria solanoides", "target" : "Sparkling Violetear" }, { "source" : "Palicourea demissa", "target" : "Sparkling Violetear" }, { "source" : "Sarcopera anomala", "target" : "Sparkling Violetear" }, { "source" : "Besleria solanoides", "target" : "Speckled Hummingbird" }, { "source" : "Bomarea multiflora", "target" : "Speckled Hummingbird" }, { "source" : "Columnea", "target" : "Speckled Hummingbird" }, { "source" : "Drymonia tenuis", "target" : "Speckled Hummingbird" }, { "source" : "Drymonia teuscheri", "target" : "Speckled Hummingbird" }, { "source" : "Fuchsia macrostigma", "target" : "Speckled Hummingbird" }, { "source" : "Gasteranthus quitensis", "target" : "Speckled Hummingbird" }, { "source" : "Glossoloma oblongicalyx", "target" : "Speckled Hummingbird" }, { "source" : "Guzmania squarrosa", "target" : "Speckled Hummingbird" }, { "source" : "Macleania stricta", "target" : "Speckled Hummingbird" }, { "source" : "Meriania tomentosa", "target" : "Speckled Hummingbird" }, { "source" : "Mezobromelia capituligera", "target" : "Speckled Hummingbird" }, { "source" : "Palicourea lineata", "target" : "Speckled Hummingbird" }, { "source" : "Psammisia sodiroi", "target" : "Speckled Hummingbird" }, { "source" : "Renealmia sessilifolia", "target" : "Speckled Hummingbird" }, { "source" : "Columnea ciliata", "target" : "Stripe-throated Hermit" }, { "source" : "Columnea mastersonii", "target" : "Stripe-throated Hermit" }, { "source" : "Columnea picta", "target" : "Stripe-throated Hermit" }, { "source" : "Drymonia teuscheri", "target" : "Stripe-throated Hermit" }, { "source" : "Gasteranthus quitensis", "target" : "Stripe-throated Hermit" }, { "source" : "Glossoloma purpureum", "target" : "Stripe-throated Hermit" }, { "source" : "Heliconia griggsiana", "target" : "Stripe-throated Hermit" }, { "source" : "Heliconia impudica", "target" : "Stripe-throated Hermit" }, { "source" : "Heliconia virginalis", "target" : "Stripe-throated Hermit" }, { "source" : "Justicia secunda", "target" : "Stripe-throated Hermit" }, { "source" : "Palicourea demissa", "target" : "Stripe-throated Hermit" }, { "source" : "Palicourea lineata", "target" : "Stripe-throated Hermit" }, { "source" : "Renealmia sessilifolia", "target" : "Stripe-throated Hermit" }, { "source" : "Salvia quitensis", "target" : "Stripe-throated Hermit" }, { "source" : "Stromanthe stromanthoides", "target" : "Stripe-throated Hermit" }, { "source" : "Besleria solanoides", "target" : "Tawny-bellied Hermit" }, { "source" : "Bomarea multiflora", "target" : "Tawny-bellied Hermit" }, { "source" : "Bomarea pardina", "target" : "Tawny-bellied Hermit" }, { "source" : "Centropogon solanifolius", "target" : "Tawny-bellied Hermit" }, { "source" : "Columnea", "target" : "Tawny-bellied Hermit" }, { "source" : "Columnea ciliata", "target" : "Tawny-bellied Hermit" }, { "source" : "Columnea mastersonii", "target" : "Tawny-bellied Hermit" }, { "source" : "Columnea medicinalis", "target" : "Tawny-bellied Hermit" }, { "source" : "Columnea picta", "target" : "Tawny-bellied Hermit" }, { "source" : "Columnea strigosa", "target" : "Tawny-bellied Hermit" }, { "source" : "Drymonia collegarum", "target" : "Tawny-bellied Hermit" }, { "source" : "Drymonia tenuis", "target" : "Tawny-bellied Hermit" }, { "source" : "Drymonia teuscheri", "target" : "Tawny-bellied Hermit" }, { "source" : "Fuchsia macrostigma", "target" : "Tawny-bellied Hermit" }, { "source" : "Gasteranthus pansamalanus", "target" : "Tawny-bellied Hermit" }, { "source" : "Gasteranthus quitensis", "target" : "Tawny-bellied Hermit" }, { "source" : "Glossoloma oblongicalyx", "target" : "Tawny-bellied Hermit" }, { "source" : "Glossoloma purpureum", "target" : "Tawny-bellied Hermit" }, { "source" : "Guzmania", "target" : "Tawny-bellied Hermit" }, { "source" : "Guzmania amplectens", "target" : "Tawny-bellied Hermit" }, { "source" : "Guzmania jaramilloi", "target" : "Tawny-bellied Hermit" }, { "source" : "Guzmania squarrosa", "target" : "Tawny-bellied Hermit" }, { "source" : "Heliconia", "target" : "Tawny-bellied Hermit" }, { "source" : "Heliconia burleana", "target" : "Tawny-bellied Hermit" }, { "source" : "Heliconia griggsiana", "target" : "Tawny-bellied Hermit" }, { "source" : "Heliconia impudica", "target" : "Tawny-bellied Hermit" }, { "source" : "Heliconia virginalis", "target" : "Tawny-bellied Hermit" }, { "source" : "Heppiella", "target" : "Tawny-bellied Hermit" }, { "source" : "Kohleria", "target" : "Tawny-bellied Hermit" }, { "source" : "Kohleria affinis", "target" : "Tawny-bellied Hermit" }, { "source" : "Macleania bullata", "target" : "Tawny-bellied Hermit" }, { "source" : "Mezobromelia capituligera", "target" : "Tawny-bellied Hermit" }, { "source" : "Neomortonia", "target" : "Tawny-bellied Hermit" }, { "source" : "Palicourea demissa", "target" : "Tawny-bellied Hermit" }, { "source" : "Pitcairnia nigra", "target" : "Tawny-bellied Hermit" }, { "source" : "Pitcairnia sodiroi", "target" : "Tawny-bellied Hermit" }, { "source" : "Psammisia aberrans", "target" : "Tawny-bellied Hermit" }, { "source" : "Psammisia ulbrichiana", "target" : "Tawny-bellied Hermit" }, { "source" : "Renealmia sessilifolia", "target" : "Tawny-bellied Hermit" }, { "source" : "Stromanthe stromanthoides", "target" : "Tawny-bellied Hermit" }, { "source" : "Wercklea ferox", "target" : "Tawny-bellied Hermit" }, { "source" : "Besleria solanoides", "target" : "Violet-tailed Sylph" }, { "source" : "Bomarea pardina", "target" : "Violet-tailed Sylph" }, { "source" : "Burmeistera", "target" : "Violet-tailed Sylph" }, { "source" : "Burmeistera multiflora", "target" : "Violet-tailed Sylph" }, { "source" : "Centropogon solanifolius", "target" : "Violet-tailed Sylph" }, { "source" : "Columnea", "target" : "Violet-tailed Sylph" }, { "source" : "Columnea ciliata", "target" : "Violet-tailed Sylph" }, { "source" : "Columnea picta", "target" : "Violet-tailed Sylph" }, { "source" : "Columnea strigosa", "target" : "Violet-tailed Sylph" }, { "source" : "Drymonia brochidodroma", "target" : "Violet-tailed Sylph" }, { "source" : "Drymonia collegarum", "target" : "Violet-tailed Sylph" }, { "source" : "Drymonia tenuis", "target" : "Violet-tailed Sylph" }, { "source" : "Drymonia teuscheri", "target" : "Violet-tailed Sylph" }, { "source" : "Fuchsia macrostigma", "target" : "Violet-tailed Sylph" }, { "source" : "Gasteranthus", "target" : "Violet-tailed Sylph" }, { "source" : "Gasteranthus quitensis", "target" : "Violet-tailed Sylph" }, { "source" : "Glossoloma oblongicalyx", "target" : "Violet-tailed Sylph" }, { "source" : "Glossoloma tetragonoides", "target" : "Violet-tailed Sylph" }, { "source" : "Guzmania amplectens", "target" : "Violet-tailed Sylph" }, { "source" : "Guzmania jaramilloi", "target" : "Violet-tailed Sylph" }, { "source" : "Guzmania squarrosa", "target" : "Violet-tailed Sylph" }, { "source" : "Heliconia", "target" : "Violet-tailed Sylph" }, { "source" : "Heliconia impudica", "target" : "Violet-tailed Sylph" }, { "source" : "Kohleria", "target" : "Violet-tailed Sylph" }, { "source" : "Kohleria affinis", "target" : "Violet-tailed Sylph" }, { "source" : "Macleania stricta", "target" : "Violet-tailed Sylph" }, { "source" : "Meriania", "target" : "Violet-tailed Sylph" }, { "source" : "Meriania tomentosa", "target" : "Violet-tailed Sylph" }, { "source" : "Mezobromelia capituligera", "target" : "Violet-tailed Sylph" }, { "source" : "Palicourea acetosoides", "target" : "Violet-tailed Sylph" }, { "source" : "Palicourea demissa", "target" : "Violet-tailed Sylph" }, { "source" : "Palicourea lineata", "target" : "Violet-tailed Sylph" }, { "source" : "Pitcairnia sodiroi", "target" : "Violet-tailed Sylph" }, { "source" : "Pitcairnia squarrosa", "target" : "Violet-tailed Sylph" }, { "source" : "Podandrogyne", "target" : "Violet-tailed Sylph" }, { "source" : "Psammisia sodiroi", "target" : "Violet-tailed Sylph" }, { "source" : "Psammisia ulbrichiana", "target" : "Violet-tailed Sylph" }, { "source" : "Renealmia sessilifolia", "target" : "Violet-tailed Sylph" }, { "source" : "Sarcopera anomala", "target" : "Violet-tailed Sylph" }, { "source" : "Tillandsia complanata", "target" : "Violet-tailed Sylph" }, { "source" : "Centropogon solanifolius", "target" : "Wedge-billed Hummingbird" }, { "source" : "Fuchsia macrostigma", "target" : "Wedge-billed Hummingbird" }, { "source" : "Guzmania fusispica", "target" : "Wedge-billed Hummingbird" }, { "source" : "Heliconia", "target" : "Wedge-billed Hummingbird" }, { "source" : "Heliconia burleana", "target" : "Wedge-billed Hummingbird" }, { "source" : "Heliconia griggsiana", "target" : "Wedge-billed Hummingbird" }, { "source" : "Palicourea demissa", "target" : "Wedge-billed Hummingbird" }, { "source" : "Psammisia ulbrichiana", "target" : "Wedge-billed Hummingbird" }, { "source" : "Palicourea demissa", "target" : "White-necked Jacobin" }, { "source" : "Abutilon", "target" : "White-whiskered Hermit" }, { "source" : "Centropogon solanifolius", "target" : "White-whiskered Hermit" }, { "source" : "Columnea", "target" : "White-whiskered Hermit" }, { "source" : "Columnea ciliata", "target" : "White-whiskered Hermit" }, { "source" : "Columnea mastersonii", "target" : "White-whiskered Hermit" }, { "source" : "Columnea picta", "target" : "White-whiskered Hermit" }, { "source" : "Drymonia tenuis", "target" : "White-whiskered Hermit" }, { "source" : "Drymonia teuscheri", "target" : "White-whiskered Hermit" }, { "source" : "Glossoloma purpureum", "target" : "White-whiskered Hermit" }, { "source" : "Guzmania amplectens", "target" : "White-whiskered Hermit" }, { "source" : "Heliconia griggsiana", "target" : "White-whiskered Hermit" }, { "source" : "Heliconia virginalis", "target" : "White-whiskered Hermit" }, { "source" : "Palicourea demissa", "target" : "White-whiskered Hermit" }, { "source" : "Psammisia aberrans", "target" : "White-whiskered Hermit" }, { "source" : "Psammisia ulbrichiana", "target" : "White-whiskered Hermit" }, { "source" : "Renealmia sessilifolia", "target" : "White-whiskered Hermit" }, { "source" : "Salvia quitensis", "target" : "White-whiskered Hermit" }, { "source" : "Stromanthe stromanthoides", "target" : "White-whiskered Hermit" } ] ; 
+ var nodes = {}
+
+// Compute the distinct nodes from the links.
+links.forEach(function(link) {
+link.source = nodes[link.source] ||
+(nodes[link.source] = {name: link.source});
+link.target = nodes[link.target] ||
+(nodes[link.target] = {name: link.target});
+link.value = +link.value;
+});
+
+var width = 900
+height = 600;
+
+var force = d3.layout.force()
+.nodes(d3.values(nodes))
+.links(links)
+.size([width, height])
+.linkDistance(50)
+.charge(-200)
+.on("tick", tick)
+.start();
+
+var svg = d3.select("body").append("svg")
+.attr("width", width)
+.attr("height", height);
+
+var link = svg.selectAll(".link")
+.data(force.links())
+.enter().append("line")
+.attr("class", "link");
+
+var node = svg.selectAll(".node")
+.data(force.nodes())
+.enter().append("g")
+.attr("class", "node")
+.on("mouseover", mouseover)
+.on("mouseout", mouseout)
+.on("click", click)
+.on("dblclick", dblclick)
+.call(force.drag);
+
+node.append("circle")
+.attr("r", 8)
+.style("fill", "#3182bd");
+
+node.append("text")
+.attr("x", 12)
+.attr("dy", ".35em")
+.style("fill", "#3182bd")
+.text(function(d) { return d.name; });
+
+function tick() {
+link
+.attr("x1", function(d) { return d.source.x; })
+.attr("y1", function(d) { return d.source.y; })
+.attr("x2", function(d) { return d.target.x; })
+.attr("y2", function(d) { return d.target.y; });
+
+node.attr("transform", function(d) { return "translate(" + d.x + "," + d.y + ")"; });
+}
+
+function mouseover() {
+d3.select(this).select("circle").transition()
+.duration(750)
+.attr("r", 16);
+}
+
+function mouseout() {
+d3.select(this).select("circle").transition()
+.duration(750)
+.attr("r", 8);
+}
+// action to take on mouse click
+function click() {
+d3.select(this).select("text").transition()
+.duration(750)
+.attr("x", 22)
+.style("stroke-width", ".5px")
+.style("opacity", 1)
+.style("fill", "#E34A33")
+.style("font", "17.5px serif");
+d3.select(this).select("circle").transition()
+.duration(750)
+.style("fill", "#E34A33")
+.attr("r", 16)
+}
+
+// action to take on mouse double click
+function dblclick() {
+d3.select(this).select("circle").transition()
+.duration(750)
+.attr("r", 6)
+.style("fill", "#E34A33");
+d3.select(this).select("text").transition()
+.duration(750)
+.attr("x", 12)
+.style("stroke", "none")
+.style("fill", "#E34A33")
+.style("stroke", "none")
+.style("opacity", 0.6)
+.style("font", "7px serif");
+}
+
+</script>
+ </body>

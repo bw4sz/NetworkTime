@@ -30,7 +30,7 @@ gitpath<-"C:/Users/Ben/Documents/NetworkTime/"
 
 setwd(gitpath)
 
-opts_chunk$set(message=FALSE,warning=FALSE,fig.width=13,echo=FALSE,cache=TRUE,cache.path = 'NetworkTime_cache/', fig.path='figure/')
+opts_chunk$set(message=FALSE,warning=FALSE,fig.height=9,fig.width=13,echo=FALSE,cache=TRUE,cache.path = 'NetworkTime_cache/', fig.path='figure/')
 ```
 
 #Exploratory Network Analysis
@@ -81,7 +81,9 @@ flower.month$High<-log(flower.month$Flowers)>flower.month$value
 #plot
 ggplot(flower.month,aes(x=Month.a,log(Flowers),shape=as.factor(Year),col=High)) + geom_point(size=3) + theme_bw()  + geom_smooth(aes(group=1)) + ylab("Flowers") + xlab("Month") + facet_wrap(~Transect_R,scales="free_y") + labs(shape="Year", y= "Log Available Flowers") + scale_x_discrete(breaks=month.abb[seq(1,12,2)]) + scale_color_manual(labels=c("Low","High"),values=c("black","red")) + labs(col="Resource Availability")
 
-ggsave("Figures/AvailableFlowers.jpg",dpi=600,units="in",width=11,height=7)
+ggsave("Figures/AvailableFlowers.jpg",dpi=600,units="in",width=11,height=10)
+ggsave("Figures/AvailableFlowers.svg",units="in",width=11,height=10)
+
 ```
 
 ****
@@ -164,14 +166,16 @@ p<-p+ geom_point(aes(size=N,y=True)) + geom_line(aes(y=True))
 p<-p+scale_fill_discrete(guide="none") + scale_x_date(breaks="3 months",label=date_format("%m/%y")) + scale_size_continuous(range=c(2.5,5),"Observations") + labs(y="") + theme_bw()
 print(p) 
 
-ggsave("Figures/NullNetwork.jpg",dpi=600,quality=100,pointsize=14,height=4.5,width=12)
+ggsave("Figures/NullNetwork.jpg",dpi=600,quality=100,pointsize=14,height=10,width=12)
+ggsave("Figures/NullNetwork.svg",height=10,width=12)
+
 ```
 
 ********
 
 **Figure 4. Connectance, clustering and niche overlap as a function of available resources. Point size is proportional to number of interactions observed that month.**
 
-```{r,fig.height=5,fig.width=12}
+```{r,fig.height=20,fig.width=15}
     
 flowerMean<-group_by(flower.month,Month,Year,Transect_R) %>% summarize(mFlowers=mean(Flowers,na.rm=TRUE)) %>% group_by(Month,Year) %>% summarize(Flowers=sum(mFlowers,na.rm=TRUE))
   
@@ -181,7 +185,15 @@ flowerMean<-group_by(flower.month,Month,Year,Transect_R) %>% summarize(mFlowers=
   #Quick visualization 
   p<-ggplot(network.fl[,],aes(log(Flowers),y=True,shape=as.factor(Year))) + geom_point(aes(size=N)) + facet_wrap(~Metric,scale="free")  + geom_smooth(aes(group=1),method="lm") + theme_bw() + labs(col="Month",shape="Year",size="Interactions") + geom_text(aes(label=month.abb[Month]),hjust=-0.25,size=3) + scale_size_continuous(range=c(2.5,5),"Observations") + labs(x="Log Available Resources") + ylab("Score")
   print(p) 
-ggsave("Figures/Network_Resources.jpg",height=4,width=10,dpi=300,units="in")
+ggsave("Figures/Network_Resources.jpg",height=15,width=15,dpi=300,units="in")
+ggsave("Figures/Network_Resources.svg",height=10,width=10)
+
+#just a subset
+p<-ggplot(network.fl[network.fl$Metric %in% c("mean.number.of.shared.partners.HL","H2","weighted NODF","connectance"),],aes(log(Flowers),y=True,shape=as.factor(Year))) + geom_point(aes(size=N)) + facet_wrap(~Metric,scale="free")  + geom_smooth(aes(group=1),method="lm") + theme_bw() + labs(col="Month",shape="Year",size="Interactions") + geom_text(aes(label=month.abb[Month]),hjust=-0.25,size=3) + scale_size_continuous(range=c(2.5,5),"Observations") + labs(x="Log Available Resources") + ylab("Score")
+  print(p) 
+ggsave("Figures/Network_ResourcesSubset.jpg",height=5,width=10,dpi=300,units="in")
+ggsave("Figures/Network_ResourcesSubset.svg",height=5,width=10)
+  
 ```
 
 ## Figure 5. Trait matching
@@ -264,8 +276,8 @@ p<-p + coord_flip()
 
 sdat<-split(m.datH,list(m.datH$Month,m.datH$Year))
 
-#atleast 20 observations
-sdat<-sdat[sapply(sdat,nrow)>20]
+#atleast 10 observations
+sdat<-sdat[sapply(sdat,nrow)>40]
 
 ######Correlation coefficient
 #calculate it for all birds, then short and longbilled (30cm)
@@ -283,6 +295,8 @@ p<-ggplot(data=observed,aes(x=Date,y=value)) + geom_point() + geom_smooth(aes(gr
 p<-p+ theme_bw()  + labs(y="Correlation between Bill and Corolla Length",x="Available Resources") + labs(shape="Year")
 p
 ggsave("Figures/CorrelationTime.jpg",height=5,width=8,units="in",dpi=600)
+ggsave("Figures/CorrelationTime.svg",height=5,width=8)
+
 setwd(gitpath)
 ```
 
@@ -297,7 +311,7 @@ shufflecor<-function(x=m.datH){
   splitdat<-split(x,list(x$Month,x$Year))
   
   #atleast 20 observations
-  splitdat<-splitdat[sapply(splitdat,nrow)>20]
+  splitdat<-splitdat[sapply(splitdat,nrow)>40]
   
   ######Correlation coefficient, which method to use?
   coef<-lapply(splitdat,function(y){
@@ -310,7 +324,7 @@ shufflecor<-function(x=m.datH){
   return(nullc)
   }
 
-nullcor<-replicate(200,shufflecor(m.datH),simplify = F)
+nullcor<-replicate(100,shufflecor(m.datH),simplify = F)
 nullcor<-rbind_all(nullcor)
 #bind with resource dataframe
 nullcor<-merge(flowerMean,nullcor,by=c("Month","Year"))
@@ -338,11 +352,13 @@ p<-p+ theme_bw()  + labs(y="Correlaton between Bill and Corolla Length",x="Log A
 p<-p + scale_y_continuous(breaks=c(-.3,0,.2,.4,.6,.8)) + scale_size_continuous(range=c(2.5,5)) + scale_fill_discrete(guide="none") + geom_smooth(aes(y=value),method="lm",fill="grey60",alpha=.8)  + labs(size="Observations") + geom_point(aes(y=value,shape=as.factor(Year),size=N)) + geom_text(aes(y=value,label=month.abb[Month]),size=3.5,vjust=-.5)
 print(p)
 ggsave("Figures/TraitMatching_Resource.jpg",height=6,width=8,units="in",dpi=600)
+ggsave("Figures/TraitMatching_Resource.svg",height=6,width=8)
+
 ```
 
 * The working hypothesis is that long billed species tend to feed more on mismatched corolla values during periods of high resource abundance. 
 
-```{r,eval=FALSE}
+```{r,eval=T}
 specmonth<-function(x){
 
   monthdata<-droplevels(x)
@@ -382,7 +398,7 @@ return(toreturn)
 }
 ```
 
-```{r}
+```{r,eval=F}
 hlist<-list()
 for(d in 1:length(sdat)){
   try(hlist[[d]]<-specmonth(sdat[[d]]))
@@ -461,4 +477,6 @@ p<-p + theme_bw() + facet_wrap(~Hummingbird,scales="free")
 p<-p + scale_x_discrete("Available Resources",labels=c("Low","High")) + scale_fill_discrete("Bill Length",labels=c("Short","Long")) 
 p + labs(y="Difference between bill and corolla Length")
 ggsave("Figures/BillLength_Resources.jpg",height=7,width=10,units="in",dpi=600)
+ggsave("Figures/BillLength_Resources.svg",height=7,width=10)
+
 ```

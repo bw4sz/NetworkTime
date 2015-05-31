@@ -27,6 +27,16 @@ source(paste(gitpath,"NetworkSource.R",sep=""))
 ##############Read In Data##################
 ############################################
 
+#moprh data
+#read in flower morphology data, comes from Nectar.R
+fl.morph<-read.csv(paste(droppath,"Thesis/Maquipucuna_SantaLucia/Results/FlowerMorphology.csv",sep=""))
+
+#First row is empty
+fl.morph<-fl.morph[-1,]
+
+#Bring in Hummingbird Morphology Dataset, comes from
+hum.morph<-read.csv(paste(droppath,"Thesis/Maquipucuna_SantaLucia/Results/HummingbirdMorphology.csv",sep=""))
+
 #bring in clade data
 clades<-read.csv(paste(gitpath,"InputData//CladeList.txt",sep=""),header=FALSE)[,-1]
 colnames(clades)<-c("Clade","Genus","Species","double","English")
@@ -54,7 +64,16 @@ pco<-read.csv(paste(gitpath,"InputData/PlantRelatedness.csv",sep=""))
 datf<-read.csv("C:/Users/Ben/Dropbox/Thesis/Maquipucuna_SantaLucia/Results/Network/HummingbirdInteractions.csv",row.names=1)
 
 #remove flower piercer
-datf<-droplevels(datf[!datf$Hummingbird %in% "White-lined Flowerpiercer",])
+datf<-droplevels(datf[!datf$Hummingbird %in% c("White-lined Flowerpiercer","White-sided Flowerpiercer"),])
+
+#reformatted names
+missing<-levels(datf$Hummingbird)[!levels(datf$Hummingbird) %in% clades$English]
+
+#correct spelling mistakes
+levels(datf$Hummingbird)[levels(datf$Hummingbird) %in% "Booted Racketail"]<-"Booted Racket-tail" 
+levels(datf$Hummingbird)[levels(datf$Hummingbird) %in% "Crowned Woodnymph"]<-"Green-crowned Woodnymph" 
+levels(datf$Hummingbird)[levels(datf$Hummingbird) %in% "Violet-tailed Slyph"]<-"Violet-tailed Sylph"
+
 
 ############################################
 #Run Network Function for the entire dataset
