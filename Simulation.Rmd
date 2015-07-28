@@ -394,7 +394,7 @@ InitStage <- function() {list(beta1=rep(.5,Dat$Birds),beta2=rep(.5,Dat$Birds),be
 ParsStage <- c("detect","alpha","beta1","beta2","beta3","intercept","sigma_int","sigma_slope1","sigma_slope2","sigma_slope3","N","gamma1","gamma2","gamma3","fit","fitnew")
 
 #MCMC options
-ni <- 20000  # number of draws from the posterior
+ni <- 50000  # number of draws from the posterior
 nt <- 5  #thinning rate
 nb <- ni*.3 # number to discard for burn-in
 nc <- 2  # number of chains
@@ -506,7 +506,7 @@ intF<-function(alpha,beta1,beta2,beta3,x,resources){
 }
 ```
 
-Calculated predicted y
+Calculated predicted values based on posterior distribution
 
 ```{r}
 
@@ -524,6 +524,7 @@ ggsave("Figures/SimulationResults.jpg",height=5,width=6,dpi=300)
 Using our model we were able to accurately capture the simulated values.
 
 ###Visualize interactions
+
 ```{r}
 predyint<-intF(alpha=castdf$intercept,beta1=castdf$gamma1,x=as.numeric(traitarray),resources=resources,beta2=castdf$gamma2,beta3=gamma3)
 
