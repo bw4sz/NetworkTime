@@ -280,7 +280,7 @@ mdat<-dcast(melt(list(y=true_interactions,traitmatch=traitarray,resources=resour
 ```
 
 
-```{r}
+```{r,fig.width=15}
 #For each species loop through and create a replicate dataframe
 obs<-array(dim=c(h_species,plant_species,months))
 
@@ -576,5 +576,12 @@ p<-ggplot(fitstat,aes(x=fit,y=fitnew)) + geom_point() + theme_bw() + coord_equal
 psim5<-p  + labs(x="Discrepancy of observed data",y="Discrepancy of replicated data",col="Model") + geom_line(data=ab,aes(x=x,y=y)) + ggtitle("Simulated Data")
 
 psim5
+```
+
+##Detection probabilities
+```{r}
+#Detection figure
+ggplot(pars[pars$par %in% c("detect"),],aes(x=factor(species,levels=1:max(as.numeric(species))),y=estimate),fill='black') + geom_violin() + ggtitle("Estimate of parameters") + theme_bw() + ggtitle("Detection Probability") + xlab("Species")
+
 ```
 
