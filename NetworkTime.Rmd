@@ -31,6 +31,9 @@ gitpath<-"C:/Users/Ben/Documents/NetworkTime/"
 setwd(gitpath)
 
 opts_chunk$set(message=FALSE,warning=FALSE,fig.height=9,fig.width=13,echo=FALSE,cache=TRUE,cache.path = 'NetworkTime_cache/', fig.path='figure/')
+
+#source bayes functions
+source("BayesFunctions.R")
 ```
 
 #Exploratory Network Analysis
@@ -277,7 +280,7 @@ p<-p + coord_flip()
 sdat<-split(m.datH,list(m.datH$Month,m.datH$Year))
 
 #atleast 10 observations
-sdat<-sdat[sapply(sdat,nrow)>40]
+sdat<-sdat[sapply(sdat,nrow)>30]
 
 ######Correlation coefficient
 #calculate it for all birds, then short and longbilled (30cm)
@@ -311,7 +314,7 @@ shufflecor<-function(x=m.datH){
   splitdat<-split(x,list(x$Month,x$Year))
   
   #atleast 20 observations
-  splitdat<-splitdat[sapply(splitdat,nrow)>40]
+  splitdat<-splitdat[sapply(splitdat,nrow)>30]
   
   ######Correlation coefficient, which method to use?
   coef<-lapply(splitdat,function(y){
@@ -479,4 +482,481 @@ p + labs(y="Difference between bill and corolla Length")
 ggsave("Figures/BillLength_Resources.jpg",height=7,width=10,units="in",dpi=600)
 ggsave("Figures/BillLength_Resources.svg",height=7,width=10)
 
+```
+
+## Hierarcichal Occupancy Model Formulation
+
+$$ Y_{i,j,k} \sim Binom(N_{i,j},detect_i)$$
+$$N_{i,j} \sim Pois(\lambda_{i,j}) $$
+$$log(\lambda_{i,j})<-\alpha_i + \beta_i *  + \gamma_i * R_k + \eta_i * \psi_i * R_k  $$
+$$ \psi = abs(Bill_i - Corolla_j) $$
+$$ detect_i \sim U(0,1)$$     
+
+**Priors**
+
+$$\alpha_i \sim N(intercept,\tau_{\alpha})$$
+$$\beta_i \sim N(\gamma,\tau_{\beta})$$
+
+**Hyperpriors**
+$$gamma \sim N(0.001,0.001)$$
+$$intercept \sim N(0.001,0.001)$$
+
+$$\tau_{\alpha} \sim Gamma(0.001,0.001)$$
+$$\tau_\beta \sim Gamma(0.001,0.001)$$
+
+**Derived quantities**
+
+$$\sigma_{int} = \frac{1}{\tau_{\alpha}}^2$$
+$$\sigma_{slope} = \frac{1}{\tau_{\beta}}^2$$
+
+```{r}
+###Read in data
+#read in flower morphology data, comes from Nectar.R
+droppath<-"C:/Users/Ben/Dropbox/"
+fl.morph<-read.csv(paste(droppath,"Thesis/Maquipucuna_SantaLucia/Results/FlowerMorphology.csv",sep=""))
+
+#First row is empty
+fl.morph<-fl.morph[-1,]
+
+#Bring in Hummingbird Morphology Dataset, comes from
+hum.morph<-read.csv(paste(droppath,"Thesis/Maquipucuna_SantaLucia/Results/HummingbirdMorphology.csv",sep=""))
+
+#Bring in Interaction Matrix
+int<-read.csv(paste(droppath,"Thesis/Maquipucuna_SantaLucia/Results/Network/HummingbirdInteractions.csv",sep=""),row.names=1)
+
+m.dat<-int[colnames(int) %in% c("ID","Video","Time","Hummingbird","Sex","TransectID","Transect_R","Iplant_Double","Pierce","DateP","Month","ele","Type")]
+
+m.dat$Year<-years(as.Date(m.dat$DateP))
+#one missing date
+m.dat$Year[m.dat$Year %in% 2012]<-2013
+
+#Fix spacing to match clades
+
+#Which are matching
+levels(m.dat$Hummingbird)[!levels(m.dat$Hummingbird) %in% hum.morph$English]
+
+#This needs to be checked
+#print(paste(levels(m.dat$Hummingbird)[!levels(m.dat$Hummingbird) %in% hum.morph$English],"not matched"))
+
+#Number of bird species
+h_species<-nlevels(m.dat$Hummingbird)
+
+#Number of plant species
+plant_species<-nlevels(m.dat$Iplant_Double)
+
+#levels(m.dat$Hummingbird)[!levels(m.dat$Hummingbird) %in% hum.morph$English]<-c("Green-crowned Woodnymph")
+m.datH<-merge(m.dat,hum.morph, by.x="Hummingbird",by.y="English")
+
+#Merge to flowers
+int.FLlevels<-levels(factor(m.datH$Iplant_Double))
+
+#Which flowers are we missing info for?
+missingTraits<-int.FLlevels[!int.FLlevels %in% fl.morph$X]
+
+#print(paste("Missing Trait Information:",missingTraits))
+m.datH<-merge(m.datH,fl.morph, by.x="Iplant_Double",by.y="X")
+
+#Drop piercing events, since they don't represent correlation
+m.datH<-m.datH[!m.datH$Pierce %in% c("y","Y"),]
+
+p<-ggplot(m.datH[!is.na(m.datH$Month),],aes(x=factor(Total_Culmen),TotalCorolla,col=Hummingbird)) + geom_point() 
+p<-p + geom_smooth(aes(group=1),method="lm") + facet_wrap(~Month) + theme_bw()
+
+p<-ggplot(m.datH[!is.na(m.datH$Month),],aes(x=Total_Culmen,TotalCorolla,col=Month)) + geom_point() 
+p<-p + geom_smooth(aes(group=Month),method="lm") + theme_bw() + scale_color_continuous(low="blue",high="red")
+
+#Difference Between Corolla and Bill Length of interactions measured
+m.datH$BD<-abs(m.datH$Total_Culmen-m.datH$TotalCorolla)
+p<-ggplot(m.datH,aes(y=BD,x=Hummingbird)) + geom_boxplot(position="dodge")
+p<-p + coord_flip()
+
+```
+
+```{r}
+###Format data
+
+#remove species with less than  10 observations
+keep<-names(which(table(m.datH$Hummingbird) > 20))
+
+m.datH<-droplevels(m.datH[m.datH$Hummingbird %in% keep,])
+
+#observed traitmatching
+traitmatchF<-abs(t(sapply(hum.morph$Bill,function(x){x-fl.morph$TotalCorolla})))
+
+rownames(traitmatchF)<-hum.morph$English
+colnames(traitmatchF)<-fl.morph$Group.1
+```
+
+```{r}
+#match names
+#Round to 2 decimals
+#Convert to cm for winbugs, avoids numerical underflow
+traitmatchT<-round(traitmatchF[rownames(traitmatchF) %in% m.datH$Hummingbird,colnames(traitmatchF) %in% m.datH$Iplant_Double],2)/10
+```
+
+```{r}
+#Formatting indexes
+m.datH$Bird<-as.numeric(factor(m.datH$Hummingbird,sort(unique(m.datH$Hummingbird))))
+m.datH$Plant<-as.numeric(factor(m.datH$Iplant_Double,sort(unique(m.datH$Iplant_Double))))
+m.datH$obs<-1
+
+traitmatchT<-traitmatchT[sort(rownames(traitmatchT)),sort(colnames(traitmatchT))]
+
+#Create an index to connect to species names
+#remerge species levels
+bindex<-data.frame(Index=1:length(rownames(traitmatchT)),Species=rownames(traitmatchT))
+
+pindex<-data.frame(Index=1:length(colnames(traitmatchT)),Species=colnames(traitmatchT))
+
+```
+
+###Elevation ranges
+
+Create a binary variable whether each observation was in a low elevation or high elevation transect. We have some species that just occur at the top of the gradient, and are not present in the sampling window of flowers at the low elevation.
+
+Accounting for non-availability.
+We have to figure out which plants were sampled in which periods, and if it was sampled, the non-detections are 0 if it wasn't the non-detections are NA. then remove all the Na's.
+
+```{r}
+elevH<-read.csv("InputData/HummingbirdElevation.csv",row.names=1)
+head(elevH)
+colnames(elevH)[5]<-"Elevation"
+
+#merge to names
+elevH<-merge(bindex,elevH,by.x="Species",by.y="Hummingbird")
+
+#remove plant species without dual names
+keepp<-colnames(traitmatchT)[which(!sapply(strsplit(colnames(traitmatchT), " "), length)==1)]
+
+#must have atleast 10 observations
+keepp<-keepp[keepp %in% names(which(table(m.datH$Iplant_Double) >  5))]
+  
+#high elevation or low elevation
+elevP<-read.csv("InputData/PlantElevation.csv",row.names=1)
+elevP<-elevP[elevP$Iplant_Double %in% keepp,]
+colnames(elevP)[5]<-"Elevation"
+
+elevP<-merge(pindex,elevP,by.x="Species",by.y="Iplant_Double")
+```
+
+```{r}
+#get each sampling event
+m.datH %>% group_by(Bird,Plant,ID) %>% summarize(n=sum(obs)) %>% ungroup %>%  arrange(desc(n))
+
+#ID for NA is 1
+#m.datH$ID<-as.character(m.datH$ID)
+#m.datH[which(is.na(m.datH$ID)),"ID"]<-m.datH$TransectID[which(is.na(m.datH$ID))]
+
+m.datH<-m.datH[!is.na(m.datH$ID),]
+
+indatRaw<- m.datH %>% group_by(Bird,Plant,DateP,ID) %>% summarize(Yobs=n()) %>% filter(Plant %in% elevP$Index) %>% ungroup() %>% arrange(desc(Yobs)) %>% mutate(Time=as.numeric(as.factor(as.character(paste(ID,DateP)))))
+
+
+indatlong<-acast(indatRaw,Bird~Plant~Time,value.var="Yobs")
+
+indatlong[is.na(indatlong)]<-0
+```
+
+
+```{r}
+#Only non-detections are real 0's, the rest are NA's and are removed.
+#Plants not surveyed in that time period
+#Hummingbirds not present at that site
+
+for(x in 1:dim(indatlong)[3]){
+  #Remove non sampled plants 
+  a<-indatlong[,,x]
+  toNA<-as.numeric(names(which(apply(a,2,sum)==0)))
+  pres<-as.numeric(names(which(!apply(a,2,sum)==0)))
+  
+  indatlong[,colnames(a) %in% toNA,x]<-NA
+  
+  #match elevation if there were presences, slightly terse code.
+  if(length(pres)>0){
+    for (y in 1:length(pres)){
+      #Plant range
+      pr<-elevP[elevP$Index %in% pres[y],"Elevation"]
+      if(!pr==3){
+        helim<-elevH[!elevH$Elevation %in% c(pr,3),"Index"]
+        indatlong[helim,colnames(a) %in% pres[y],x]<-NA
+        }
+      }  
+    }
+  }
+
+
+#melt and remove Na'sx  
+indat<-melt(indatlong)
+indat<-indat[!is.na(indat$value),]
+
+colnames(indat)<-c("Bird","Plant","Time","Yobs")
+```
+
+##Resource availability at each data point
+
+```{r}
+
+#Date organization
+
+#read in flower totals from FlowerTransects.R
+fltransects<-read.csv(paste(droppath,"Thesis/Maquipucuna_SantaLucia/Results/FlowerTransects/FlowerTransectClean.csv",sep=""))
+
+#dates need a bit of formatting
+
+fltransects$DateP<-as.POSIXlt(fltransects$Date,format="%d/%m/%y")
+
+#which are NA needs to date/month reversed. ugly.
+fltransects[which(is.na(fltransects$DateP)),"DateP"]<-as.character(as.POSIXlt(as.character(fltransects[which(is.na(fltransects$DateP)),"Date"]),format="%m/%d/%Y"))
+
+
+#remove withour elevation records (less than 1% of data)
+fltransects<-fltransects[!is.na(fltransects$ele),]
+
+#create an initial flower interaction list
+fl.sp<-split(m.datH$Iplant_Double,m.datH$Hummingbird)
+fl.sp<-melt(lapply(fl.sp,function(x){unique(x)}))
+colnames(fl.sp)<-c("Iplant_Double","Hummingbird")
+
+#container to hold results
+
+out<-list()
+
+#get the resource availability at each time
+for (y in 1:nrow(indatRaw)){
+  #subset row
+  x<-indatRaw[y,]
+
+  #Date of point
+  DateP<-x[["DateP"]]
+  
+  #elevation point
+  Elevation<-mean(m.datH[m.datH$ID %in% x[["ID"]],"ele"])
+  
+  #stop if no elevation record, as we clean more this should be fine.
+  if(is.na(Elevation)) {out[[y]]<-data.frame(Bird=x[["Bird"]],Time=x[["Time"]],AllResources=NA,PrivateResources=NA)
+  next}
+  
+  #hummingbird english name
+  sp<-bindex[bindex$Index %in% x[["Bird"]],"Species"]
+  
+  #plant species list for that bird
+  plant.list<-fl.sp[fl.sp$Hummingbird %in% sp,"Iplant_Double"]
+  
+  #dates within two weeks either side. 
+  dateL<-abs(difftime(DateP,fltransects$DateP,units="weeks")) <= 2.5
+  
+  #and within 200m of the elevation
+  flower.month<-fltransects[dateL & (fltransects$ele > Elevation -200 & fltransects$ele < Elevation + 200) ,]
+
+  if(nrow(flower.month)==0) {out[[y]]<-data.frame(Bird=x[["Bird"]],Time=x[["Time"]],AllResources=NA,PrivateResources=NA)
+  next}
+  
+  mean.fl_all<-mean(aggregate(flower.month$Total_Flowers,list(flower.month$Transect.ID),sum,na.rm=TRUE)$x)
+    
+  flower_sp<-flower.month[flower.month$Iplant_Double %in% plant.list,]
+  
+  if(nrow(flower.month)==0) {out[[y]]<-data.frame(Bird=x[["Bird"]],Time=x[["Time"]],AllResources=NA,PrivateResources=NA)
+  next}
+  
+  mean.fl<-mean(aggregate(flower_sp$Total_Flowers,list(flower_sp$Transect.ID),sum,na.rm=TRUE)$x)
+  out[[y]]<-data.frame(Bird=x[["Bird"]],Time=x[["Time"]],AllResources=mean.fl_all,PrivateResources=mean.fl)
+}
+
+#time by resources matrix
+timer<-rbind_all(out)
+```
+
+###jags model
+
+```{r,eval=T}
+
+runs<-10000
+
+#Source model
+source("Bayesian/NMixtureRagged.R")
+
+#print model
+print.noquote(readLines("Bayesian/NMixtureRagged.R"))
+
+
+#ragged index data
+
+#Input Data
+Dat <- list(
+  Y=indat$Yobs,
+  Bird=indat$Bird,
+  Plant=indat$Plant,
+  Birds=length(unique(indat$Bird)),
+  Plants=max(indat$Plant),
+  Nobs=length(indat$Yobs),
+  traitmatch=traitmatchT
+  )
+
+#A blank Y matrix - all present
+initY<-matrix(nrow=Dat$Birds,ncol=Dat$Plants,data=max(Dat$Y,na.rm=T))
+
+#Inits
+InitStage <- function() {list(beta=rep(.5,Dat$Birds),alpha=rep(.5,Dat$Birds),detect=rep(.5,Dat$Birds),gamma=0,intercept=0,tau_alpha=0.1,tau_beta=0.1,N=initY)}
+
+#Parameters to track
+ParsStage <- c("detect","alpha","beta","intercept","gamma","sigma_int","sigma_slope","N","fit","fitnew")
+
+#MCMC options
+ni <- runs  # number of draws from the posterior
+nt <- runs*.001   #thinning rate
+nb <- runs*.2 # number to discard for burn-in
+nc <- 3  # number of chains
+
+#Jags
+
+m2 = jags(inits=InitStage,
+          n.chains=nc,
+          model.file="Bayesian/NMixtureRagged.jags",
+          working.directory=getwd(),
+          data=Dat,
+          parameters.to.save=ParsStage,
+          n.thin=nt,
+          n.iter=ni,
+          n.burnin=nb,
+          DIC=T)
+```
+
+```{r}
+pars<-extract_par(m2)
+
+#name
+pars$Model<-"Detection"
+```
+
+###Assess Convergence
+
+```{r,cache=FALSE,eval=TRUE,fig.width=13,fig.height=5}
+
+###Chains
+ggplot(pars[pars$par %in% c("detect","alpha","beta"),],aes(x=Draw,y=estimate,col=as.factor(Chain))) + geom_line() + facet_grid(par~species,scale="free") + theme_bw() + labs(col="Chain") + ggtitle("Detection Probability")
+
+```
+
+Hierarcichal Posteriors
+```{r,fig.height=5,fig.width=11,eval=T}
+ggplot(pars[pars$par %in% c("gamma","sigma_int","sigma_slope"),],aes(x=Draw,y=estimate,col=as.factor(Chain))) + geom_line() + theme_bw() + labs(col="Chain") + ggtitle("Trait-matching regression") + facet_wrap(~par,scales="free")
+ggsave("Figures/BothObs.svg",height=5,width=7)
+ggsave("Figures/BothObs.jpg",height=5,width=7,dpi=300)
+
+```
+
+```{r}
+#Bind together the two models
+parsObs<-rbind(pars,pars_niave)
+```
+
+###Posteriors
+
+```{r,cache=FALSE,fig.width=11,fig.height=12}
+###Posterior Distributions
+ggplot(parsObs[parsObs$par %in% c("detect","alpha","beta"),],aes(x=estimate,fill=Model)) + geom_histogram() + ggtitle("Estimate of parameters") + facet_grid(species~par,scales="free") + theme_bw() + ggtitle("Detection Probability")
+
+```
+
+```{r,cache=FALSE,fig.width=10,fig.height=5}
+#Detection figure
+ggplot(parsObs[parsObs$par %in% c("detect"),],aes(x=as.factor(species),y=estimate,fill=Model)) + geom_violin() + ggtitle("Estimate of parameters") + theme_bw() + ggtitle("Detection Probability") +facet_wrap(~Model,scales="free") 
+
+parsp<-merge(pars,bindex,by.x="species",by.y="Index")
+ggplot(parsp[parsp$par %in% c("detect"),],aes(x=estimate)) + geom_histogram() + ggtitle("Posterior Distribution") + theme_bw() + facet_wrap(~Species,ncol=5) + xlab("Probability of Detection")
+ggsave("Figures/DetectionProb.jpg",dpi=300,height=7,width=11)
+```
+
+
+```{r,cache=FALSE,eval=TRUE,fig.height=5,fig.width=13}
+
+ggplot(parsObs[parsObs$par %in% c("gamma","intercept","sigma_int","sigma_slope"),],aes(x=estimate,fill=Model)) + geom_histogram() + ggtitle("Trait matching regression parameters") + facet_wrap(~par,scale="free",nrow=2) + theme_bw() 
+```
+
+###Species Predictions
+
+```{r}
+#orignal data to plot as ppints
+odat<-merge(indat,bindex,by.x="Bird",by.y="Index")
+odat<-merge(odat,pindex,by.x="Plant",by.y="Index")
+
+#Append the traits
+odatT<-melt(traitmatchT)
+colnames(odatT)<-c("Bird","Plant","x")
+colnames(odat)<-c("Plant","Bird","Time","Yobs","Bird_Species","Plant_Species")
+odat<-merge(odat,odatT,by.x=c("Bird_Species","Plant_Species"),by.y=c("Bird","Plant"))
+#rename the column to match
+colnames(odat)[1]<-"L1"
+```
+
+```{r,fig.height=10,fig.width=11,eval=T}
+
+castdf<-dcast(parsObs[parsObs$par %in% c("beta","alpha","polybeta"),], species +Chain +Model+ Draw~par,value.var="estimate")
+
+#Turn to 
+castdf$species<-factor(castdf$species,levels=1:max(as.numeric(castdf$species)))
+
+species.split<-split(castdf,list(castdf$species,castdf$Model))
+
+species.traj<-list()
+
+for(d in 1:length(species.split)){
+  x<-species.split[[d]]
+  index<-unique(x$species)
+  species.traj[[d]]<-trajF(alpha=x$alpha,beta=x$beta,x=as.numeric(traitmatchT[index,]))
+  }
+
+names(species.traj)<-names(species.split)
+
+species.traj<-melt(species.traj,id.var=colnames(species.traj[[1]]))
+
+#split out names and model
+species.traj[,c("Index","Model")]<-colsplit(species.traj$L1,"\\.",c("Index","Model"))
+
+spe<-merge(species.traj,bindex,by.x="Index",by.y="Index")
+
+#match colnames
+names(odat)[1]<-"Species"
+#plot and compare to original data
+p<-ggplot(data=spe[,],aes(x=x)) + geom_ribbon(aes(ymin=lower,ymax=upper,fill=Model),alpha=0.2)  + geom_line(aes(y=mean,col=Model),size=1) + theme_bw() + ylab("Interactions") + xlab("Difference between Bill and Corolla Length") + facet_wrap(~Species,scales="free",ncol=3) + labs(fill="Model") + geom_point(data=odat,aes(x=x,y=Yobs))
+
+print(p)
+ggsave("Figures/SpeciesPredictionsBoth.jpg",dpi=300,height=8,width=10)
+```
+
+###Overall predicted relationship 
+
+Does accounting for non-independence and detection change our estimate of trait matching?
+
+```{r,fig.height=6,fig.width=10}
+
+castdf<-dcast(parsObs[parsObs$par %in% c("gamma","intercept"),], Model+Chain + Draw~par,value.var="estimate")
+
+castdf<-split(castdf,castdf$Model)
+#calculated predicted y
+predy<-rbind_all(lapply(castdf,function(i){
+  #calculate trajectory and append model
+  pr<-trajF(alpha=i$intercept,beta=i$gamma,x=round(as.numeric(traitmatchT),2))  
+  pr$Model<-unique(i$Model)
+  return(pr)
+  }))
+
+#plot and compare to original data
+ggplot(data=predy,aes(x=x,col=Model,fill=Model)) + geom_ribbon(aes(ymin=lower,ymax=upper),alpha=0.1)  + geom_line(aes(y=mean),size=1) + theme_bw() + ylab("Interactions") + xlab("Difference between Bill and Corolla Length") + geom_point(data=odat,aes(x=x,y=Yobs),col="black",fill="black")
+ggsave("Figures/ObsResults.jpg",dpi=300,height=5,width=7)
+
+```
+
+# Visualizing interaction effects
+
+
+Every y-value for each x-value of the predictor on the x-axis is calculated y = b0 + b(predictorOnXAxis)*predictorOnXAxis + b3*predictorOnXAxis*predictorOnYAxis, using the lowest value of predictorOnYAxis
+
+ $$y = b0 + b(predictorOnXAxis)*predictorOnXAxis + b3*predictorOnXAxis*predictorOnYAxis, using the lowest value of predictorOnYAxis
+ 
+every y-value for each x-value of the predictor on the x-axis is calculated according to the formula y = b0 + b(predictorOnXAxis)*predictorOnXAxis + b3*predictorOnXAxis*predictorOnYAxis, using the highest value of predictorOnYAxis
+the above steps are repeated for each significant interactions.
+
+```{r}
+save.image("Network.RData")
 ```
