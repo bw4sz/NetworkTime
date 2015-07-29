@@ -247,6 +247,7 @@ for (x in 1:months){
 
 resources<-array(data=scale(resources),dim=c(h_species,plant_species,months))
 traitarray<-array(data=scale(traitarray),dim=c(h_species,plant_species,months))
+<<<<<<< HEAD
 
 #regression slope for trait-matching and resources
 #trait match
@@ -270,6 +271,31 @@ beta3<-rnorm(h_species,gamma3,sigma_slope3)
 
 alpha<-rnorm(h_species,intercept,sigma_intercept)
 
+=======
+
+#regression slope for trait-matching and resources
+#trait match
+gamma1=-0.5
+intercept<-3
+sigma_slope1<- 0.001
+sigma_intercept<- 0.001
+
+#resources
+gamma2=0
+sigma_slope2<- 0.001
+
+#resources * traitmatch
+gamma3=-.5
+sigma_slope3<- 0.001
+
+#draw values from hierarcichal distributions
+beta1<-rnorm(h_species,gamma1,sigma_slope1)
+beta2<-rnorm(h_species,gamma2,sigma_slope2)
+beta3<-rnorm(h_species,gamma3,sigma_slope3)
+
+alpha<-rnorm(h_species,intercept,sigma_intercept)
+
+>>>>>>> ef9cb3039cc107c27f376f93e67e8bf176bd9ff8
 #fit regression
 lambda<-exp(alpha + beta1 * traitarray + beta2 * resources + beta3 * resources * traitarray)
 
@@ -394,7 +420,11 @@ InitStage <- function() {list(beta1=rep(.5,Dat$Birds),beta2=rep(.5,Dat$Birds),be
 ParsStage <- c("detect","alpha","beta1","beta2","beta3","intercept","sigma_int","sigma_slope1","sigma_slope2","sigma_slope3","N","gamma1","gamma2","gamma3","fit","fitnew")
 
 #MCMC options
+<<<<<<< HEAD
 ni <- 50000  # number of draws from the posterior
+=======
+ni <- 20000  # number of draws from the posterior
+>>>>>>> ef9cb3039cc107c27f376f93e67e8bf176bd9ff8
 nt <- 5  #thinning rate
 nb <- ni*.3 # number to discard for burn-in
 nc <- 2  # number of chains
@@ -505,11 +535,19 @@ intF<-function(alpha,beta1,beta2,beta3,x,resources){
   predy<-group_by(sample_all,x) %>% summarise(lower=quantile(y,0.025,na.rm=T),upper=quantile(y,0.975,na.rm=T),mean=mean(y,na.rm=T))
 }
 ```
+<<<<<<< HEAD
 
 Calculated predicted values based on posterior distribution
 
 ```{r}
 
+=======
+
+Calculated predicted y
+
+```{r}
+
+>>>>>>> ef9cb3039cc107c27f376f93e67e8bf176bd9ff8
 predy<-trajF(alpha=castdf$intercept,beta1=castdf$gamma1,x=as.numeric(traitarray),resources=resources,beta2=castdf$gamma2,beta3=gamma3)
 
 orig<-trajF(alpha=rnorm(2000,intercept,sigma_intercept),beta1=rnorm(2000,gamma1,sigma_slope1),beta2=rnorm(2000,gamma2,sigma_slope2),beta3=rnorm(2000,gamma3,sigma_slope3),x=as.numeric(traitarray),resources=resources)
@@ -524,6 +562,7 @@ ggsave("Figures/SimulationResults.jpg",height=5,width=6,dpi=300)
 Using our model we were able to accurately capture the simulated values.
 
 ###Visualize interactions
+<<<<<<< HEAD
 
 ```{r}
 predyint<-intF(alpha=castdf$intercept,beta1=castdf$gamma1,x=as.numeric(traitarray),resources=resources,beta2=castdf$gamma2,beta3=gamma3)
@@ -540,6 +579,23 @@ psim4
 
 Determining model fit.
 
+=======
+```{r}
+predyint<-intF(alpha=castdf$intercept,beta1=castdf$gamma1,x=as.numeric(traitarray),resources=resources,beta2=castdf$gamma2,beta3=gamma3)
+
+origint<-intF(alpha=rnorm(2000,intercept,sigma_intercept),beta1=rnorm(2000,gamma1,sigma_slope1),beta2=rnorm(2000,gamma2,sigma_slope2),beta3=rnorm(2000,gamma3,sigma_slope3),x=as.numeric(traitarray),resources=resources)
+
+#plot and compare to original data
+psim4<-ggplot(data=predyint,aes(x=x)) + geom_ribbon(aes(ymin=lower,ymax=upper),alpha=0.3,fill="red") + theme_bw() + ylab("Interactions") + geom_line(data=origint,aes(x=x,y=mean),col='black',size=1) + geom_line(aes(y=mean),size=.8,col="red",linetype="dashed") + xlab("Difference between Bill and Corolla Length") 
+
+psim4
+```
+
+###Predicted Frequency
+
+Determining model fit.
+
+>>>>>>> ef9cb3039cc107c27f376f93e67e8bf176bd9ff8
 ```{r,eval=F}
 #this needs to be fixed, the regular expression doesn't quite match
 #any given state
