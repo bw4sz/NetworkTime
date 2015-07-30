@@ -1,4 +1,7 @@
 
+sink("ZeroInflated.jags")
+
+cat("
     model {
     for (i in 1:Birds){
       for (j in 1:Plants){
@@ -9,7 +12,8 @@
       N[i,j,k] ~ dpois(lambda[i,j,k])
 
       # Observation model for the actual observations
-      Y[i,j,k] ~ dbin(detect[i],N[i,j,k]) 
+      p~ dbin(detect[i]) 
+      Y[i,j,k] <- N[i,j,k] * p 
       
       #Fit discrepancy statistics
       eval[i,j,k]<-detect[i]*N[i,j,k]
@@ -57,4 +61,6 @@
     fitnew<-sum(E.new[,,])
     
     }
-    
+    ",fill=TRUE)
+
+sink()

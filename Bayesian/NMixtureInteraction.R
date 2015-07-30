@@ -12,7 +12,7 @@ cat("
       N[i,j,k] ~ dpois(lambda[i,j,k])
 
       # Observation model for the actual observations
-      Y[i,j,k] ~ dbin(detect[i],N[i,j,k]) 
+      Y[i,j,k] ~ dbern(detect[i],N[i,j,k]) 
       
       #Fit discrepancy statistics
       eval[i,j,k]<-detect[i]*N[i,j,k]
