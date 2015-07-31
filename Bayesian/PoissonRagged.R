@@ -27,13 +27,13 @@ cat("
     intercept~dnorm(0.001,0.001)
     
     # Group variance
-    tau_alpha ~ dgamma(0.001,0.001)
+    tau_alpha ~ dgamma(0.0001,0.0001)
     sigma_int<-pow(1/tau_alpha,0.5) #Derived Quantity
     
     #Slope
-    tau_beta1 ~ dgamma(0.001,0.001)
-    tau_beta2 ~ dgamma(0.001,0.001)
-    tau_beta3 ~ dgamma(0.001,0.001)
+    tau_beta1 ~ dgamma(0.0001,0.0001)
+    tau_beta2 ~ dgamma(0.0001,0.0001)
+    tau_beta3 ~ dgamma(0.0001,0.0001)
     
     sigma_slope1<-pow(1/tau_beta1,0.5)
     sigma_slope2<-pow(1/tau_beta2,0.5)

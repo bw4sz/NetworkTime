@@ -11,6 +11,7 @@ output:
 
 ```{r,echo=FALSE,warning=FALSE,message=FALSE}
 require(knitr)
+library(R2jags)
 require(reshape2)
 require(ggplot2)
 library(scales)
@@ -20,6 +21,7 @@ require(picante)
 require(igraph)
 require(bipartite)
 library(chron)
+library(gridExtra)
 
 #Set Dropbox Location
 #setwd to dropbox

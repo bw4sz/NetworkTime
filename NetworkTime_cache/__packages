@@ -15,3 +15,6 @@ igraph
 sna
 bipartite
 chron
+coda
+rjags
+R2jags
