@@ -886,25 +886,7 @@ psim4<-ggplot(data=predyint,aes(x=x)) + geom_ribbon(aes(ymin=lower,ymax=upper),a
 psim4
 ```
 
-###Predicted Frequency
-
-Determining model fit.
-
-```{r,eval=F}
-
-pars[pars$par %in% "Yobs","Month"]<-str_match(pars[pars$par %in% "Yobs","parameter"],pattern="\\[(\\d+),(\\d+),(\\d+)]")[,3]
-
-predState<-group_by(pars,par) %>% filter(par=="Yobs") %>% group_by(par,species,plant) %>% summarize(State=as.numeric(names(which.max(table(estimate)))))
-
-predState$species<-as.factor(predState$species)
-predState$plant<-factor(predState$plant,levels=1:plant_species)
-
-predplot<-ggplot(predState,aes(x=species,y=plant,fill=State)) + geom_tile() + scale_fill_continuous(na.value="white",low="white",high="red",limits=c(0,max(pars$Yobs))) + labs(x="Hummingbird",y="Plant",fill="Predicted State") + ggtitle("Predicted") + facet_wrap(~Model)
-```
-
 ###Posterior Check
-
-Since I have simualted the data, it should fit as well as any random dataset drawn from the estimated parameters. An ideal fit would be posterior values sitting along the 1:1 line.
 
 ```{r,fig.height=4,fig.width=8,eval=F}
 
