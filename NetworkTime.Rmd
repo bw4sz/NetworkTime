@@ -714,6 +714,13 @@ obs<-obs[!duplicated(obs),]
 
 #scale
 obs$AllResources<-scale(obs$AllResources)
+obs$PrivateResources<-scale(obs$PrivateResources)
+
+#match the traits
+for(x in 1:length(obs)){
+  obs$Traitmatch[x]<-traitmatchT[obs$Bird[x],obs$Plant[x]]
+}
+
 ```
 
 ##Hierarchical Bayesian Model
@@ -730,16 +737,20 @@ writeLines(readLines("Bayesian/PoissonRagged.R"))
 Dat <- list(
   Yobs=obs$Yobs,
   Nobs=nrow(obs),
+  
   #Index of Birds
   Bird=obs$Bird,
+  
   #Index of Plants
   Plant=obs$Plant,
+  
   #Index of time
   Time=obs$Time,
+  
   #Length of birds
   Birds=length(unique(obs$Bird)),
   resources=as.numeric(obs$AllResources),
-  traitmatch=traitmatchT)
+  traitmatch=obs$Traitmatch)
 
 initY<-rep(max(obs$Yobs),length(obs$Yobs))
 #Inits
@@ -750,7 +761,7 @@ ParsStage <- c("alpha","beta1","beta2","beta3","intercept","sigma_int","sigma_sl
 
 #MCMC options
 
-ni <- 50000  # number of draws from the posterior
+ni <- 100000  # number of draws from the posterior
 nt <- 5  #thinning rate
 nb <- ni*.5 # number to discard for burn-in
 nc <- 2  # number of chains
@@ -855,7 +866,7 @@ Calculated predicted y
 
 ```{r}
 
-predy<-trajF(alpha=castdf$intercept,beta1=castdf$gamma1,x=as.numeric(traitarray),resources=resources,beta2=castdf$gamma2,beta3=gamma3)
+predy<-trajF(alpha=castdf$intercept,beta1=castdf$gamma1,x=Dat$traitmatch,resources=Dat$resources,beta2=castdf$gamma2,beta3=castdf$gamma3)
 
 psim3<-ggplot(data=predy,aes(x=x)) + geom_ribbon(aes(ymin=lower,ymax=upper),alpha=0.1,fill="red")  + geom_line(aes(y=mean),size=.8,col="red",linetype="dashed") + theme_bw() + ylab("Interactions") + xlab("Difference between Bill and Corolla Length") 
 
@@ -868,7 +879,7 @@ Using our model we were able to accurately capture the simulated values.
 ###Visualize interactions
 
 ```{r}
-predyint<-intF(alpha=castdf$intercept,beta1=castdf$gamma1,x=as.numeric(traitarray),resources=resources,beta2=castdf$gamma2,beta3=gamma3)
+predyint<-intF(alpha=castdf$intercept,beta1=castdf$gamma1,x=Dat$traitmatch,resources=Dat$resources,beta2=castdf$gamma2,beta3=castdf$gamma3)
 
 psim4<-ggplot(data=predyint,aes(x=x)) + geom_ribbon(aes(ymin=lower,ymax=upper),alpha=0.3,fill="black") + theme_bw() + ylab("Effect of Resources on Trait Matching") + geom_line(aes(y=mean),size=.8,col="black",linetype="dashed") + xlab("Difference between Bill and Corolla Length") 
 
@@ -880,14 +891,15 @@ psim4
 Determining model fit.
 
 ```{r,eval=F}
-#this needs to be fixed, the regular expression doesn't quite match
-#any given state
-predState<-group_by(pars,par) %>% filter(par=="N") %>% group_by(par,species,plant) %>% summarize(State=as.numeric(names(which.max(table(estimate)))))
+
+pars[pars$par %in% "Yobs","Month"]<-str_match(pars[pars$par %in% "Yobs","parameter"],pattern="\\[(\\d+),(\\d+),(\\d+)]")[,3]
+
+predState<-group_by(pars,par) %>% filter(par=="Yobs") %>% group_by(par,species,plant) %>% summarize(State=as.numeric(names(which.max(table(estimate)))))
 
 predState$species<-as.factor(predState$species)
 predState$plant<-factor(predState$plant,levels=1:plant_species)
 
-predplot<-ggplot(predState,aes(x=species,y=plant,fill=State)) + geom_tile() + scale_fill_continuous(na.value="white",low="white",high="red",limits=c(0,max(obs.state$Detection))) + labs(x="Hummingbird",y="Plant",fill="Predicted State") + ggtitle("Predicted") + facet_wrap(~Model)
+predplot<-ggplot(predState,aes(x=species,y=plant,fill=State)) + geom_tile() + scale_fill_continuous(na.value="white",low="white",high="red",limits=c(0,max(pars$Yobs))) + labs(x="Hummingbird",y="Plant",fill="Predicted State") + ggtitle("Predicted") + facet_wrap(~Model)
 ```
 
 ###Posterior Check

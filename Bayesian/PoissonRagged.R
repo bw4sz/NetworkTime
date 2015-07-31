@@ -4,7 +4,7 @@ cat("
     model {
     for (x in 1:Nobs){
 
-    log(lambda[Bird[x],Plant[x],Time[x]]) <- alpha[Bird[x]] + beta1[Bird[x]] * traitmatch[Bird[x],Plant[x]] + beta2[Bird[x]] * resources[x] + beta3[Bird[x]] * resources[x] * traitmatch[Bird[x],Plant[x]]
+    log(lambda[Bird[x],Plant[x],Time[x]]) <- alpha[Bird[x]] + beta1[Bird[x]] * traitmatch[x] + beta2[Bird[x]] * resources[x] + beta3[Bird[x]] * resources[x] * traitmatch[x]
     
     #cannot quite have a poisson of 0, need a small offset
     Yobs[x] ~ dpois(lambda[Bird[x],Plant[x],Time[x]] + 0.00001 )
