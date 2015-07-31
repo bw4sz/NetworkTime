@@ -1,0 +1,17 @@
+base
+knitr
+reshape2
+ggplot2
+scales
+dplyr
+stringr
+ape
+permute
+lattice
+vegan
+nlme
+picante
+igraph
+sna
+bipartite
+chron

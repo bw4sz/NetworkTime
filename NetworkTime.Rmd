@@ -33,7 +33,7 @@ setwd(gitpath)
 opts_chunk$set(message=FALSE,warning=FALSE,fig.height=9,fig.width=13,echo=FALSE,cache=TRUE,cache.path = 'NetworkTime_cache/', fig.path='figure/')
 
 #source bayes functions
-source("BayesFunctions.R")
+source("Bayesian/BayesFunctions.R")
 ```
 
 #Exploratory Network Analysis
@@ -703,6 +703,15 @@ Format Data
 
 ```{r}
 obs<-merge(indatRaw,timer,by=c("Bird","Time"))
+#remove rows without resource information for now, need to understand why (time or space?)
+
+obs<-obs[!is.na(obs$PrivateResources),]
+
+#make sure there are no duplicates, needs to be evaluated
+obs<-obs[!duplicated(obs),]
+
+#scale
+obs$AllResources<-scale(obs$AllResources)
 ```
 
 ##Hierarchical Bayesian Model
@@ -717,7 +726,7 @@ writeLines(readLines("Bayesian/PoissonRagged.R"))
 
 #Input Data
 Dat <- list(
-  Y=obs$Yobs,
+  Yobs=obs$Yobs,
   Nobs=nrow(obs),
   #Index of Birds
   Bird=obs$Bird,
@@ -727,22 +736,20 @@ Dat <- list(
   Time=obs$Time,
   #Length of birds
   Birds=length(unique(obs$Bird)),
-  #Length of Plants
-  Plants=length(unique(obs$Plant)),
-  resources=obs$AllResources,
+  resources=as.numeric(obs$AllResources),
   traitmatch=traitmatchT)
 
-
+initY<-rep(max(obs$Yobs),length(obs$Yobs))
 #Inits
-InitStage <- function() {list(beta1=rep(.5,Dat$Birds),beta2=rep(.5,Dat$Birds),beta3=rep(.5,Dat$Birds),alpha=rep(.5,Dat$Birds),intercept=0,tau_alpha=0.1,tau_beta1=0.1,tau_beta2=0.1,tau_beta3=0.1,gamma1=0,gamma2=0,gamma3=0)}
+InitStage <- function(){list(beta1=rep(.5,Dat$Birds),beta2=rep(.5,Dat$Birds),beta3=rep(.5,Dat$Birds),alpha=rep(.5,Dat$Birds),intercept=0,tau_alpha=0.1,tau_beta1=0.1,tau_beta2=0.1,tau_beta3=0.1,gamma1=0,gamma2=0,gamma3=0)}
 
 #Parameters to track
-ParsStage <- c("alpha","beta1","beta2","beta3","intercept","sigma_int","sigma_slope1","sigma_slope2","sigma_slope3","gamma1","gamma2","gamma3","Y")
+ParsStage <- c("alpha","beta1","beta2","beta3","intercept","sigma_int","sigma_slope1","sigma_slope2","sigma_slope3","gamma1","gamma2","gamma3","Yobs")
 
 #MCMC options
 
-ni <- 1000  # number of draws from the posterior
-nt <- 2  #thinning rate
+ni <- 50000  # number of draws from the posterior
+nt <- 5  #thinning rate
 nb <- ni*.5 # number to discard for burn-in
 nc <- 2  # number of chains
 
@@ -781,14 +788,14 @@ ggplot(pars[pars$par %in% c("gamma1","gamma2","gamma3","sigma_int","sigma_slope1
 
 ```{r,cache=FALSE,fig.width=7,fig.height=13}
 ###Posterior Distributions
-p<-ggplot(pars[pars$par %in% c("alpha","beta1","beta2","beta3"),],aes(x=estimate)) + geom_histogram() + ggtitle("Estimate of parameters") + facet_grid(species~par,scales="free") + theme_bw() + ggtitle("Species Posteriors")
+psim<-ggplot(pars[pars$par %in% c("alpha","beta1","beta2","beta3"),],aes(x=estimate)) + geom_histogram() + ggtitle("Estimate of parameters") + facet_grid(species~par,scales="free") + theme_bw() + ggtitle("Species Posteriors")
 
 #ggsave("Figures/ObservedPosteriors.jpg",dpi=300,height=8,width=8)
 ```
 
 ```{r,cache=FALSE,eval=TRUE,fig.height=13,fig.width=10}
 
-p<-ggplot(pars[pars$par %in% c("gamma1","gamma2","gamma3","intercept","sigma_int","sigma_slope1","sigma_slope2","sigma_slope3"),],aes(x=estimate)) + geom_histogram() + ggtitle("Hierarchical Posteriors") + facet_wrap(~par,scale="free",nrow=2) + theme_bw() 
+psim2<-ggplot(pars[pars$par %in% c("gamma1","gamma2","gamma3","intercept","sigma_int","sigma_slope1","sigma_slope2","sigma_slope3"),],aes(x=estimate)) + geom_histogram() + ggtitle("Hierarchical Posteriors") + facet_wrap(~par,scale="free",nrow=2) + theme_bw() 
 
 grid.arrange(psim,psim2,heights=c(.6,.4))
 ```
@@ -861,7 +868,7 @@ Using our model we were able to accurately capture the simulated values.
 ```{r}
 predyint<-intF(alpha=castdf$intercept,beta1=castdf$gamma1,x=as.numeric(traitarray),resources=resources,beta2=castdf$gamma2,beta3=gamma3)
 
-psim4<-ggplot(data=predyint,aes(x=x)) + geom_ribbon(aes(ymin=lower,ymax=upper),alpha=0.3,fill="red") + theme_bw() + ylab("Interactions") + geom_line(aes(y=mean),size=.8,col="red",linetype="dashed") + xlab("Difference between Bill and Corolla Length") 
+psim4<-ggplot(data=predyint,aes(x=x)) + geom_ribbon(aes(ymin=lower,ymax=upper),alpha=0.3,fill="black") + theme_bw() + ylab("Effect of Resources on Trait Matching") + geom_line(aes(y=mean),size=.8,col="black",linetype="dashed") + xlab("Difference between Bill and Corolla Length") 
 
 psim4
 ```
@@ -879,14 +886,6 @@ predState$species<-as.factor(predState$species)
 predState$plant<-factor(predState$plant,levels=1:plant_species)
 
 predplot<-ggplot(predState,aes(x=species,y=plant,fill=State)) + geom_tile() + scale_fill_continuous(na.value="white",low="white",high="red",limits=c(0,max(obs.state$Detection))) + labs(x="Hummingbird",y="Plant",fill="Predicted State") + ggtitle("Predicted") + facet_wrap(~Model)
-
-#compare true and pred states
-tr<-melt(true_interactions)
-colnames(tr)<-c("Hummingbird","Plant","True_State")
-
-mdat<-merge(predState,tr,by.x=c("species","plant"),by.y=c("Hummingbird","Plant"))
-
-ggplot(mdat,aes(y=State,x=True_State)) + geom_point(size=3) + geom_abline(linetype="dashed") + theme_bw() + xlab("True State") + ylab("Predicted State") + coord_equal()
 ```
 
 ###Posterior Check
