@@ -717,10 +717,18 @@ obs$AllResources<-scale(obs$AllResources)
 obs$PrivateResources<-scale(obs$PrivateResources)
 
 #match the traits
-for(x in 1:length(obs)){
+for(x in 1:nrow(obs)){
   obs$Traitmatch[x]<-traitmatchT[obs$Bird[x],obs$Plant[x]]
 }
 
+```
+
+##GLM
+
+```{r}
+ggplot(obs[,],aes(col=PrivateResources,y=Yobs,x=Traitmatch)) + geom_point() + scale_color_continuous(low="blue",high="red") + stat_smooth(method="glm",family="poisson") + facet_wrap(~Bird,scale="free")
+
+mod1<-glm(data=obs,family="poisson",Yobs ~ Traitmatch * AllResources + Bird)
 ```
 
 ##Hierarchical Bayesian Model
@@ -749,10 +757,9 @@ Dat <- list(
   
   #Length of birds
   Birds=length(unique(obs$Bird)),
-  resources=as.numeric(obs$AllResources),
+  resources=as.numeric(obs$PrivateResources),
   traitmatch=obs$Traitmatch)
 
-initY<-rep(max(obs$Yobs),length(obs$Yobs))
 #Inits
 InitStage <- function(){list(beta1=rep(.5,Dat$Birds),beta2=rep(.5,Dat$Birds),beta3=rep(.5,Dat$Birds),alpha=rep(.5,Dat$Birds),intercept=0,tau_alpha=0.1,tau_beta1=0.1,tau_beta2=0.1,tau_beta3=0.1,gamma1=0,gamma2=0,gamma3=0)}
 
@@ -763,7 +770,7 @@ ParsStage <- c("alpha","beta1","beta2","beta3","intercept","sigma_int","sigma_sl
 
 ni <- 100000  # number of draws from the posterior
 nt <- 5  #thinning rate
-nb <- ni*.5 # number to discard for burn-in
+nb <- ni*.75 # number to discard for burn-in
 nc <- 2  # number of chains
 
 #Jags
@@ -885,6 +892,50 @@ psim4<-ggplot(data=predyint,aes(x=x)) + geom_ribbon(aes(ymin=lower,ymax=upper),a
 
 psim4
 ```
+
+###Species Predictions
+
+```{r}
+#orignal data to plot as ppints
+odat<-merge(obs,bindex,by.x="Bird",by.y="Index")
+odat<-merge(odat,pindex,by.x="Plant",by.y="Index")
+```
+
+```{r,fig.height=10,fig.width=11,eval=T}
+
+castdf<-dcast(pars[pars$par %in% c("beta1","beta2","beta3","alpha"),], species +Chain + Draw~par,value.var="estimate")
+
+#Turn to 
+castdf$species<-factor(castdf$species,levels=1:max(as.numeric(castdf$species)))
+
+species.split<-split(castdf,list(castdf$species),drop = T)
+
+species.traj<-list()
+
+for(d in 1:length(species.split)){
+  x<-species.split[[d]]
+  index<-unique(x$species)
+  species.traj[[d]]<-trajF(alpha=x$alpha,beta1=x$beta1,beta2=x$beta2,beta3=x$beta3,resources=Dat$resources,x=Dat$traitmatch)
+  }
+
+names(species.traj)<-names(species.split)
+
+species.traj<-melt(species.traj,id.var=colnames(species.traj[[1]]))
+
+#split out names and model
+species.traj[,c("Index")]<-colsplit(species.traj$L1,"\\.",c("Index"))
+
+spe<-merge(species.traj,bindex,by.x="Index",by.y="Index")
+
+#match colnames
+colnames(odat)<-c("Bird","Plant","Time","Date","ID","Yobs","AllResources","PrivateResources","Traitmatch","Species","Iplant_Double")
+
+#plot and compare to original data
+p<-ggplot(data=spe[,],aes(x=x)) + geom_ribbon(aes(ymin=lower,ymax=upper),alpha=0.2)  + geom_line(aes(y=mean),size=1) + theme_bw() + ylab("Interactions") + xlab("Difference between Bill and Corolla Length") + facet_wrap(~Species,scales="free",ncol=3)  + geom_point(data=odat,aes(x=Traitmatch,y=Yobs))
+
+print(p)
+```
+
 
 ###Posterior Check
 

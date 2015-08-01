@@ -2,3 +2,4 @@
 .Rhistory
 .RData
 jp_cache/*
+NetworkTime_cache/*
