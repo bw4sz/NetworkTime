@@ -1,5 +1,5 @@
 
-sink("Poisson.jags")
+sink("Bayesian/Poisson.jags")
 
 cat("
     model {

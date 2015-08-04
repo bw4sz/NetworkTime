@@ -117,6 +117,8 @@ sigma_slope2<- 0.1
 #gamma3=0
 sigma_slope3<- 0.1
 
+#loop through each species and plants
+
 #draw values from hierarcichal distributions
 beta1<-rnorm(h_species,gamma1,sigma_slope1)
 beta2<-rnorm(h_species,gamma2,sigma_slope2)
@@ -376,15 +378,16 @@ Dat <- list(
 #A blank Y matrix - all present
 initY<-array(dim=c(Dat$Birds,Dat$Plants,Dat$Months),data=max(obs,na.rm=T))
 
+initB<-matrix(nrow=h_species,ncol=plant_species,data=.1)
 #Inits
-InitStage <- function() {list(beta1=rep(.5,Dat$Birds),beta2=rep(.5,Dat$Birds),beta3=rep(.5,Dat$Birds),alpha=rep(.5,Dat$Birds),intercept=0,tau_alpha=0.1,tau_beta1=0.1,tau_beta2=0.1,tau_beta3=0.1,gamma1=0,gamma2=0,gamma3=0)}
+InitStage <- function() {list(beta1=initB,beta2=initB,beta3=initB,alpha=rep(.5,Dat$Birds),intercept=0,tau_alpha=0.1,tau_beta1=0.1,tau_beta2=0.1,tau_beta3=0.1,gamma1=0,gamma2=0,gamma3=0)}
 
 #Parameters to track
 ParsStage <- c("alpha","beta1","beta2","beta3","intercept","sigma_int","sigma_slope1","sigma_slope2","sigma_slope3","gamma1","gamma2","gamma3","Y")
 
 #MCMC options
 
-ni <- 50000  # number of draws from the posterior
+ni <- 5000  # number of draws from the posterior
 nt <- 3  #thinning rate
 nb <- ni*.75 # number to discard for burn-in
 nc <- 2  # number of chains

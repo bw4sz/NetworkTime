@@ -7,8 +7,16 @@ cat("
     log(lambda[Bird[x],Plant[x],Time[x]]) <- alpha[Bird[x]] + beta1[Bird[x]] * traitmatch[x] + beta2[Bird[x]] * resources[x] + beta3[Bird[x]] * resources[x] * traitmatch[x]
     
     #cannot quite have a poisson of 0, need a small offset
-    Yobs[x] ~ dpois(lambda[Bird[x],Plant[x],Time[x]] + 0.00001 )
-    }
+    Yobs[x] ~ dpois(lambda[Bird[x],Plant[x],Time[x]] )
+    
+    #Fit discrepancy statistics
+    #eval[i,j,k]<-detect[i]*lambda[Bird[x],Plant[x],Time[x]] 
+    #E[i,j,k]<-pow((Y[i,j,k]-eval[i,j,k]),2)/(eval[i,j,k]+0.5)
+    
+    #y.new[i,j,k]~dpois(lambda[Bird[x],Plant[x],Time[x]]) 
+    #E.new[i,j,k]<-pow((y.new[i,j,k]-eval[i,j,k]),2)/(eval[i,j,k]+0.5)
+    
+}
     
     for (i in 1:Birds){
     alpha[i] ~ dnorm(intercept,tau_alpha)
@@ -34,6 +42,7 @@ cat("
     tau_beta1 ~ dgamma(0.0001,0.0001)
     tau_beta2 ~ dgamma(0.0001,0.0001)
     tau_beta3 ~ dgamma(0.0001,0.0001)
+
     
     sigma_slope1<-pow(1/tau_beta1,0.5)
     sigma_slope2<-pow(1/tau_beta2,0.5)

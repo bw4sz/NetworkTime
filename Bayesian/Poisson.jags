@@ -1,12 +1,4 @@
 
-> cat("
-+     model {
-+     for (i in 1:Birds){
-+     for (j in 1:Plants){
-+     for (k in 1:Months){
-+     
-+     # True state model for the only par ..." ... [TRUNCATED] 
-
     model {
     for (i in 1:Birds){
     for (j in 1:Plants){
@@ -51,5 +43,3 @@
     
     }
     
-
-> sink()

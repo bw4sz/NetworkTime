@@ -78,3 +78,40 @@ trajState<-function(alpha,beta,x,observed){
   #return as a vector
   return(unlist(sampletraj))
 }
+
+trajF<-function(alpha,beta1,beta2,beta3,x,resources){
+  indat<-data.frame(alpha,beta1,beta2,beta3)
+  
+  #fit regression for each input estimate
+  sampletraj<-list()
+  
+  for (y in 1:nrow(indat)){
+    v=exp(indat$alpha[y] + indat$beta1[y] * x + indat$beta2[y] * resources + indat$beta3[y] * x*resources)
+    
+    sampletraj[[y]]<-data.frame(x=as.numeric(x),y=as.numeric(v))
+  }
+  
+  sample_all<-rbind_all(sampletraj)
+  
+  #Compute CI intervals
+  predy<-group_by(sample_all,x) %>% summarise(lower=quantile(y,0.025,na.rm=T),upper=quantile(y,0.975,na.rm=T),mean=mean(y,na.rm=T))
+}
+
+#calculate interactions
+
+intF<-function(alpha,beta1,beta2,beta3,x,resources){
+  indat<-data.frame(alpha,beta1,beta2,beta3)
+  
+  #fit regression for each input estimate
+  sampletraj<-list()
+  
+  for (y in 1:nrow(indat)){
+    v=indat$beta2[y] + indat$beta3[y]  * x
+    sampletraj[[y]]<-data.frame(x=as.numeric(x),y=as.numeric(v))
+  }
+  
+  sample_all<-rbind_all(sampletraj)
+  
+  #Compute CI intervals
+  predy<-group_by(sample_all,x) %>% summarise(lower=quantile(y,0.025,na.rm=T),upper=quantile(y,0.975,na.rm=T),mean=mean(y,na.rm=T))
+}

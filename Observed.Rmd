@@ -1,0 +1,577 @@
+---
+title: Niche overlap increases with increasing resource availability in a tropical
+  plant-pollinator network.
+author: "Ben Weinstein"
+date: "Tuesday, October 14, 2014"
+output:
+  html_document:
+    theme: spacelab
+  word_document: default
+  keep_md: true
+---
+
+#Aim
+Which birds use which plants? What are the mechanisms that determine niche overlap in this assemblage
+
+##Data
+
+* Using automated cameras and transects, we have been recording flower visitation rates by each hummingbird species for two years.
+* We have bill and corolla lengths for each species of bird and flower.
+* We have been collecting phenology data on available resources
+
+Birds use flowers that have similar length of bill shape and we expect the importance of trait matching to decrease as available resources increase.
+
+### Model Fitting
+## Hierarchical Occupancy Model Formulation
+
+$$ Y_{i,j,k} \sim Pois(\lambda_{i,j,k}) $$
+
+$$log(\lambda_{i,j,k})<-\alpha_i + \beta_i * abs(Bill_i - Corolla_j) * \beta_2 * Resources_k + \beta_3 * Resources_k * abs(Bill_i - Corolla_j) $$
+
+**Priors**
+
+$$\alpha_i \sim N(intercept,\tau_{\alpha})$$
+$$\beta_{1,i} \sim N(\gamma_1i,\tau_{\beta_1})$$
+$$\beta_{2,i} \sim N(\gamma_2i,\tau_{\beta_2})$$
+$$\beta_{3,i} \sim N(\gamma_3i,\tau_{\beta_3})$$
+
+
+**Hyperpriors**
+
+Group Level Means
+
+$$\gamma_{1,i} \sim N(0.001,0.001)$$
+$$\gamma_{2,i} \sim N(0.001,0.001)$$
+$$\gamma_{3,i} \sim N(0.001,0.001)$$
+$$ intercept \sim N(0.001,0.001)$$
+
+Group Level Variance
+
+$$\tau_{\alpha} \sim Gamma(0.001,0.001)$$
+$$\tau_\beta1 \sim Gamma(0.001,0.001)$$
+$$\tau_\beta2 \sim Gamma(0.001,0.001)$$
+$$\tau_\beta3 \sim Gamma(0.001,0.001)$$
+
+**Derived quantities**
+
+$$\sigma_{int} = \frac{1}{\tau_{\alpha}}^2$$
+$$\sigma_{slope1} = \frac{1}{\tau_{\beta_1}}^2$$
+$$\sigma_{slope2} = \frac{1}{\tau_{\beta_2}}^2$$
+$$\sigma_{slope3} = \frac{1}{\tau_{\beta_3}}^2$$
+
+
+```{r,echo=FALSE,warning=FALSE,message=FALSE}
+require(knitr)
+library(R2jags)
+require(reshape2)
+require(ggplot2)
+library(scales)
+library(dplyr)
+library(stringr)
+require(picante)
+require(igraph)
+require(bipartite)
+library(chron)
+library(gridExtra)
+
+#Set Dropbox Location
+#setwd to dropbox
+droppath<-"C:/Users/Ben/Dropbox/"
+
+#Set github path
+gitpath<-"C:/Users/Ben/Documents/NetworkTime/"
+
+setwd(gitpath)
+
+opts_chunk$set(message=FALSE,warning=FALSE,fig.height=9,fig.width=13,echo=FALSE,cache=F, fig.path='figure/')
+
+#source bayes functions
+source("Bayesian/BayesFunctions.R")
+```
+
+```{r,eval=F}
+#load data is needed
+save.image("Observed.RData")
+```
+
+#Read in Data
+```{r}
+###Read in data
+#read in flower morphology data, comes from Nectar.R
+droppath<-"C:/Users/Ben/Dropbox/"
+fl.morph<-read.csv(paste(droppath,"Thesis/Maquipucuna_SantaLucia/Results/FlowerMorphology.csv",sep=""))
+
+#First row is empty
+fl.morph<-fl.morph[-1,]
+
+#Bring in Hummingbird Morphology Dataset, comes from
+hum.morph<-read.csv(paste(droppath,"Thesis/Maquipucuna_SantaLucia/Results/HummingbirdMorphology.csv",sep=""))
+
+#Bring in Interaction Matrix
+int<-read.csv(paste(droppath,"Thesis/Maquipucuna_SantaLucia/Results/Network/HummingbirdInteractions.csv",sep=""),row.names=1)
+
+m.dat<-int[colnames(int) %in% c("ID","Video","Time","Hummingbird","Sex","TransectID","Transect_R","Iplant_Double","Pierce","DateP","Month","ele","Type")]
+
+m.dat$Year<-years(as.Date(m.dat$DateP))
+#one missing date
+m.dat$Year[m.dat$Year %in% 2012]<-2013
+
+#Fix spacing to match clades
+
+#Which are matching
+levels(m.dat$Hummingbird)[!levels(m.dat$Hummingbird) %in% hum.morph$English]
+
+#This needs to be checked
+#print(paste(levels(m.dat$Hummingbird)[!levels(m.dat$Hummingbird) %in% hum.morph$English],"not matched"))
+
+#Number of bird species
+h_species<-nlevels(m.dat$Hummingbird)
+
+#Number of plant species
+plant_species<-nlevels(m.dat$Iplant_Double)
+
+#levels(m.dat$Hummingbird)[!levels(m.dat$Hummingbird) %in% hum.morph$English]<-c("Green-crowned Woodnymph")
+m.datH<-merge(m.dat,hum.morph, by.x="Hummingbird",by.y="English")
+
+#Merge to flowers
+int.FLlevels<-levels(factor(m.datH$Iplant_Double))
+
+#Which flowers are we missing info for?
+missingTraits<-int.FLlevels[!int.FLlevels %in% fl.morph$X]
+
+#print(paste("Missing Trait Information:",missingTraits))
+m.datH<-merge(m.datH,fl.morph, by.x="Iplant_Double",by.y="X")
+
+#Drop piercing events, since they don't represent correlation
+m.datH<-m.datH[!m.datH$Pierce %in% c("y","Y"),]
+```
+
+###Format data
+```{r}
+
+#remove species with less than  10 observations
+keep<-names(which(table(m.datH$Hummingbird) > 20))
+
+m.datH<-droplevels(m.datH[m.datH$Hummingbird %in% keep,])
+
+#observed traitmatching
+traitmatchF<-abs(t(sapply(hum.morph$Bill,function(x){x-fl.morph$TotalCorolla})))
+
+rownames(traitmatchF)<-hum.morph$English
+colnames(traitmatchF)<-fl.morph$Group.1
+```
+
+```{r}
+#match names
+#Round to 2 decimals
+#Convert to cm for winbugs, avoids numerical underflow
+traitmatchT<-round(traitmatchF[rownames(traitmatchF) %in% m.datH$Hummingbird,colnames(traitmatchF) %in% m.datH$Iplant_Double],2)/10
+```
+
+```{r}
+#Formatting indexes
+m.datH$Bird<-as.numeric(factor(m.datH$Hummingbird,sort(unique(m.datH$Hummingbird))))
+m.datH$Plant<-as.numeric(factor(m.datH$Iplant_Double,sort(unique(m.datH$Iplant_Double))))
+m.datH$obs<-1
+
+traitmatchT<-traitmatchT[sort(rownames(traitmatchT)),sort(colnames(traitmatchT))]
+
+#Create an index to connect to species names
+#remerge species levels
+bindex<-data.frame(Index=1:length(rownames(traitmatchT)),Species=rownames(traitmatchT))
+
+pindex<-data.frame(Index=1:length(colnames(traitmatchT)),Species=colnames(traitmatchT))
+```
+
+###Elevation ranges
+
+Create a binary variable whether each observation was in a low elevation or high elevation transect. We have some species that just occur at the top of the gradient, and are not present in the sampling window of flowers at the low elevation.
+
+Accounting for non-availability.
+We have to figure out which plants were sampled in which periods, and if it was sampled, the non-detection are 0 if it wasn't the non-detection are NA. then remove all the Na's.
+
+```{r}
+elevH<-read.csv("InputData/HummingbirdElevation.csv",row.names=1)
+head(elevH)
+colnames(elevH)[5]<-"Elevation"
+
+#merge to names
+elevH<-merge(bindex,elevH,by.x="Species",by.y="Hummingbird")
+
+#remove plant species without dual names
+keepp<-colnames(traitmatchT)[which(!sapply(strsplit(colnames(traitmatchT), " "), length)==1)]
+
+#must have atleast 10 observations
+keepp<-keepp[keepp %in% names(which(table(m.datH$Iplant_Double) >  5))]
+  
+#high elevation or low elevation
+elevP<-read.csv("InputData/PlantElevation.csv",row.names=1)
+elevP<-elevP[elevP$Iplant_Double %in% keepp,]
+colnames(elevP)[5]<-"Elevation"
+
+elevP<-merge(pindex,elevP,by.x="Species",by.y="Iplant_Double")
+```
+
+```{r}
+
+#ID for NA is 1
+m.datH$ID<-as.character(m.datH$ID)
+m.datH[which(is.na(m.datH$ID)),"ID"]<-m.datH$TransectID[which(is.na(m.datH$ID))]
+
+indatraw<- m.datH %>% group_by(Bird,Plant,ID,DateP) %>% summarize(Yobs=n()) %>% filter(Plant %in% elevP$Index) %>% ungroup() %>% arrange(desc(Yobs)) %>% mutate(Time=as.numeric(as.factor(as.character(paste(ID,DateP)))))
+
+indatlong<-acast(indatraw,Bird~Plant~Time,value.var="Yobs")
+
+indatlong[is.na(indatlong)]<-0
+```
+
+
+```{r}
+#Only non-detections are real 0's, the rest are NA's and are removed.
+#Plants not surveyed in that time period
+#Hummingbirds not present at that site
+
+for(x in 1:dim(indatlong)[3]){
+  #Remove non sampled plants 
+  a<-indatlong[,,x]
+  toNA<-as.numeric(names(which(apply(a,2,sum)==0)))
+  pres<-as.numeric(names(which(!apply(a,2,sum)==0)))
+  
+  indatlong[,colnames(a) %in% toNA,x]<-NA
+  
+  #match elevation if there were presences, slightly terse code.
+  if(length(pres)>0){
+    for (y in 1:length(pres)){
+      #Plant range
+      pr<-elevP[elevP$Index %in% pres[y],"Elevation"]
+      if(!pr==3){
+        helim<-elevH[!elevH$Elevation %in% c(pr,3),"Index"]
+        indatlong[helim,colnames(a) %in% pres[y],x]<-NA
+        }
+      }  
+    }
+  }
+
+
+#melt and remove Na's
+indat<-melt(indatlong)
+indat<-indat[!is.na(indat$value),]
+
+colnames(indat)<-c("Bird","Plant","Time","Yobs")
+```
+
+
+##Resource availability at each data point
+
+```{r}
+
+#Date organization
+
+#read in flower totals from FlowerTransects.R
+fltransects<-read.csv(paste(droppath,"Thesis/Maquipucuna_SantaLucia/Results/FlowerTransects/FlowerTransectClean.csv",sep=""))
+
+#dates need a bit of formatting
+
+fltransects$DateP<-as.POSIXlt(fltransects$Date,format="%d/%m/%y")
+
+#which are NA needs to date/month reversed. ugly.
+fltransects[which(is.na(fltransects$DateP)),"DateP"]<-as.character(as.POSIXlt(as.character(fltransects[which(is.na(fltransects$DateP)),"Date"]),format="%m/%d/%Y"))
+
+
+#remove withour elevation records (less than 1% of data)
+fltransects<-fltransects[!is.na(fltransects$ele),]
+
+#create an initial flower interaction list
+fl.sp<-split(m.datH$Iplant_Double,m.datH$Hummingbird)
+fl.sp<-melt(lapply(fl.sp,function(x){unique(x)}))
+colnames(fl.sp)<-c("Iplant_Double","Hummingbird")
+
+#container to hold results
+
+out<-list()
+
+#get the resource availability at each time
+for (y in 1:nrow(indat)){
+  #subset row
+  x<-indatraw[y,]
+
+  #Date of point
+  DateP<-x[["DateP"]]
+  
+  if(is.na(DateP)) {out[[y]]<-data.frame(Bird=x[["Bird"]],Time=x[["Time"]],AllResources=NA,PrivateResources=NA)
+  next}
+  
+  #elevation point
+  Elevation<-mean(m.datH[m.datH$ID %in% x[["ID"]],"ele"])
+  
+  #stop if no elevation record, as we clean more this should be fine.
+  if(is.na(Elevation)) {out[[y]]<-data.frame(Bird=x[["Bird"]],Time=x[["Time"]],AllResources=NA,PrivateResources=NA)
+  next}
+  
+  #hummingbird english name
+  sp<-bindex[bindex$Index %in% x[["Bird"]],"Species"]
+  
+  #plant species list for that bird
+  plant.list<-fl.sp[fl.sp$Hummingbird %in% sp,"Iplant_Double"]
+  
+  #dates within two weeks either side. 
+  dateL<-abs(difftime(DateP,fltransects$DateP,units="weeks")) <= 2.5
+  
+  #and within 200m of the elevation
+  flower.month<-fltransects[dateL & (fltransects$ele > Elevation -200 & fltransects$ele < Elevation + 200) ,]
+
+  if(nrow(flower.month)==0) {out[[y]]<-data.frame(Bird=x[["Bird"]],Time=x[["Time"]],AllResources=NA,PrivateResources=NA)
+  next}
+  
+  mean.fl_all<-mean(aggregate(flower.month$Total_Flowers,list(flower.month$Transect.ID),sum,na.rm=TRUE)$x)
+    
+  flower_sp<-flower.month[flower.month$Iplant_Double %in% plant.list,]
+  
+  if(nrow(flower_sp)==0) {out[[y]]<-data.frame(Bird=x[["Bird"]],Time=x[["Time"]],AllResources=NA,PrivateResources=NA)
+  next}
+  
+  mean.fl<-mean(aggregate(flower_sp$Total_Flowers,list(flower_sp$Transect.ID),sum,na.rm=TRUE)$x)
+  out[[y]]<-data.frame(Bird=x[["Bird"]],Time=x[["Time"]],AllResources=mean.fl_all,PrivateResources=mean.fl)
+}
+
+#time by resources matrix
+timer<-rbind_all(out)
+```
+
+Format Data
+
+```{r}
+obs<-merge(indat,timer,by=c("Bird","Time"))
+
+#remove rows without resource information for now, need to understand why (time or space?)
+
+obs<-obs[!is.na(obs$PrivateResources),]
+
+#make sure there are no duplicates, needs to be evaluated
+obs<-obs[!duplicated(obs),]
+
+#scale
+obs$AllResources<-scale(obs$AllResources)
+obs$PrivateResources<-scale(obs$PrivateResources)
+
+#match the traits
+for(x in 1:nrow(obs)){
+  obs$Traitmatch[x]<-traitmatchT[obs$Bird[x],obs$Plant[x]]
+}
+
+```
+
+##GLM
+
+```{r}
+ggplot(obs[,],aes(col=PrivateResources,y=Yobs,x=Traitmatch)) + geom_jitter() + scale_color_continuous(low="blue",high="red") + stat_smooth(method="glm",family="poisson") + facet_wrap(~Bird,scale="free")
+
+mod1<-glm(data=obs,family="poisson",Yobs ~ Traitmatch * AllResources + Bird)
+```
+
+##Hierarchical Bayesian Model
+
+```{r,eval=T,strip.white=T}
+
+#Source model
+source("Bayesian/PoissonRagged.R")
+
+#print model
+writeLines(readLines("Bayesian/PoissonRagged.R"))
+
+#Input Data
+Dat <- list(
+  Yobs=obs$Yobs,
+  Nobs=nrow(obs),
+  
+  #Index of Birds
+  Bird=obs$Bird,
+  
+  #Index of Plants
+  Plant=obs$Plant,
+  
+  #Index of time
+  Time=obs$Time,
+  
+  #Length of birds
+  Birds=length(unique(obs$Bird)),
+  resources=as.numeric(obs$AllResources),
+  traitmatch=obs$Traitmatch)
+
+#Inits
+InitStage <- function(){list(beta1=rep(.5,Dat$Birds),beta2=rep(.5,Dat$Birds),beta3=rep(.5,Dat$Birds),alpha=rep(.5,Dat$Birds),intercept=0,tau_alpha=0.1,tau_beta1=0.1,tau_beta2=0.1,tau_beta3=0.1,gamma1=0,gamma2=0,gamma3=0)}
+
+#Parameters to track
+ParsStage <- c("alpha","beta1","beta2","beta3","intercept","sigma_int","sigma_slope1","sigma_slope2","sigma_slope3","gamma1","gamma2","gamma3","Yobs")
+
+#MCMC options
+
+ni <- 50000  # number of draws from the posterior
+nt <- 5  #thinning rate
+nb <- ni*.75 # number to discard for burn-in
+nc <- 2  # number of chains
+
+#Jags
+
+m = jags(inits=InitStage,
+         n.chains=nc,
+         model.file="Bayesian/PoissonRagged.jags",
+         working.directory=getwd(),
+         data=Dat,
+         parameters.to.save=ParsStage,
+         n.thin=nt,
+         n.iter=ni,
+         n.burnin=nb,
+         DIC=T)
+```
+
+```{r}
+pars<-extract_par(m)
+
+#Since this was a ragged matrix, need to correct the observed data species and plant
+
+pars$plant<-as.numeric(pars$plant)
+
+toc<-which(pars$par %in% "Yobs")
+for (x in 1:length(toc)){
+  row<-pars[toc[x],]
+  #species is the xth position of observed data, it is incorrectly stored 
+  pars[toc[x],"species"]<-obs[row$species,"Bird"]
+  pars[toc[x],"plant"]<-obs[row$species,"Plant"]
+  pars[toc[x],"Time"]<-obs[row$species,"Time"]
+}
+```
+
+###Assess Convergence
+
+```{r,cache=FALSE,eval=TRUE,fig.width=11,fig.height=5}
+
+###Chains
+ggplot(pars[pars$par %in% c("alpha","beta1","beta2","beta3"),],aes(x=Draw,y=estimate,col=as.factor(Chain))) + geom_line() + facet_grid(par~species,scale="free") + theme_bw() + labs(col="Chain") + ggtitle("Detection Probability")
+
+```
+
+```{r,fig.height=5,fig.width=11,eval=T}
+ggplot(pars[pars$par %in% c("gamma1","gamma2","gamma3","sigma_int","sigma_slope1","sigma_slope2","sigma_slope3"),],aes(x=Draw,y=estimate,col=as.factor(Chain))) + geom_line() + theme_bw() + labs(col="Chain") + ggtitle("Trait-matching regression") + facet_wrap(~par,scales="free")
+```
+
+###Posteriors
+
+```{r,cache=FALSE,fig.width=7,fig.height=13}
+###Posterior Distributions
+psim<-ggplot(pars[pars$par %in% c("alpha","beta1","beta2","beta3"),],aes(x=estimate)) + geom_histogram() + ggtitle("Estimate of parameters") + facet_grid(species~par,scales="free") + theme_bw() + ggtitle("Species Posteriors")
+
+#ggsave("Figures/ObservedPosteriors.jpg",dpi=300,height=8,width=8)
+```
+
+```{r,cache=FALSE,eval=TRUE,fig.height=13,fig.width=10}
+
+psim2<-ggplot(pars[pars$par %in% c("gamma1","gamma2","gamma3","intercept","sigma_int","sigma_slope1","sigma_slope2","sigma_slope3"),],aes(x=estimate)) + geom_histogram() + ggtitle("Hierarchical Posteriors") + facet_wrap(~par,scale="free",nrow=2) + theme_bw() 
+
+grid.arrange(psim,psim2,heights=c(.6,.4))
+```
+
+###Predicted Relationship 
+
+```{r,fig.height=4,fig.width=4}
+#get hierarchical parameters 
+
+castdf<-group_by(pars,Chain) %>% filter(par %in% c("gamma1","gamma2","gamma3","intercept")) %>% select(par,estimate) 
+
+castdf<-dcast(pars[pars$par %in% c("gamma1","gamma2","gamma3","intercept"),], Chain + Draw~par,value.var="estimate")
+
+```
+
+Calculated predicted y
+
+```{r}
+
+predy<-trajF(alpha=castdf$intercept,beta1=castdf$gamma1,x=Dat$traitmatch,resources=Dat$resources,beta2=castdf$gamma2,beta3=castdf$gamma3)
+
+psim3<-ggplot(data=predy,aes(x=x)) + geom_ribbon(aes(ymin=lower,ymax=upper),alpha=0.1,fill="red")  + geom_line(aes(y=mean),size=.8,col="red",linetype="dashed") + theme_bw() + ylab("Interactions") + xlab("Difference between Bill and Corolla Length") + geom_point(data=obs,aes(x=Traitmatch,y=Yobs))
+psim3
+
+#ggsave("Figures/SimulationResults.jpg",height=5,width=6,dpi=300)
+```
+
+
+###Visualize interactions
+
+```{r}
+predyint<-intF(alpha=castdf$intercept,beta1=castdf$gamma1,x=Dat$traitmatch,resources=Dat$resources,beta2=castdf$gamma2,beta3=castdf$gamma3)
+
+psim4<-ggplot(data=predyint,aes(x=x)) + geom_ribbon(aes(ymin=lower,ymax=upper),alpha=0.3,fill="black") + theme_bw() + ylab("Effect of Resources on Trait Matching") + geom_line(aes(y=mean),size=.8,col="black",linetype="dashed") + xlab("Difference between Bill and Corolla Length") 
+
+psim4
+```
+
+###Species Predictions
+
+```{r}
+#orignal data to plot as ppints
+odat<-merge(obs,bindex,by.x="Bird",by.y="Index")
+odat<-merge(odat,pindex,by.x="Plant",by.y="Index")
+```
+
+```{r,fig.height=10,fig.width=11,eval=T}
+
+castdf<-dcast(pars[pars$par %in% c("beta1","beta2","beta3","alpha"),], species +Chain + Draw~par,value.var="estimate")
+
+#Turn to 
+castdf$species<-factor(castdf$species,levels=1:max(as.numeric(castdf$species)))
+
+species.split<-split(castdf,list(castdf$species),drop = T)
+
+species.traj<-list()
+
+for(d in 1:length(species.split)){
+  x<-species.split[[d]]
+  index<-unique(x$species)
+  
+  #get data for those species
+  billd<-obs[obs$Bird %in% index,]
+  
+  species.traj[[d]]<-trajF(alpha=x$alpha,beta1=x$beta1,beta2=x$beta2,beta3=x$beta3,resources=billd$AllResources,x=billd$Traitmatch)
+  }
+
+names(species.traj)<-names(species.split)
+
+species.traj<-melt(species.traj,id.var=colnames(species.traj[[1]]))
+
+#split out names and model
+species.traj[,c("Index")]<-colsplit(species.traj$L1,"\\.",c("Index"))
+
+spe<-merge(species.traj,bindex,by.x="Index",by.y="Index")
+
+#match colnames
+colnames(odat)<-c("Plant","Bird","Time","Yobs","AllResources","PrivateResources","Traitmatch","Species","Iplant_Double")
+
+#plot and compare to original data
+p<-ggplot(data=spe[,],aes(x=x)) + geom_ribbon(aes(ymin=lower,ymax=upper),alpha=0.2)  + geom_line(aes(y=mean),size=1) + theme_bw() + ylab("Interactions") + xlab("Difference between Bill and Corolla Length") + facet_wrap(~Species,scales="free",ncol=3)  + geom_jitter(data=odat,aes(x=Traitmatch,y=Yobs),position = position_jitter(width = .1,height=0))
+
+print(p)
+```
+
+The points have been jittered slightly to allow for visibility.
+
+###Posterior Check
+
+```{r,fig.height=4,fig.width=8,eval=F}
+
+fitstat<-droplevels(pars[pars$par %in% c("fit","fitnew"),])
+fitstat<-dcast(fitstat,Draw+Chain~par,value.var="estimate")
+
+#add 1:1 line
+
+ymin<-round(min(c(fitstat$fit,fitstat$fitnew)))
+ymax<-round(max(c(fitstat$fit,fitstat$fitnew)))
+ab<-data.frame(x=ymin:ymax,y=ymin:ymax)
+p<-ggplot(fitstat,aes(x=fit,y=fitnew)) + geom_point() + theme_bw() + coord_equal()
+psim5<-p  + labs(x="Discrepancy of observed data",y="Discrepancy of replicated data",col="Model") + geom_line(data=ab,aes(x=x,y=y)) + ggtitle("Simulated Data")
+
+psim5
+```
+
+```{r}
+save.image("Observed.RData")
+```
