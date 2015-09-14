@@ -5,7 +5,7 @@
     for (k in 1:Months){
     
     # True state model for the only partially observed true state    
-    log(lambda[i,j,k])<- alpha[i] + beta1[i,j] * traitmatch[i,j,k] + beta2[i,j] * resources[i,j,k] + beta3[i,j] * resources[i,j,k] * traitmatch[i,j,k]
+    log(lambda[i,j,k])<- alpha[i] + beta1[i] * traitmatch[i,j,k] + beta2[i] * resources[i,j,k] + beta3[i] * resources[i,j,k] * traitmatch[i,j,k]
     Y[i,j,k] ~ dpois(lambda[i,j,k])
     }
     }
@@ -13,11 +13,10 @@
     
     for (i in 1:Birds){
     alpha[i] ~ dnorm(intercept,tau_alpha)
-    for (j in 1:Plants){
-    beta1[i,j] ~ dnorm(gamma1,tau_beta1)    
-    beta2[i,j] ~ dnorm(gamma2,tau_beta2)    
-    beta3[i,j] ~ dnorm(gamma3,tau_beta3)    
-    }}
+    beta1[i] ~ dnorm(gamma1,tau_beta1)    
+    beta2[i] ~ dnorm(gamma2,tau_beta2)    
+    beta3[i] ~ dnorm(gamma3,tau_beta3)    
+    }
     
     #Hyperpriors
     #Slope grouping

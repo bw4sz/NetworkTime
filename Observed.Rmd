@@ -21,58 +21,20 @@ Which birds use which plants? What are the mechanisms that determine niche overl
 
 Birds use flowers that have similar length of bill shape and we expect the importance of trait matching to decrease as available resources increase.
 
-### Model Fitting
-## Hierarchical Occupancy Model Formulation
-
-$$ Y_{i,j,k} \sim Pois(\lambda_{i,j,k}) $$
-
-$$log(\lambda_{i,j,k})<-\alpha_i + \beta_i * abs(Bill_i - Corolla_j) * \beta_2 * Resources_k + \beta_3 * Resources_k * abs(Bill_i - Corolla_j) $$
-
-**Priors**
-
-$$\alpha_i \sim N(intercept,\tau_{\alpha})$$
-$$\beta_{1,i} \sim N(\gamma_1i,\tau_{\beta_1})$$
-$$\beta_{2,i} \sim N(\gamma_2i,\tau_{\beta_2})$$
-$$\beta_{3,i} \sim N(\gamma_3i,\tau_{\beta_3})$$
-
-
-**Hyperpriors**
-
-Group Level Means
-
-$$\gamma_{1,i} \sim N(0.001,0.001)$$
-$$\gamma_{2,i} \sim N(0.001,0.001)$$
-$$\gamma_{3,i} \sim N(0.001,0.001)$$
-$$ intercept \sim N(0.001,0.001)$$
-
-Group Level Variance
-
-$$\tau_{\alpha} \sim Gamma(0.001,0.001)$$
-$$\tau_\beta1 \sim Gamma(0.001,0.001)$$
-$$\tau_\beta2 \sim Gamma(0.001,0.001)$$
-$$\tau_\beta3 \sim Gamma(0.001,0.001)$$
-
-**Derived quantities**
-
-$$\sigma_{int} = \frac{1}{\tau_{\alpha}}^2$$
-$$\sigma_{slope1} = \frac{1}{\tau_{\beta_1}}^2$$
-$$\sigma_{slope2} = \frac{1}{\tau_{\beta_2}}^2$$
-$$\sigma_{slope3} = \frac{1}{\tau_{\beta_3}}^2$$
-
-
 ```{r,echo=FALSE,warning=FALSE,message=FALSE}
-require(knitr)
+library(knitr)
 library(R2jags)
-require(reshape2)
-require(ggplot2)
+library(reshape2)
+library(ggplot2)
 library(scales)
 library(dplyr)
 library(stringr)
-require(picante)
-require(igraph)
-require(bipartite)
+library(picante)
+library(igraph)
+library(bipartite)
 library(chron)
 library(gridExtra)
+library(MASS)
 
 #Set Dropbox Location
 #setwd to dropbox
@@ -91,7 +53,7 @@ source("Bayesian/BayesFunctions.R")
 
 ```{r,eval=F}
 #load data is needed
-save.image("Observed.RData")
+#load("Observed.RData")
 ```
 
 #Read in Data
@@ -130,29 +92,82 @@ h_species<-nlevels(m.dat$Hummingbird)
 #Number of plant species
 plant_species<-nlevels(m.dat$Iplant_Double)
 
-#levels(m.dat$Hummingbird)[!levels(m.dat$Hummingbird) %in% hum.morph$English]<-c("Green-crowned Woodnymph")
-m.datH<-merge(m.dat,hum.morph, by.x="Hummingbird",by.y="English")
+#Get english name
+dath<-merge(m.dat,hum.morph, by.x="Hummingbird",by.y="English",keep=all)
 
 #Merge to flowers
-int.FLlevels<-levels(factor(m.datH$Iplant_Double))
+int.FLlevels<-levels(factor(dath$Iplant_Double))
 
 #Which flowers are we missing info for?
 missingTraits<-int.FLlevels[!int.FLlevels %in% fl.morph$X]
 
-#print(paste("Missing Trait Information:",missingTraits))
-m.datH<-merge(m.datH,fl.morph, by.x="Iplant_Double",by.y="X")
+print(paste("Missing Trait Information:",missingTraits))
+dath<-merge(dath,fl.morph, by.x="Iplant_Double",by.y="X")
 
 #Drop piercing events, since they don't represent correlation
-m.datH<-m.datH[!m.datH$Pierce %in% c("y","Y"),]
+dath<-dath[!dath$Pierce %in% c("y","Y"),]
 ```
 
-###Format data
+#Available Resources
+
 ```{r}
+#read in flower totals from FlowerTransects.R
+fltransects<-read.csv(paste(droppath,"Thesis/Maquipucuna_SantaLucia/Results/FlowerTransects/FlowerTransectClean.csv",sep=""))
 
+#dates need a bit of formatting
+fltransects$DateP<-as.POSIXlt(fltransects$Date,format="%d/%m/%y")
+
+#which are NA needs to date/month reversed. ugly.
+fltransects[which(is.na(fltransects$DateP)),"DateP"]<-as.character(as.POSIXlt(as.character(fltransects[which(is.na(fltransects$DateP)),"Date"]),format="%m/%d/%Y"))
+
+#remove withour elevation records (less than 1% of data)
+fltransects<-fltransects[!is.na(fltransects$ele),]
+
+#month should be capital 
+colnames(fltransects)[colnames(fltransects) %in% "month"]<-"Month"
+
+#Count of flowers per month
+fltransects$DateP<-as.character(fltransects$DateP)
+flower.month<-group_by(fltransects,Month,Year,Transect_R,Date_F) %>% dplyr::summarise(Flowers=sum(Total_Flowers,na.rm=TRUE))  %>% filter(Flowers>20)
+  
+#Make month abbreviation column, with the right order
+flower.month$Month.a<-factor(month.abb[flower.month$Month],month.abb[c(1:12)])
+
+#Make year factor column
+flower.month$Year<-as.factor(flower.month$Year)
+
+#get quantile for each transect
+thresh<-melt(group_by(flower.month,Transect_R) %>% summarize(Threshold=quantile(log(Flowers),0.5)) )
+flower.month<-merge(flower.month,thresh)
+flower.month$Availability<-as.factor((log(flower.month$Flowers)>flower.month$value) * 1)
+#plot
+ggplot(flower.month,aes(x=Month.a,log(Flowers),shape=as.factor(Year),col=Availability)) + geom_point(size=3) + theme_bw()  + geom_smooth(aes(group=1)) + ylab("Flowers") + xlab("Month") + facet_wrap(~Transect_R,scales="free_y") + labs(shape="Year", y= "Log Available Flowers") + scale_x_discrete(breaks=month.abb[seq(1,12,2)]) + scale_color_manual(labels=c("Low","High"),values=c("black","red")) + labs(col="Resource Availability")
+
+#turn min and max eelvation into seperate columns for the range
+flower.month$minElev<-as.numeric(str_extract(flower.month$Transect_R,"(\\d+)"))
+flower.month$maxElev<-as.numeric(str_match(flower.month$Transect_R,"(\\d+)_(\\d+)")[,3])
+
+```
+
+### What is the temporal distribution of resources?
+```{r}
+#moment 
+moment<-fitdistr(flower.month$Flowers,"log-normal")
+
+est<-data.frame(x=seq(0,max(flower.month$Flowers),100),Flowers=dlnorm(x=seq(0,max(flower.month$Flowers),100),meanlog=moment$estimate[1],sdlog=moment$estimate[2]))
+ggplot(flower.month,aes(x=Flowers)) + geom_density(fill="black") + geom_line(data=est,aes(x=x,y=Flowers),col='red') + theme_bw() + labs(x="Total Monthly Available Resources",y="Density") + ggtitle("Resources are exponentially distributed over time")
+```
+
+Appears to be a log normal distribution with the existance of rare, but intense, pulses.
+
+
+##Match Species to Morphology
+
+```{r}
 #remove species with less than  10 observations
-keep<-names(which(table(m.datH$Hummingbird) > 20))
+keep<-names(which(table(dath$Hummingbird) > 10))
 
-m.datH<-droplevels(m.datH[m.datH$Hummingbird %in% keep,])
+dath<-droplevels(dath[dath$Hummingbird %in% keep,])
 
 #observed traitmatching
 traitmatchF<-abs(t(sapply(hum.morph$Bill,function(x){x-fl.morph$TotalCorolla})))
@@ -165,14 +180,14 @@ colnames(traitmatchF)<-fl.morph$Group.1
 #match names
 #Round to 2 decimals
 #Convert to cm for winbugs, avoids numerical underflow
-traitmatchT<-round(traitmatchF[rownames(traitmatchF) %in% m.datH$Hummingbird,colnames(traitmatchF) %in% m.datH$Iplant_Double],2)/10
+traitmatchT<-round(traitmatchF[rownames(traitmatchF) %in% dath$Hummingbird,colnames(traitmatchF) %in% dath$Iplant_Double],2)/10
 ```
 
 ```{r}
 #Formatting indexes
-m.datH$Bird<-as.numeric(factor(m.datH$Hummingbird,sort(unique(m.datH$Hummingbird))))
-m.datH$Plant<-as.numeric(factor(m.datH$Iplant_Double,sort(unique(m.datH$Iplant_Double))))
-m.datH$obs<-1
+dath$Bird<-as.numeric(factor(dath$Hummingbird,sort(unique(dath$Hummingbird))))
+dath$Plant<-as.numeric(factor(dath$Iplant_Double,sort(unique(dath$Iplant_Double))))
+dath$obs<-1
 
 traitmatchT<-traitmatchT[sort(rownames(traitmatchT)),sort(colnames(traitmatchT))]
 
@@ -202,29 +217,75 @@ elevH<-merge(bindex,elevH,by.x="Species",by.y="Hummingbird")
 keepp<-colnames(traitmatchT)[which(!sapply(strsplit(colnames(traitmatchT), " "), length)==1)]
 
 #must have atleast 10 observations
-keepp<-keepp[keepp %in% names(which(table(m.datH$Iplant_Double) >  5))]
+keepp<-keepp[keepp %in% names(which(table(dath$Iplant_Double) >  5))]
   
 #high elevation or low elevation
 elevP<-read.csv("InputData/PlantElevation.csv",row.names=1)
 elevP<-elevP[elevP$Iplant_Double %in% keepp,]
 colnames(elevP)[5]<-"Elevation"
 
-elevP<-merge(pindex,elevP,by.x="Species",by.y="Iplant_Double")
+elevP<-merge(pindex,elevP,by.x="Species",by.y="Iplant_Double",keep=all)
 ```
 
 ```{r}
 
 #ID for NA is 1
-m.datH$ID<-as.character(m.datH$ID)
-m.datH[which(is.na(m.datH$ID)),"ID"]<-m.datH$TransectID[which(is.na(m.datH$ID))]
+dath$ID<-as.character(dath$ID)
+dath[which(is.na(dath$ID)),"ID"]<-dath$TransectID[which(is.na(dath$ID))]
 
-indatraw<- m.datH %>% group_by(Bird,Plant,ID,DateP) %>% summarize(Yobs=n()) %>% filter(Plant %in% elevP$Index) %>% ungroup() %>% arrange(desc(Yobs)) %>% mutate(Time=as.numeric(as.factor(as.character(paste(ID,DateP)))))
+indatraw<- dath %>% group_by(Bird,Plant,ID,DateP) %>% summarize(Yobs=n(),Elev=mean(ele,na.rm=T)) %>% filter(Plant %in% elevP$Index) %>% ungroup() %>% arrange(desc(Yobs)) %>% mutate(Time=as.numeric(as.factor(as.character(paste(ID,DateP))))) 
+
+#add months and years
+indatraw$Month<-as.numeric(factor(months(strptime(indatraw$DateP,format="%Y-%m-%d")),levels=month.name))
+indatraw$Year<-years(indatraw$DateP)
 
 indatlong<-acast(indatraw,Bird~Plant~Time,value.var="Yobs")
 
 indatlong[is.na(indatlong)]<-0
 ```
 
+Before we account for elevation and availability, what is the distribution of intensity of interactions?
+
+```{r}
+ggplot(indatraw,aes(x=Yobs)) + geom_histogram()
+```
+
+If we tend to think of the intensity of events as poisson, our data is extremely ones-inflated. The first moment of the poisson does not well capture the data.
+
+The best fitting moment is in opaque red. The observed data is in black.
+
+```{r}
+
+moment<-fitdistr(indatraw$Yobs,"poisson")
+est<-data.frame(Yobs=rpois(n=length(indatraw$Yobs),lambda=moment$estimate[[1]]))
+ggplot(indatraw,aes(x=Yobs)) + geom_histogram(fill="black") + geom_histogram(data=est,fill="red",alpha=.4) + theme_bw() + ggtitle("Intensity of interactions")
+```
+
+What about negative binomial?
+
+The best fitting moment is in opaque red. The observed data is in black.
+
+```{r}
+
+moment<-fitdistr(indatraw$Yobs,"negative binomial")
+est<-data.frame(Yobs=rpois(n=length(indatraw$Yobs),lambda=moment$estimate[[1]]))
+ggplot(indatraw,aes(x=Yobs)) + geom_histogram(fill="black") + geom_histogram(data=est,fill="red",alpha=.4) + theme_bw()
+```
+
+What about log normal?
+
+```{r}
+moment<-fitdistr(indatraw$Yobs,"lognormal")
+est<-data.frame(Yobs=rpois(n=length(indatraw$Yobs),lambda=moment$estimate[[1]]))
+ggplot(indatraw,aes(x=Yobs)) + geom_histogram(fill="black") + geom_histogram(data=est,fill="red",alpha=.4) + theme_bw()
+```
+
+
+The best fitting moment is in opaque red. The observed data is in black.
+
+##Account for non-detections
+
+The observed data above only records interactions, but not the lack of interactions. These zeros are valuable pieces of information. I define the species pool by elevation and add in 0's for non-detections. Anything outside of that elevation is considered NA. 
 
 ```{r}
 #Only non-detections are real 0's, the rest are NA's and are removed.
@@ -264,109 +325,55 @@ colnames(indat)<-c("Bird","Plant","Time","Yobs")
 ##Resource availability at each data point
 
 ```{r}
+#merge with original data, easier to do as factors
+indatraw<-as.tbl(indatraw)
+indatraw$Time<-as.factor(indatraw$Time)
+indat$Time<-as.factor(indat$Time)
 
-#Date organization
+#Subset time vector and remove duplicates
+indatraw<-indatraw[,colnames(indatraw) %in% c("Time","Month","Year","DateP","Elev")]
+indatraw<-indatraw[duplicated(indatraw),]
 
-#read in flower totals from FlowerTransects.R
-fltransects<-read.csv(paste(droppath,"Thesis/Maquipucuna_SantaLucia/Results/FlowerTransects/FlowerTransectClean.csv",sep=""))
+#merge with 0's add
+obs0<-merge(indat,indatraw,by="Time")
 
-#dates need a bit of formatting
+#which elevation bin is each observation within
+labs<-paste(seq(1300,2500,200),seq(1500,2700,200),sep="_")
+obs0$Transect_R<-cut(obs0$Elev,seq(1300,2700,200),labels=labs)
 
-fltransects$DateP<-as.POSIXlt(fltransects$Date,format="%d/%m/%y")
+#remove any duplicates
+flower.month<-flower.month[,c("Month","Year","Transect_R","Availability")]
 
-#which are NA needs to date/month reversed. ugly.
-fltransects[which(is.na(fltransects$DateP)),"DateP"]<-as.character(as.POSIXlt(as.character(fltransects[which(is.na(fltransects$DateP)),"Date"]),format="%m/%d/%Y"))
-
-
-#remove withour elevation records (less than 1% of data)
-fltransects<-fltransects[!is.na(fltransects$ele),]
-
-#create an initial flower interaction list
-fl.sp<-split(m.datH$Iplant_Double,m.datH$Hummingbird)
-fl.sp<-melt(lapply(fl.sp,function(x){unique(x)}))
-colnames(fl.sp)<-c("Iplant_Double","Hummingbird")
-
-#container to hold results
-
-out<-list()
-
-#get the resource availability at each time
-for (y in 1:nrow(indat)){
-  #subset row
-  x<-indatraw[y,]
-
-  #Date of point
-  DateP<-x[["DateP"]]
-  
-  if(is.na(DateP)) {out[[y]]<-data.frame(Bird=x[["Bird"]],Time=x[["Time"]],AllResources=NA,PrivateResources=NA)
-  next}
-  
-  #elevation point
-  Elevation<-mean(m.datH[m.datH$ID %in% x[["ID"]],"ele"])
-  
-  #stop if no elevation record, as we clean more this should be fine.
-  if(is.na(Elevation)) {out[[y]]<-data.frame(Bird=x[["Bird"]],Time=x[["Time"]],AllResources=NA,PrivateResources=NA)
-  next}
-  
-  #hummingbird english name
-  sp<-bindex[bindex$Index %in% x[["Bird"]],"Species"]
-  
-  #plant species list for that bird
-  plant.list<-fl.sp[fl.sp$Hummingbird %in% sp,"Iplant_Double"]
-  
-  #dates within two weeks either side. 
-  dateL<-abs(difftime(DateP,fltransects$DateP,units="weeks")) <= 2.5
-  
-  #and within 200m of the elevation
-  flower.month<-fltransects[dateL & (fltransects$ele > Elevation -200 & fltransects$ele < Elevation + 200) ,]
-
-  if(nrow(flower.month)==0) {out[[y]]<-data.frame(Bird=x[["Bird"]],Time=x[["Time"]],AllResources=NA,PrivateResources=NA)
-  next}
-  
-  mean.fl_all<-mean(aggregate(flower.month$Total_Flowers,list(flower.month$Transect.ID),sum,na.rm=TRUE)$x)
-    
-  flower_sp<-flower.month[flower.month$Iplant_Double %in% plant.list,]
-  
-  if(nrow(flower_sp)==0) {out[[y]]<-data.frame(Bird=x[["Bird"]],Time=x[["Time"]],AllResources=NA,PrivateResources=NA)
-  next}
-  
-  mean.fl<-mean(aggregate(flower_sp$Total_Flowers,list(flower_sp$Transect.ID),sum,na.rm=TRUE)$x)
-  out[[y]]<-data.frame(Bird=x[["Bird"]],Time=x[["Time"]],AllResources=mean.fl_all,PrivateResources=mean.fl)
-}
-
-#time by resources matrix
-timer<-rbind_all(out)
+flower.monthD<-flower.month[!duplicated(flower.month),]
+obs<-merge(obs0,flower.monthD,by=c("Month","Year","Transect_R"))
 ```
 
 Format Data
 
 ```{r}
-obs<-merge(indat,timer,by=c("Bird","Time"))
-
-#remove rows without resource information for now, need to understand why (time or space?)
-
-obs<-obs[!is.na(obs$PrivateResources),]
-
-#make sure there are no duplicates, needs to be evaluated
-obs<-obs[!duplicated(obs),]
-
-#scale
-obs$AllResources<-scale(obs$AllResources)
-obs$PrivateResources<-scale(obs$PrivateResources)
-
 #match the traits
 for(x in 1:nrow(obs)){
   obs$Traitmatch[x]<-traitmatchT[obs$Bird[x],obs$Plant[x]]
 }
 
+#add in hummingbird names
+obs<-merge(obs,bindex,by.x="Bird",by.y="Index")
 ```
 
 ##GLM
 
 ```{r}
-ggplot(obs[,],aes(col=PrivateResources,y=Yobs,x=Traitmatch)) + geom_jitter() + scale_color_continuous(low="blue",high="red") + stat_smooth(method="glm",family="poisson") + facet_wrap(~Bird,scale="free")
+ggplot(obs[,],aes(col=Availability,y=Yobs,x=Traitmatch)) + geom_jitter() +  stat_smooth(method="glm",family="poisson")
 
-mod1<-glm(data=obs,family="poisson",Yobs ~ Traitmatch * AllResources + Bird)
+mod1<-glm(data=obs,family="poisson",Yobs ~ Traitmatch * Availability )
+summary(mod1)
+```
+
+First thought on sampling, take the mean interaction for each bird, plant combination.
+
+```{r}
+mobs<-obs[obs$Yobs > 0,] %>% group_by(Species,Plant,Availability) %>% summarize(Events=n(),d=mean(Yobs),Traitmatch=unique(Traitmatch))
+ggplot(mobs,aes(x=Traitmatch,y=d,col=Availability)) + geom_point(size=3,alpha=.8) + geom_smooth(method="glm",family="poisson") + theme_bw() + facet_wrap(~Species,scales="free")
 ```
 
 ##Hierarchical Bayesian Model
@@ -378,6 +385,7 @@ source("Bayesian/PoissonRagged.R")
 
 #print model
 writeLines(readLines("Bayesian/PoissonRagged.R"))
+
 
 #Input Data
 Dat <- list(
@@ -394,12 +402,14 @@ Dat <- list(
   Time=obs$Time,
   
   #Length of birds
-  Birds=length(unique(obs$Bird)),
-  resources=as.numeric(obs$AllResources),
+  Birds=max(obs$Bird),
+  Plants=max(obs$Plant),
+  resources=obs$Availability,
   traitmatch=obs$Traitmatch)
 
 #Inits
-InitStage <- function(){list(beta1=rep(.5,Dat$Birds),beta2=rep(.5,Dat$Birds),beta3=rep(.5,Dat$Birds),alpha=rep(.5,Dat$Birds),intercept=0,tau_alpha=0.1,tau_beta1=0.1,tau_beta2=0.1,tau_beta3=0.1,gamma1=0,gamma2=0,gamma3=0)}
+initB<-rep(.5,Dat$Birds)
+InitStage <- function(){list(beta1=initB,beta2=initB,beta3=initB,alpha=initB,intercept=0,tau_alpha=0.1,tau_beta1=0.1,tau_beta2=0.1,tau_beta3=0.1,gamma1=0,gamma2=0,gamma3=0)}
 
 #Parameters to track
 ParsStage <- c("alpha","beta1","beta2","beta3","intercept","sigma_int","sigma_slope1","sigma_slope2","sigma_slope3","gamma1","gamma2","gamma3","Yobs")
@@ -408,7 +418,7 @@ ParsStage <- c("alpha","beta1","beta2","beta3","intercept","sigma_int","sigma_sl
 
 ni <- 50000  # number of draws from the posterior
 nt <- 5  #thinning rate
-nb <- ni*.75 # number to discard for burn-in
+nb <- ni*.9 # number to discard for burn-in
 nc <- 2  # number of chains
 
 #Jags
@@ -445,8 +455,10 @@ for (x in 1:length(toc)){
 ###Assess Convergence
 
 ```{r,cache=FALSE,eval=TRUE,fig.width=11,fig.height=5}
+#Intercept
+ggplot(pars[pars$par %in% c("alpha"),],aes(x=Draw,y=estimate,col=as.factor(Chain))) + geom_line() + facet_grid(plant~species,scale="free") + theme_bw() + labs(col="Chain") + ggtitle("Detection Probability")
 
-###Chains
+###Slopes
 ggplot(pars[pars$par %in% c("alpha","beta1","beta2","beta3"),],aes(x=Draw,y=estimate,col=as.factor(Chain))) + geom_line() + facet_grid(par~species,scale="free") + theme_bw() + labs(col="Chain") + ggtitle("Detection Probability")
 
 ```
@@ -458,8 +470,12 @@ ggplot(pars[pars$par %in% c("gamma1","gamma2","gamma3","sigma_int","sigma_slope1
 ###Posteriors
 
 ```{r,cache=FALSE,fig.width=7,fig.height=13}
-###Posterior Distributions
-psim<-ggplot(pars[pars$par %in% c("alpha","beta1","beta2","beta3"),],aes(x=estimate)) + geom_histogram() + ggtitle("Estimate of parameters") + facet_grid(species~par,scales="free") + theme_bw() + ggtitle("Species Posteriors")
+
+#intercept
+ <-ggplot(pars[pars$par %in% c("alpha"),],aes(x=estimate,fill=as.factor(species))) + geom_histogram() + ggtitle("Estimate of parameters") + theme_bw() + ggtitle("Species Posteriors")
+
+###Slope Posterior Distributions
+psim<-ggplot(pars[pars$par %in% c("beta1","beta2","beta3"),],aes(x=estimate)) + geom_histogram() + ggtitle("Estimate of parameters") + facet_grid(species~par,scales="free") + theme_bw() + ggtitle("Species Posteriors")
 
 #ggsave("Figures/ObservedPosteriors.jpg",dpi=300,height=8,width=8)
 ```
@@ -515,7 +531,7 @@ odat<-merge(odat,pindex,by.x="Plant",by.y="Index")
 
 ```{r,fig.height=10,fig.width=11,eval=T}
 
-castdf<-dcast(pars[pars$par %in% c("beta1","beta2","beta3","alpha"),], species +Chain + Draw~par,value.var="estimate")
+castdf<-dcast(pars[pars$par %in% c("beta1","beta2","beta3","alpha"),], species +Chain + plant+ Draw~par,value.var="estimate")
 
 #Turn to 
 castdf$species<-factor(castdf$species,levels=1:max(as.numeric(castdf$species)))

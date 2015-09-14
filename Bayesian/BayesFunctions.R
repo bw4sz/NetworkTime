@@ -13,7 +13,7 @@ l<-levels(parsO$parameter)
 #parameters to save
 totrack<-x$parameters.to.save
 
-sp_pl<-data.frame(parameter=l,species=str_match(l,pattern="\\[(\\d+)]")[,2],plant=str_match(l,pattern="\\[(\\d+),(\\d+),(\\d+)]")[,3],par=str_extract(l,"\\w+"))
+sp_pl<-data.frame(parameter=l,species=str_match(l,pattern="\\[(\\d+)]")[,2],plant=str_match(l,pattern="\\[(\\d+),(\\d+)")[,3],par=str_extract(l,"\\w+"))
 
 sp_pl[is.na(sp_pl$species),c("species")]<-str_extract(sp_pl[is.na(sp_pl$species),"parameter"],"\\d+")
 

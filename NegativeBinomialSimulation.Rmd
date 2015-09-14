@@ -7,7 +7,6 @@ html_document:
   keep_md:true
 ---
 
-
 ```{r,warning=FALSE,message=FALSE,echo=FALSE,cache=FALSE}
 library(reshape2)
 library(chron)
@@ -36,16 +35,16 @@ I first create data with constant detection for each hummingbird speices, and th
 ### Parameters
 
 * 10 hummingbird species
-* Range of hummingbird bill sizes (mm) ~ Pois(2)
+* Range of hummingbird bill sizes (mm) ~ NBinom(2)
 * Twenty plants
-* Range of corolla sizes (mm) ~ Pois(2)
+* Range of corolla sizes (mm) ~ NBinom(2)
 * Mean frequeny ($\lambda$) for each hummingbird is drawn from U(0,10)  
 * Trait matching (minimizing Bill-Corolla difference) is drawn from a 
 hierarcichal distribution
 
 $$log(\lambda_{i,j,k})<-\alpha_i + \beta_i * abs(Bill_i - Corolla_j) * \beta_2 * Resources_k + \beta_3 * Resources_k * abs(Bill_i - Corolla_j) $$
 
-$$\alpha=N(4,.01)$$
+$$\alpha=N(3,.01)$$
 $$\beta_1 = N(-.01,.001)$$
 
 Increased occurrence with resources
@@ -54,9 +53,10 @@ $$\beta_2 = N(.5,.001)$$
 The strength of trait matching increases with available resources
 $$\beta_3 = N(-.5,.001)$$
 
+Imperfect detection 
+$$p_i = U(0,1)$$
 * 24 month replicates
 * Phenology = .5 (plants are in flower/present .5 of surveys)
-* Flower availability is log normally distribution (mu=20)
 
 **View simulated strength and form of trait matching **
 
@@ -68,7 +68,7 @@ sim<-function(gamma1,gamma2,gamma3){
 h_species=10
 plant_species=20
 months=50
-detection=runif(h_species,.999,1)
+detection=runif(h_species,.5,1)
 phenology=1
 
 #Bill sizes
@@ -104,7 +104,7 @@ resources<-array(data=scale(resources),dim=c(h_species,plant_species,months))
 #regression slope for trait-matching and resources
 #trait match
 #gamma=-0.5
-intercept<-4
+intercept<-5
 sigma_slope1<- 0.1
 sigma_intercept<- 0.1
 
@@ -155,18 +155,18 @@ ggplot(mdat,aes(col=resources,y=y,x=traitmatch)) + geom_point() + geom_smooth(ae
 3. Species interactions are based on similiarity in morphology and abundance of resources, without an interaction. As resources decrease, species interact more with all resources. Blue on top, red on the bottom.
 
 ```{r}
-mdat<-sim(-1,-.5,0)
+mdat<-sim(-.5,-.5,0)
 ggplot(mdat,aes(col=resources,y=y,x=traitmatch)) + geom_point() + geom_smooth(aes(group=1),method="glm",family="poisson",formula=y~x) + theme_bw() + labs(x="Bill-Corolla Difference",y="Occurrences","Hummingbird") + ggtitle("Simulated data for each species") + labs(col="Available Resources") + scale_color_continuous(low="blue",high="red",breaks=c(-1.5,0,1.5),labels=c("Resource Poor","","Resource Rich")) + facet_wrap(~Var1,nrow=2)
 ```
 
 4. Species interactions are based on similiarity in morphology and abundance of resources, with an interaction. As resources decrease, hummingbirds interact more with plant that match their bill length. The position of red
 
 ```{r}
-mdat<-sim(-.5,0,.5)
+mdat<-sim(-.5,0,.4)
 ggplot(mdat,aes(col=resources,y=y,x=traitmatch)) + geom_point() + geom_smooth(aes(group=1),method="glm",family="poisson",formula=y~x) + theme_bw() + labs(x="Bill-Corolla Difference",y="Occurrences","Hummingbird") + ggtitle("Simulated data for each species") + labs(col="Available Resources") + scale_color_continuous(low="blue",high="red",breaks=c(-1.5,0,1.5),labels=c("Resource Poor","","Resource Rich")) + facet_wrap(~Var1,nrow=2)
 ```
 
-5. Species interactions are based on similiarity in morphology and abundance of resources, with an interaction. As resources decrease, hummingbirds interact more with plant that match their bill length. The position of red
+4. Species interactions are based on similiarity in morphology and abundance of resources, with an interaction. As resources decrease, hummingbirds interact more with plant that match their bill length. The position of red
 
 ```{r}
 mdat<-sim(-.5,0,-.5)
@@ -179,8 +179,8 @@ For this manuscript we are most interested in the interaction effect. Let's look
 sim1<-sim(.5,0,0)
 sim2<-sim(.5,.5,0)
 sim3<-sim(.5,-.5,0)
-sim4<-sim(.5,0,.5)
-sim5<-sim(.5,0,-.5)
+sim4<-sim(.5,.5,.5)
+sim5<-sim(.5,.5,-.5)
 sims<-list(sim1,sim2,sim3,sim4,sim5)
 names(sims)<-as.character(1:5)
 
@@ -203,7 +203,7 @@ ggplot(modlist,aes(x=traitmatch,y=R_effect,col=as.factor(model))) + geom_line() 
 * Model 5: As there are more available resources, birds choose resources more similiar to their bill lengths
 
 
-#Simulate Model 4
+#Simulate Model 5
 
 Add in incomplete sampling - some flowers are onlyin bloom 3/4 of the samples
 
@@ -236,7 +236,7 @@ resources<-array(NA,dim=c(h_species,plant_species,months))
 
 #fill for each month
 for (x in 1:months){
-  resources[,,x]<-rlnorm(1,4)  
+  resources[,,x]<-rpois(1,150)  
 }
 
 #standardize predictors
@@ -246,13 +246,13 @@ resources<-array(data=scale(resources),dim=c(h_species,plant_species,months))
 
 #regression slope for trait-matching and resources
 #trait match
-gamma1=.5
+gamma1=-.8
 intercept<-3
 sigma_slope1<- 0.01
 sigma_intercept<- 0.01
 
 #resources
-gamma2=.5
+gamma2=0
 sigma_slope2<- 0.01
 
 #resources * traitmatch
@@ -376,10 +376,10 @@ Dat <- list(
 
 #A blank Y matrix - all present
 initY<-array(dim=c(Dat$Birds,Dat$Plants,Dat$Months),data=max(obs,na.rm=T))
-initB<-as.numeric(matrix(nrow=h_species,ncol=1,data=.1))
 
+initB<-matrix(nrow=h_species,ncol=plant_species,data=.1)
 #Inits
-InitStage <- function(){list(beta1=initB,beta2=initB,beta3=initB,alpha=rep(.5,Dat$Birds),intercept=0,tau_alpha=0.1,tau_beta1=0.1,tau_beta2=0.1,tau_beta3=0.1,gamma1=0,gamma2=0,gamma3=0)}
+InitStage <- function() {list(beta1=initB,beta2=initB,beta3=initB,alpha=rep(.5,Dat$Birds),intercept=0,tau_alpha=0.1,tau_beta1=0.1,tau_beta2=0.1,tau_beta3=0.1,gamma1=0,gamma2=0,gamma3=0)}
 
 #Parameters to track
 ParsStage <- c("alpha","beta1","beta2","beta3","intercept","sigma_int","sigma_slope1","sigma_slope2","sigma_slope3","gamma1","gamma2","gamma3","Y")
@@ -387,7 +387,7 @@ ParsStage <- c("alpha","beta1","beta2","beta3","intercept","sigma_int","sigma_sl
 #MCMC options
 
 ni <- 5000  # number of draws from the posterior
-nt <- max(c(1,ni*.0001))  #thinning rate
+nt <- 3  #thinning rate
 nb <- ni*.75 # number to discard for burn-in
 nc <- 2  # number of chains
 
