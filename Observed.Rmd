@@ -137,7 +137,7 @@ flower.month$Month.a<-factor(month.abb[flower.month$Month],month.abb[c(1:12)])
 flower.month$Year<-as.factor(flower.month$Year)
 
 #get quantile for each transect
-thresh<-melt(group_by(flower.month,Transect_R) %>% summarize(Threshold=quantile(log(Flowers),0.5)) )
+thresh<-melt(group_by(flower.month,Transect_R) %>% summarize(Threshold=quantile(log(Flowers),0.8)) )
 flower.month<-merge(flower.month,thresh)
 flower.month$Availability<-as.factor((log(flower.month$Flowers)>flower.month$value) * 1)
 #plot
@@ -159,7 +159,6 @@ ggplot(flower.month,aes(x=Flowers)) + geom_density(fill="black") + geom_line(dat
 ```
 
 Appears to be a log normal distribution with the existance of rare, but intense, pulses.
-
 
 ##Match Species to Morphology
 
@@ -228,7 +227,6 @@ elevP<-merge(pindex,elevP,by.x="Species",by.y="Iplant_Double",keep=all)
 ```
 
 ```{r}
-
 #ID for NA is 1
 dath$ID<-as.character(dath$ID)
 dath[which(is.na(dath$ID)),"ID"]<-dath$TransectID[which(is.na(dath$ID))]
@@ -238,8 +236,18 @@ indatraw<- dath %>% group_by(Bird,Plant,ID,DateP) %>% summarize(Yobs=n(),Elev=me
 #add months and years
 indatraw$Month<-as.numeric(factor(months(strptime(indatraw$DateP,format="%Y-%m-%d")),levels=month.name))
 indatraw$Year<-years(indatraw$DateP)
+```
 
-indatlong<-acast(indatraw,Bird~Plant~Time,value.var="Yobs")
+What elevation transect is each observation in?
+
+```{r}
+#which elevation bin is each observation within
+labs<-paste(seq(1300,2500,200),seq(1500,2700,200),sep="_")
+indatraw$Transect_R<-cut(indatraw$Elev,seq(1300,2700,200),labels=labs)
+```
+
+```{r}
+indatlong<-acast(indatraw,Bird~Plant~Time~Transect_R,value.var="Yobs")
 
 indatlong[is.na(indatlong)]<-0
 ```
@@ -255,7 +263,6 @@ If we tend to think of the intensity of events as poisson, our data is extremely
 The best fitting moment is in opaque red. The observed data is in black.
 
 ```{r}
-
 moment<-fitdistr(indatraw$Yobs,"poisson")
 est<-data.frame(Yobs=rpois(n=length(indatraw$Yobs),lambda=moment$estimate[[1]]))
 ggplot(indatraw,aes(x=Yobs)) + geom_histogram(fill="black") + geom_histogram(data=est,fill="red",alpha=.4) + theme_bw() + ggtitle("Intensity of interactions")
@@ -266,7 +273,6 @@ What about negative binomial?
 The best fitting moment is in opaque red. The observed data is in black.
 
 ```{r}
-
 moment<-fitdistr(indatraw$Yobs,"negative binomial")
 est<-data.frame(Yobs=rpois(n=length(indatraw$Yobs),lambda=moment$estimate[[1]]))
 ggplot(indatraw,aes(x=Yobs)) + geom_histogram(fill="black") + geom_histogram(data=est,fill="red",alpha=.4) + theme_bw()
@@ -280,47 +286,9 @@ est<-data.frame(Yobs=rpois(n=length(indatraw$Yobs),lambda=moment$estimate[[1]]))
 ggplot(indatraw,aes(x=Yobs)) + geom_histogram(fill="black") + geom_histogram(data=est,fill="red",alpha=.4) + theme_bw()
 ```
 
-
 The best fitting moment is in opaque red. The observed data is in black.
 
-##Account for non-detections
-
-The observed data above only records interactions, but not the lack of interactions. These zeros are valuable pieces of information. I define the species pool by elevation and add in 0's for non-detections. Anything outside of that elevation is considered NA. 
-
-```{r}
-#Only non-detections are real 0's, the rest are NA's and are removed.
-#Plants not surveyed in that time period
-#Hummingbirds not present at that site
-
-for(x in 1:dim(indatlong)[3]){
-  #Remove non sampled plants 
-  a<-indatlong[,,x]
-  toNA<-as.numeric(names(which(apply(a,2,sum)==0)))
-  pres<-as.numeric(names(which(!apply(a,2,sum)==0)))
-  
-  indatlong[,colnames(a) %in% toNA,x]<-NA
-  
-  #match elevation if there were presences, slightly terse code.
-  if(length(pres)>0){
-    for (y in 1:length(pres)){
-      #Plant range
-      pr<-elevP[elevP$Index %in% pres[y],"Elevation"]
-      if(!pr==3){
-        helim<-elevH[!elevH$Elevation %in% c(pr,3),"Index"]
-        indatlong[helim,colnames(a) %in% pres[y],x]<-NA
-        }
-      }  
-    }
-  }
-
-
-#melt and remove Na's
-indat<-melt(indatlong)
-indat<-indat[!is.na(indat$value),]
-
-colnames(indat)<-c("Bird","Plant","Time","Yobs")
-```
-
+Ignoring non-detections for the moment.
 
 ##Resource availability at each data point
 
@@ -328,27 +296,14 @@ colnames(indat)<-c("Bird","Plant","Time","Yobs")
 #merge with original data, easier to do as factors
 indatraw<-as.tbl(indatraw)
 indatraw$Time<-as.factor(indatraw$Time)
-indat$Time<-as.factor(indat$Time)
 
-#Subset time vector and remove duplicates
-indatraw<-indatraw[,colnames(indatraw) %in% c("Time","Month","Year","DateP","Elev")]
-indatraw<-indatraw[duplicated(indatraw),]
+#flower surveys are done twice a month, get the average
+flower.monthD<-flower.month %>% arrange(Month,Year,Transect_R) %>% group_by(Month,Year,Transect_R) %>% summarize(Flowers=mean(Flowers,na.rm=T),Availability=max(as.numeric(as.character(Availability))))
 
-#merge with 0's add
-obs0<-merge(indat,indatraw,by="Time")
-
-#which elevation bin is each observation within
-labs<-paste(seq(1300,2500,200),seq(1500,2700,200),sep="_")
-obs0$Transect_R<-cut(obs0$Elev,seq(1300,2700,200),labels=labs)
-
-#remove any duplicates
-flower.month<-flower.month[,c("Month","Year","Transect_R","Availability")]
-
-flower.monthD<-flower.month[!duplicated(flower.month),]
-obs<-merge(obs0,flower.monthD,by=c("Month","Year","Transect_R"))
+#We lose some data here, needs to be cleaned.
+obs<-merge(indatraw,flower.monthD,by=c("Month","Year","Transect_R"))
 ```
 
-Format Data
 
 ```{r}
 #match the traits
@@ -360,20 +315,36 @@ for(x in 1:nrow(obs)){
 obs<-merge(obs,bindex,by.x="Bird",by.y="Index")
 ```
 
-##GLM
+#Exploratory Model Fitting
+
+First thought on sampling, take the mean interaction for each bird, plant combination for high and low resource periods. Connect intensity with a line.
 
 ```{r}
-ggplot(obs[,],aes(col=Availability,y=Yobs,x=Traitmatch)) + geom_jitter() +  stat_smooth(method="glm",family="poisson")
+mobs<-obs[,] %>% group_by(Species,Plant,Availability) %>% summarize(Events=n(),d=mean(Yobs),Traitmatch=unique(Traitmatch))
 
-mod1<-glm(data=obs,family="poisson",Yobs ~ Traitmatch * Availability )
+#merge with names
+mobss<-merge(mobs,pindex,by.x="Plant",by.y="Index")
+colnames(mobss)<-c("Plant","Species","Availability","Events","d","Traitmatch","Iplant_Double")
+
+ggplot(mobss,aes(x=Traitmatch,y=d,col=as.factor(Availability))) + geom_point(aes(size=Events),alpha=.8) + theme_bw() + facet_wrap(~Species,scales="free") + geom_line(aes(group=Plant),col="black") + scale_size_continuous(range=c(3,7)) + labs(col="Flower Availability")
+```
+
+##GLM
+
+No accounting for detection. Also values independent.
+
+```{r}
+ggplot(obs[obs$Yobs>0,],aes(y=Yobs,x=Traitmatch)) + geom_jitter() +  stat_smooth(method="glm",family="poisson")
+
+mod1<-glm(data=obs,family="poisson",Yobs ~ Traitmatch )
 summary(mod1)
 ```
 
-First thought on sampling, take the mean interaction for each bird, plant combination.
+Mean position overtime
 
 ```{r}
-mobs<-obs[obs$Yobs > 0,] %>% group_by(Species,Plant,Availability) %>% summarize(Events=n(),d=mean(Yobs),Traitmatch=unique(Traitmatch))
-ggplot(mobs,aes(x=Traitmatch,y=d,col=Availability)) + geom_point(size=3,alpha=.8) + geom_smooth(method="glm",family="poisson") + theme_bw() + facet_wrap(~Species,scales="free")
+mean_obs<-group_by(obs,Bird,Plant,Traitmatch) %>% summarize(n=mean(Yobs))
+ggplot(mean_obs[,],aes(x=Traitmatch,y=n)) + geom_point() + stat_smooth(method="glm",family="poisson")
 ```
 
 ##Hierarchical Bayesian Model
@@ -385,7 +356,6 @@ source("Bayesian/PoissonRagged.R")
 
 #print model
 writeLines(readLines("Bayesian/PoissonRagged.R"))
-
 
 #Input Data
 Dat <- list(
@@ -403,7 +373,6 @@ Dat <- list(
   
   #Length of birds
   Birds=max(obs$Bird),
-  Plants=max(obs$Plant),
   resources=obs$Availability,
   traitmatch=obs$Traitmatch)
 
@@ -416,8 +385,8 @@ ParsStage <- c("alpha","beta1","beta2","beta3","intercept","sigma_int","sigma_sl
 
 #MCMC options
 
-ni <- 50000  # number of draws from the posterior
-nt <- 5  #thinning rate
+ni <- 5000  # number of draws from the posterior
+nt <- 2  #thinning rate
 nb <- ni*.9 # number to discard for burn-in
 nc <- 2  # number of chains
 
@@ -456,15 +425,15 @@ for (x in 1:length(toc)){
 
 ```{r,cache=FALSE,eval=TRUE,fig.width=11,fig.height=5}
 #Intercept
-ggplot(pars[pars$par %in% c("alpha"),],aes(x=Draw,y=estimate,col=as.factor(Chain))) + geom_line() + facet_grid(plant~species,scale="free") + theme_bw() + labs(col="Chain") + ggtitle("Detection Probability")
+ggplot(pars[pars$par %in% c("alpha"),],aes(x=Draw,y=estimate,col=as.factor(Chain))) + geom_line() + facet_wrap(~species,scale="free") + theme_bw() + labs(col="Chain") + ggtitle("Detection Probability")
 
 ###Slopes
-ggplot(pars[pars$par %in% c("alpha","beta1","beta2","beta3"),],aes(x=Draw,y=estimate,col=as.factor(Chain))) + geom_line() + facet_grid(par~species,scale="free") + theme_bw() + labs(col="Chain") + ggtitle("Detection Probability")
+ggplot(pars[pars$par %in% c("alpha","beta1","beta2","beta3"),],aes(x=Draw,y=estimate,col=as.factor(Chain))) + geom_line() + facet_grid(par~species,scale="free") + theme_bw() + labs(col="Chain") + ggtitle("Regression Convergence")
 
 ```
 
 ```{r,fig.height=5,fig.width=11,eval=T}
-ggplot(pars[pars$par %in% c("gamma1","gamma2","gamma3","sigma_int","sigma_slope1","sigma_slope2","sigma_slope3"),],aes(x=Draw,y=estimate,col=as.factor(Chain))) + geom_line() + theme_bw() + labs(col="Chain") + ggtitle("Trait-matching regression") + facet_wrap(~par,scales="free")
+ggplot(pars[pars$par %in% c("gamma1","gamma2","gamma3","sigma_int","sigma_slope1","sigma_slope2","sigma_slope3"),],aes(x=Draw,y=estimate,col=as.factor(Chain))) + geom_line() + theme_bw() + labs(col="Chain") + ggtitle("Trait-matching Hierarchical regression") + facet_wrap(~par,scales="free")
 ```
 
 ###Posteriors
@@ -472,7 +441,7 @@ ggplot(pars[pars$par %in% c("gamma1","gamma2","gamma3","sigma_int","sigma_slope1
 ```{r,cache=FALSE,fig.width=7,fig.height=13}
 
 #intercept
- <-ggplot(pars[pars$par %in% c("alpha"),],aes(x=estimate,fill=as.factor(species))) + geom_histogram() + ggtitle("Estimate of parameters") + theme_bw() + ggtitle("Species Posteriors")
+ggplot(pars[pars$par %in% c("alpha"),],aes(x=estimate,fill=as.factor(species))) + geom_histogram() + ggtitle("Estimate of parameters") + theme_bw() + ggtitle("Species Posteriors")
 
 ###Slope Posterior Distributions
 psim<-ggplot(pars[pars$par %in% c("beta1","beta2","beta3"),],aes(x=estimate)) + geom_histogram() + ggtitle("Estimate of parameters") + facet_grid(species~par,scales="free") + theme_bw() + ggtitle("Species Posteriors")
@@ -492,8 +461,6 @@ grid.arrange(psim,psim2,heights=c(.6,.4))
 ```{r,fig.height=4,fig.width=4}
 #get hierarchical parameters 
 
-castdf<-group_by(pars,Chain) %>% filter(par %in% c("gamma1","gamma2","gamma3","intercept")) %>% select(par,estimate) 
-
 castdf<-dcast(pars[pars$par %in% c("gamma1","gamma2","gamma3","intercept"),], Chain + Draw~par,value.var="estimate")
 
 ```
@@ -509,7 +476,6 @@ psim3
 
 #ggsave("Figures/SimulationResults.jpg",height=5,width=6,dpi=300)
 ```
-
 
 ###Visualize interactions
 
@@ -547,7 +513,7 @@ for(d in 1:length(species.split)){
   #get data for those species
   billd<-obs[obs$Bird %in% index,]
   
-  species.traj[[d]]<-trajF(alpha=x$alpha,beta1=x$beta1,beta2=x$beta2,beta3=x$beta3,resources=billd$AllResources,x=billd$Traitmatch)
+  species.traj[[d]]<-trajF(alpha=x$alpha,beta1=x$beta1,beta2=x$beta2,beta3=x$beta3,resources=billd$Flowers,x=billd$Traitmatch)
   }
 
 names(species.traj)<-names(species.split)
@@ -560,15 +526,13 @@ species.traj[,c("Index")]<-colsplit(species.traj$L1,"\\.",c("Index"))
 spe<-merge(species.traj,bindex,by.x="Index",by.y="Index")
 
 #match colnames
-colnames(odat)<-c("Plant","Bird","Time","Yobs","AllResources","PrivateResources","Traitmatch","Species","Iplant_Double")
+colnames(odat)[14:16]<-c("Species.x","Species","Iplant_Double")
 
 #plot and compare to original data
-p<-ggplot(data=spe[,],aes(x=x)) + geom_ribbon(aes(ymin=lower,ymax=upper),alpha=0.2)  + geom_line(aes(y=mean),size=1) + theme_bw() + ylab("Interactions") + xlab("Difference between Bill and Corolla Length") + facet_wrap(~Species,scales="free",ncol=3)  + geom_jitter(data=odat,aes(x=Traitmatch,y=Yobs),position = position_jitter(width = .1,height=0))
+p<-ggplot(data=spe,aes(x=x)) + geom_ribbon(aes(ymin=lower,ymax=upper),alpha=0.2) + geom_line(aes(y=mean),size=1) + theme_bw() + ylab("Interactions")+ xlab("Difference between Bill and Corolla Length") + facet_wrap(~Species,scales="free",ncol=3) + geom_point(data=odat,aes(x=Traitmatch,y=Yobs))
 
 print(p)
 ```
-
-The points have been jittered slightly to allow for visibility.
 
 ###Posterior Check
 

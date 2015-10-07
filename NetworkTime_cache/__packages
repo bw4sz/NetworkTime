@@ -1,5 +1,8 @@
 base
 knitr
+coda
+rjags
+R2jags
 reshape2
 ggplot2
 scales
@@ -15,7 +18,4 @@ igraph
 sna
 bipartite
 chron
-coda
-rjags
-R2jags
 gridExtra

@@ -162,7 +162,7 @@ ggplot(mdat,aes(col=resources,y=y,x=traitmatch)) + geom_point() + geom_smooth(ae
 4. Species interactions are based on similiarity in morphology and abundance of resources, with an interaction. As resources decrease, hummingbirds interact more with plant that match their bill length. The position of red
 
 ```{r}
-mdat<-sim(-.5,0,.5)
+mdat<-sim(-1,0,.5)
 ggplot(mdat,aes(col=resources,y=y,x=traitmatch)) + geom_point() + geom_smooth(aes(group=1),method="glm",family="poisson",formula=y~x) + theme_bw() + labs(x="Bill-Corolla Difference",y="Occurrences","Hummingbird") + ggtitle("Simulated data for each species") + labs(col="Available Resources") + scale_color_continuous(low="blue",high="red",breaks=c(-1.5,0,1.5),labels=c("Resource Poor","","Resource Rich")) + facet_wrap(~Var1,nrow=2)
 ```
 
@@ -201,7 +201,6 @@ ggplot(modlist,aes(x=traitmatch,y=R_effect,col=as.factor(model))) + geom_line() 
 * Model 3: Increased resources has no effect on trait-matching
 * Model 4: As there are more available resources, birds choose resources more different from their bill lengths
 * Model 5: As there are more available resources, birds choose resources more similiar to their bill lengths
-
 
 #Simulate Model 4
 
@@ -388,7 +387,7 @@ ParsStage <- c("alpha","beta1","beta2","beta3","intercept","sigma_int","sigma_sl
 
 ni <- 5000  # number of draws from the posterior
 nt <- max(c(1,ni*.0001))  #thinning rate
-nb <- ni*.75 # number to discard for burn-in
+nb <- ni*.85 # number to discard for burn-in
 nc <- 2  # number of chains
 
 #Jags
@@ -455,8 +454,6 @@ grid.arrange(psim,psim2,heights=c(.6,.4))
 ###Predicted Relationship 
 
 ```{r,fig.height=4,fig.width=4}
-
-castdf<-group_by(pars,Chain) %>% filter(par %in% c("gamma1","gamma2","gamma3","intercept")) %>% select(par,estimate) 
 
 castdf<-dcast(pars[pars$par %in% c("gamma1","gamma2","gamma3","intercept"),], Chain + Draw~par,value.var="estimate")
 

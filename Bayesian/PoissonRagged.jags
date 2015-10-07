@@ -2,8 +2,7 @@
     model {
     for (x in 1:Nobs){
     
-    
-    log(lambda[Bird[x],Plant[x],Time[x]]) <- alpha[Bird[x],Plant[x]] + beta1[Bird[x]] * traitmatch[x] + beta2[Bird[x]] * resources[x] + beta3[Bird[x]] * resources[x] * traitmatch[x]
+    log(lambda[Bird[x],Plant[x],Time[x]]) <- alpha[Bird[x]] + beta1[Bird[x]] * traitmatch[x] + beta2[Bird[x]] * resources[x] + beta3[Bird[x]] * resources[x] * traitmatch[x]
     
     #process model
     Yobs[x] ~ dpois(lambda[Bird[x],Plant[x],Time[x]] )
@@ -21,11 +20,9 @@
     beta1[i] ~ dnorm(gamma1,tau_beta1)    
     beta2[i] ~ dnorm(gamma2,tau_beta2)    
     beta3[i] ~ dnorm(gamma3,tau_beta3)   
+    alpha[i] ~ dnorm(intercept,tau_alpha)
+    }
     
-    for (j in 1:Plants){
-    alpha[i,j] ~ dnorm(intercept,tau_alpha)
-    }
-    }
     
     #Hyperpriors
     #Slope grouping
