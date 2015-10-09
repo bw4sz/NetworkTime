@@ -79,7 +79,6 @@ m.dat$Year<-years(as.Date(m.dat$DateP))
 m.dat$Year[m.dat$Year %in% 2012]<-2013
 
 #Fix spacing to match clades
-
 #Which are matching
 levels(m.dat$Hummingbird)[!levels(m.dat$Hummingbird) %in% hum.morph$English]
 
@@ -347,15 +346,55 @@ mean_obs<-group_by(obs,Bird,Plant,Traitmatch) %>% summarize(n=mean(Yobs))
 ggplot(mean_obs[,],aes(x=Traitmatch,y=n)) + geom_point() + stat_smooth(method="glm",family="poisson")
 ```
 
+Binary Model
+```{r}
+```
+
+##Non-detections
+
+```{r}
+#Only non-detections are real 0's, the rest are NA's and are removed.
+#Plants not surveyed in that time period
+#Hummingbirds not present at that site
+
+for(x in 1:dim(indatlong)[3]){
+  #Remove non sampled plants 
+  a<-indatlong[,,x]
+  toNA<-as.numeric(names(which(apply(a,2,sum)==0)))
+  pres<-as.numeric(names(which(!apply(a,2,sum)==0)))
+
+  indatlong[,colnames(a) %in% toNA,x]<-NA
+
+  #match elevation if there were presences, slightly terse code.
+  if(length(pres)>0){
+    for (y in 1:length(pres)){
+      #Plant range
+      pr<-elevP[elevP$Index %in% pres[y],"Elevation"]
+      if(!pr==3){
+        helim<-elevH[!elevH$Elevation %in% c(pr,3),"Index"]
+        indatlong[helim,colnames(a) %in% pres[y],x]<-NA
+        }
+      }  
+    }
+  }
+
+
+#melt and remove Na's
+indat<-melt(indatlong)
+indat<-indat[!is.na(indat$value),]
+
+colnames(indat)<-c("Bird","Plant","Time","Yobs")
+```
+
 ##Hierarchical Bayesian Model
 
 ```{r,eval=T,strip.white=T}
 
 #Source model
-source("Bayesian/PoissonRagged.R")
+source("Bayesian/NmixturePoissonRagged.R")
 
 #print model
-writeLines(readLines("Bayesian/PoissonRagged.R"))
+writeLines(readLines("Bayesian/NmixturePoissonRagged.R"))
 
 #Input Data
 Dat <- list(
@@ -367,21 +406,20 @@ Dat <- list(
   
   #Index of Plants
   Plant=obs$Plant,
-  
-  #Index of time
-  Time=obs$Time,
-  
   #Length of birds
   Birds=max(obs$Bird),
-  resources=obs$Availability,
+  Time=as.numeric(obs$Time),
+  resources=as.numeric(scale(obs$Flowers)),
   traitmatch=obs$Traitmatch)
 
 #Inits
 initB<-rep(.5,Dat$Birds)
-InitStage <- function(){list(beta1=initB,beta2=initB,beta3=initB,alpha=initB,intercept=0,tau_alpha=0.1,tau_beta1=0.1,tau_beta2=0.1,tau_beta3=0.1,gamma1=0,gamma2=0,gamma3=0)}
+Ninit<-array(dim=c(Dat$Birds,max(obs$Plant),max(as.numeric(Dat$Time))),data=10)
+
+InitStage <- function(){list(beta1=initB,detect=initB,beta2=initB,beta3=initB,alpha=initB,intercept=0,tau_alpha=0.1,tau_beta1=0.1,tau_beta2=0.1,tau_beta3=0.1,gamma1=0,gamma2=0,gamma3=0,N=Ninit)}
 
 #Parameters to track
-ParsStage <- c("alpha","beta1","beta2","beta3","intercept","sigma_int","sigma_slope1","sigma_slope2","sigma_slope3","gamma1","gamma2","gamma3","Yobs")
+ParsStage <- c("alpha","beta1","beta2","beta3","intercept","sigma_int","sigma_slope1","sigma_slope2","detect","sigma_slope3","gamma1","gamma2","gamma3","Yobs")
 
 #MCMC options
 
@@ -394,7 +432,7 @@ nc <- 2  # number of chains
 
 m = jags(inits=InitStage,
          n.chains=nc,
-         model.file="Bayesian/PoissonRagged.jags",
+         model.file="Bayesian/NmixturePoissonRagged.jags",
          working.directory=getwd(),
          data=Dat,
          parameters.to.save=ParsStage,

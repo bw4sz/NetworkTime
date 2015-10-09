@@ -1,12 +1,11 @@
 
     model {
     for (x in 1:Nobs){
-    
+
     log(lambda[Bird[x],Plant[x],Time[x]]) <- alpha[Bird[x]] + beta1[Bird[x]] * traitmatch[x] + beta2[Bird[x]] * resources[x] + beta3[Bird[x]] * resources[x] * traitmatch[x]
-    
-    #process model
-    Yobs[x] ~ dpois(lambda[Bird[x],Plant[x],Time[x]] )
-    
+    N[Bird[x],Plant[x],Time[x]] ~ dpois(lambda[Bird[x],Plant[x],Time[x]])
+    Yobs[x] ~ dbin(detect[Bird[x]],N[Bird[x],Plant[x],Time[x]])
+
     #Fit discrepancy statistics
     #eval[i,j,k]<-detect[i]*lambda[Bird[x],Plant[x],Time[x]] 
     #E[i,j,k]<-pow((Y[i,j,k]-eval[i,j,k]),2)/(eval[i,j,k]+0.5)
@@ -17,6 +16,7 @@
 }
     
     for (i in 1:Birds){
+    detect[i] ~ dunif(0,1) # Detection for each bird species
     beta1[i] ~ dnorm(gamma1,tau_beta1)    
     beta2[i] ~ dnorm(gamma2,tau_beta2)    
     beta3[i] ~ dnorm(gamma3,tau_beta3)   
