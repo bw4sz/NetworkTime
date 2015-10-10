@@ -7,7 +7,6 @@ html_document:
   keep_md:true
 ---
 
-
 ```{r,warning=FALSE,message=FALSE,echo=FALSE,cache=FALSE}
 library(reshape2)
 library(chron)
@@ -388,7 +387,7 @@ ParsStage <- c("alpha","beta1","beta2","beta3","intercept","sigma_int","sigma_sl
 
 #MCMC options
 
-ni <- 30000  # number of draws from the posterior
+ni <- 20000  # number of draws from the posterior
 nt <- max(c(1,ni*.0001))  #thinning rate
 nb <- ni*.85 # number to discard for burn-in
 nc <- 2  # number of chains
@@ -515,7 +514,7 @@ intF<-function(alpha,beta1,beta2,beta3,x,resources){
 }
 ```
 
-Calculated predicted y
+Calculated predicted y for high and low resources.
 
 ```{r}
 

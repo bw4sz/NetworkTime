@@ -29,9 +29,11 @@ library(ggplot2)
 library(scales)
 library(dplyr)
 library(stringr)
+library(lme4)
 library(picante)
 library(igraph)
 library(bipartite)
+library(effects)
 library(chron)
 library(gridExtra)
 library(MASS)
@@ -333,7 +335,7 @@ ggplot(mobss,aes(x=Traitmatch,y=d,col=as.factor(Availability))) + geom_point(aes
 No accounting for detection. Also values independent.
 
 ```{r}
-ggplot(obs[obs$Yobs>0,],aes(y=Yobs,x=Traitmatch)) + geom_jitter() +  stat_smooth(method="glm",family="poisson")
+ggplot(obs[obs$Yobs>0,],aes(y=Yobs,x=Traitmatch)) + geom_jitter() +  stat_smooth(method="glm",family="poisson") + facet_wrap(~Species,scales="free")
 
 mod1<-glm(data=obs,family="poisson",Yobs ~ Traitmatch )
 summary(mod1)
@@ -342,15 +344,29 @@ summary(mod1)
 Mean position overtime
 
 ```{r}
-mean_obs<-group_by(obs,Bird,Plant,Traitmatch) %>% summarize(n=mean(Yobs))
-ggplot(mean_obs[,],aes(x=Traitmatch,y=n)) + geom_point() + stat_smooth(method="glm",family="poisson")
+mean_obs<-group_by(obs,Species,Plant,Traitmatch) %>% summarize(n=mean(Yobs))
+ggplot(mean_obs[,],aes(x=Traitmatch,y=n)) + geom_point() + stat_smooth(method="glm",family="poisson") + facet_wrap(~Species,scale="free") + ggtitle("Species Mean Tendency")
 ```
 
-Binary Model
 ```{r}
+ggplot(obs,aes(x=Traitmatch,y=Yobs,col=as.factor(Availability))) + geom_point() + geom_smooth(method="glm",family="poisson") + theme_bw() + facet_wrap(~Species,scale="free")
 ```
 
-##Non-detections
+##Mixed Effect models
+```{r}
+#Trait only
+traitonly<-glmer(data=obs,Yobs~Traitmatch + (1|Bird),family="poisson")
+trait_resource<-glmer(data=obs,Yobs~Traitmatch + scale(Flowers) + (1|Bird) + (1|Plant),family="poisson")
+tr_interaction<-glmer(data=obs,Yobs~Traitmatch * scale(Flowers) + (1|Bird) + (1|Plant),family="poisson")
+
+tr_interaction<-glmer(data=obs,Yobs~Traitmatch * Availability + (1|Bird) + (1|Plant),family="poisson")
+
+anova(traitonly,trait_resource,tr_interaction)
+summary(tr_interaction)
+plot(tr_interaction)
+```
+
+##Non-detection
 
 ```{r}
 #Only non-detections are real 0's, the rest are NA's and are removed.
@@ -359,12 +375,15 @@ Binary Model
 
 for(x in 1:dim(indatlong)[3]){
   #Remove non sampled plants 
-  a<-indatlong[,,x]
-  toNA<-as.numeric(names(which(apply(a,2,sum)==0)))
-  pres<-as.numeric(names(which(!apply(a,2,sum)==0)))
-
-  indatlong[,colnames(a) %in% toNA,x]<-NA
-
+  a<-indatlong[,,x,]
+  
+  #for each elevation
+  for (j in 1:dim(a)[3]){
+  #No observations at that plant
+  toNA<-as.numeric(names(which(apply(a[,,j],2,sum)==0)))
+  pres<-as.numeric(names(which(!apply(a[,,j],2,sum)==0)))
+  indatlong[,colnames(a[,,j]) %in% toNA,x,j]<-NA
+  
   #match elevation if there were presences, slightly terse code.
   if(length(pres)>0){
     for (y in 1:length(pres)){
@@ -372,58 +391,123 @@ for(x in 1:dim(indatlong)[3]){
       pr<-elevP[elevP$Index %in% pres[y],"Elevation"]
       if(!pr==3){
         helim<-elevH[!elevH$Elevation %in% c(pr,3),"Index"]
-        indatlong[helim,colnames(a) %in% pres[y],x]<-NA
+        indatlong[helim,colnames(a) %in% pres[y],x,j]<-NA
         }
       }  
     }
   }
+}
 
 
 #melt and remove Na's
 indat<-melt(indatlong)
 indat<-indat[!is.na(indat$value),]
 
-colnames(indat)<-c("Bird","Plant","Time","Yobs")
+colnames(indat)<-c("Bird","Plant","Time","Transect_R","Yobs")
+
+#remerge the time period data
+Timelookup<-indatraw %>% dplyr::select(Time,DateP,Transect_R,Month,Year)%>% group_by(Time,DateP,Transect_R,Month,Year) %>% distinct() %>% arrange(Time)
+
+#Get time information
+indatmerge<-merge(indat,Timelookup,by=c("Time","Transect_R"),all.x=T)
+#Get flower information
+obsf<-merge(indatmerge,flower.monthD,by=c("Month","Year","Transect_R"))
+#Get trait information
+#match the traits
+for(x in 1:nrow(obsf)){
+  obsf$Traitmatch[x]<-traitmatchT[obsf$Bird[x],obsf$Plant[x]]
+}
 ```
 
+##Exploratory model fitting
+
+```{r}
+ggplot(obsf,aes(x=Traitmatch,y=(Yobs > 0)*1,col=Flowers)) + geom_point() + scale_color_continuous(low="blue",high="red")+ geom_smooth(method="glm",family="binomial") + facet_wrap(~Bird,scale="free") + theme_bw()
+```
+
+```{r}
+ggplot(obsf,aes(x=Traitmatch,y=(Yobs > 0)*1,col=Flowers)) + geom_point() + scale_color_continuous(low="blue",high="red")+ geom_smooth(method="glm",family="binomial") + facet_wrap(~Bird,scale="free") + theme_bw()
+```
+
+##Mixed Effect models with non-detections
+Poisson Counts
+```{r}
+#Trait only
+traitonly<-glmer(data=obsf,Yobs~Traitmatch + (1|Bird),family="poisson")
+trait_resource<-glmer(data=obsf,Yobs~Traitmatch + scale(Flowers) + (1|Bird) + (1|Plant),family="poisson")
+tr_interaction<-glmer(data=obsf,Yobs~Traitmatch * scale(Flowers) + (1|Bird) + (1|Plant),family="poisson")
+
+tr_interaction<-glmer(data=obsf,Yobs~Traitmatch * Availability + (1|Bird) + (1|Plant),family="poisson")
+
+anova(traitonly,trait_resource,tr_interaction)
+summary(tr_interaction)
+plot(tr_interaction)
+```
+
+Visualize interaction model
+
+```{r}
+plot(effect("Traitmatch:Availability", tr_interaction))
+```
+
+##Mixed Effect models with non-detections
+Binary Logistic Counts
+```{r}
+obsf$Binary<-(obsf$Yobs>0)*1
+#Trait only
+traitonly<-glmer(data=obsf,Binary~Traitmatch + (1|Bird),family="binomial")
+trait_resource<-glmer(data=obsf,Binary~Traitmatch + scale(Flowers) + (1|Bird) + (1|Plant),family="binomial")
+tr_interaction<-glmer(data=obsf,Binary~Traitmatch * scale(Flowers) + (1|Bird) + (1|Plant),family="binomial")
+
+tr_interaction<-glmer(data=obsf,Binary~Traitmatch * Availability + (1|Bird) + (1|Plant),family="binomial")
+
+anova(traitonly,trait_resource,tr_interaction)
+summary(tr_interaction)
+coefplot(tr_interaction)
+
+```
+
+
 ##Hierarchical Bayesian Model
+
 
 ```{r,eval=T,strip.white=T}
 
 #Source model
-source("Bayesian/NmixturePoissonRagged.R")
+source("Bayesian/PoissonRagged.R")
 
 #print model
-writeLines(readLines("Bayesian/NmixturePoissonRagged.R"))
+writeLines(readLines("Bayesian/PoissonRagged.R"))
 
 #Input Data
 Dat <- list(
-  Yobs=obs$Yobs,
-  Nobs=nrow(obs),
+  #Observations
+  Yobs=obsf$Yobs,
+  Nobs=nrow(obsf),
   
-  #Index of Birds
-  Bird=obs$Bird,
+  #indices
+  Bird=obsf$Bird,
+  Plant=obsf$Plant,
+  Time=1:nrow(obsf),
   
-  #Index of Plants
-  Plant=obs$Plant,
-  #Length of birds
-  Birds=max(obs$Bird),
-  Time=as.numeric(obs$Time),
-  resources=as.numeric(scale(obs$Flowers)),
-  traitmatch=obs$Traitmatch)
+  #Length of variables
+  Birds=max(obsf$Bird),
+  resources=obsf$Availability,
+  traitmatch=obsf$Traitmatch)
 
 #Inits
 initB<-rep(.5,Dat$Birds)
-Ninit<-array(dim=c(Dat$Birds,max(obs$Plant),max(as.numeric(Dat$Time))),data=10)
+#Ninit<-array(dim=c(Dat$Birds,Dat$Plants,Dat$Time),data=10)
+Ninit<-rep(max(obsf$Yobs),Dat$Nobs)
 
-InitStage <- function(){list(beta1=initB,detect=initB,beta2=initB,beta3=initB,alpha=initB,intercept=0,tau_alpha=0.1,tau_beta1=0.1,tau_beta2=0.1,tau_beta3=0.1,gamma1=0,gamma2=0,gamma3=0,N=Ninit)}
+InitStage <- function(){list(beta1=initB,beta2=initB,beta3=initB,alpha=initB,intercept=0,tau_alpha=0.1,tau_beta1=0.1,tau_beta2=0.1,tau_beta3=0.1,gamma1=0,gamma2=0,gamma3=0)}
 
 #Parameters to track
-ParsStage <- c("alpha","beta1","beta2","beta3","intercept","sigma_int","sigma_slope1","sigma_slope2","detect","sigma_slope3","gamma1","gamma2","gamma3","Yobs")
+ParsStage <- c("alpha","beta1","beta2","beta3","intercept","sigma_int","sigma_slope1","sigma_slope2","sigma_slope3","gamma1","gamma2","gamma3","Yobs")
 
 #MCMC options
 
-ni <- 5000  # number of draws from the posterior
+ni <- 50000  # number of draws from the posterior
 nt <- 2  #thinning rate
 nb <- ni*.9 # number to discard for burn-in
 nc <- 2  # number of chains
@@ -432,7 +516,7 @@ nc <- 2  # number of chains
 
 m = jags(inits=InitStage,
          n.chains=nc,
-         model.file="Bayesian/NmixturePoissonRagged.jags",
+         model.file="Bayesian/PoissonRagged.jags",
          working.directory=getwd(),
          data=Dat,
          parameters.to.save=ParsStage,
@@ -449,14 +533,6 @@ pars<-extract_par(m)
 
 pars$plant<-as.numeric(pars$plant)
 
-toc<-which(pars$par %in% "Yobs")
-for (x in 1:length(toc)){
-  row<-pars[toc[x],]
-  #species is the xth position of observed data, it is incorrectly stored 
-  pars[toc[x],"species"]<-obs[row$species,"Bird"]
-  pars[toc[x],"plant"]<-obs[row$species,"Plant"]
-  pars[toc[x],"Time"]<-obs[row$species,"Time"]
-}
 ```
 
 ###Assess Convergence
@@ -509,7 +585,7 @@ Calculated predicted y
 
 predy<-trajF(alpha=castdf$intercept,beta1=castdf$gamma1,x=Dat$traitmatch,resources=Dat$resources,beta2=castdf$gamma2,beta3=castdf$gamma3)
 
-psim3<-ggplot(data=predy,aes(x=x)) + geom_ribbon(aes(ymin=lower,ymax=upper),alpha=0.1,fill="red")  + geom_line(aes(y=mean),size=.8,col="red",linetype="dashed") + theme_bw() + ylab("Interactions") + xlab("Difference between Bill and Corolla Length") + geom_point(data=obs,aes(x=Traitmatch,y=Yobs))
+psim3<-ggplot(data=predy,aes(x=x)) + geom_ribbon(aes(ymin=lower,ymax=upper),alpha=0.1,fill="red")  + geom_line(aes(y=mean),size=.8,col="red",linetype="dashed") + theme_bw() + ylab("Interactions") + xlab("Difference between Bill and Corolla Length") + geom_point(data=obsf,aes(x=Traitmatch,y=Yobs))
 psim3
 
 #ggsave("Figures/SimulationResults.jpg",height=5,width=6,dpi=300)
@@ -529,7 +605,7 @@ psim4
 
 ```{r}
 #orignal data to plot as ppints
-odat<-merge(obs,bindex,by.x="Bird",by.y="Index")
+odat<-merge(obsf,bindex,by.x="Bird",by.y="Index")
 odat<-merge(odat,pindex,by.x="Plant",by.y="Index")
 ```
 
@@ -549,9 +625,9 @@ for(d in 1:length(species.split)){
   index<-unique(x$species)
   
   #get data for those species
-  billd<-obs[obs$Bird %in% index,]
+  billd<-obsf[obsf$Bird %in% index,]
   
-  species.traj[[d]]<-trajF(alpha=x$alpha,beta1=x$beta1,beta2=x$beta2,beta3=x$beta3,resources=billd$Flowers,x=billd$Traitmatch)
+  species.traj[[d]]<-trajF(alpha=x$alpha,beta1=x$beta1,beta2=x$beta2,beta3=x$beta3,resources=billd$Availability,x=billd$Traitmatch)
   }
 
 names(species.traj)<-names(species.split)
@@ -563,8 +639,9 @@ species.traj[,c("Index")]<-colsplit(species.traj$L1,"\\.",c("Index"))
 
 spe<-merge(species.traj,bindex,by.x="Index",by.y="Index")
 
+
 #match colnames
-colnames(odat)[14:16]<-c("Species.x","Species","Iplant_Double")
+colnames(odat)[13:14]<-c("Species","Iplant_Double")
 
 #plot and compare to original data
 p<-ggplot(data=spe,aes(x=x)) + geom_ribbon(aes(ymin=lower,ymax=upper),alpha=0.2) + geom_line(aes(y=mean),size=1) + theme_bw() + ylab("Interactions")+ xlab("Difference between Bill and Corolla Length") + facet_wrap(~Species,scales="free",ncol=3) + geom_point(data=odat,aes(x=Traitmatch,y=Yobs))

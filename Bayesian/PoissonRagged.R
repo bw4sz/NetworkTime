@@ -1,30 +1,21 @@
+
 sink("Bayesian/PoissonRagged.jags")
 
 cat("
     model {
     for (x in 1:Nobs){
-
-    Yobs[x] ~ dbin(detect[Bird[x]],N[Bird[x],Plant[x],Time[x]])
-    N[Bird[x],Plant[x],Time[x]] ~ dpois(lambda[Bird[x],Plant[x],Time[x]])
-    log(lambda[Bird[x],Plant[x],Time[x]]) <- alpha[Bird[x]] + beta1[Bird[x]] * traitmatch[x] + beta2[Bird[x]] * resources[x] + beta3[Bird[x]] * resources[x] * traitmatch[x]
     
-    #Fit discrepancy statistics
-    #eval[i,j,k]<-detect[i]*lambda[Bird[x],Plant[x],Time[x]] 
-    #E[i,j,k]<-pow((Y[i,j,k]-eval[i,j,k]),2)/(eval[i,j,k]+0.5)
-    
-    #y.new[i,j,k]~dpois(lambda[Bird[x],Plant[x],Time[x]]) 
-    #E.new[i,j,k]<-pow((y.new[i,j,k]-eval[i,j,k]),2)/(eval[i,j,k]+0.5)
-    
-}
-    
-    for (i in 1:Birds){
-    detect[i] ~ dunif(0,1) # Detection for each bird species
-    beta1[i] ~ dnorm(gamma1,tau_beta1)    
-    beta2[i] ~ dnorm(gamma2,tau_beta2)    
-    beta3[i] ~ dnorm(gamma3,tau_beta3)   
-    alpha[i] ~ dnorm(intercept,tau_alpha)
+      # True state model for the only partially observed true state    
+ log(lambda[Bird[x],Plant[x],Time[x]]) <- alpha[Bird[x]] + beta1[Bird[x]] * traitmatch[x] + beta2[Bird[x]] * resources[x] + beta3[Bird[x]] * resources[x] * traitmatch[x]      
+      Yobs[x] ~ dpois(lambda[Bird[x],Plant[x],Time[x]] )    
     }
     
+    for (i in 1:Birds){
+      alpha[i] ~ dnorm(intercept,tau_alpha)
+      beta1[i] ~ dnorm(gamma1,tau_beta1)    
+      beta2[i] ~ dnorm(gamma2,tau_beta2)    
+      beta3[i] ~ dnorm(gamma3,tau_beta3)    
+    }
     
     #Hyperpriors
     #Slope grouping
@@ -43,7 +34,6 @@ cat("
     tau_beta1 ~ dgamma(0.0001,0.0001)
     tau_beta2 ~ dgamma(0.0001,0.0001)
     tau_beta3 ~ dgamma(0.0001,0.0001)
-
     
     sigma_slope1<-pow(1/tau_beta1,0.5)
     sigma_slope2<-pow(1/tau_beta2,0.5)
