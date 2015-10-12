@@ -11,7 +11,9 @@ output:
 ---
 
 #Aim
-Which birds use which plants? What are the mechanisms that determine niche overlap in this assemblage
+Which birds use which plants? What are the mechanisms that determine niche overlap in this assemblage.
+
+We will fit several difference types of models and ask how they inform our understanding. For each model, we try to calculate a measure of discrepancy and assess model fit.
 
 ##Data
 
@@ -746,6 +748,290 @@ psim5<-p  + labs(x="Discrepancy of observed data",y="Discrepancy of replicated d
 
 psim5
 ```
+
+#Alternative Models
+
+Perhaps the intensity of the visit (number of visits per day), is more driven by local factors such as individual plan vigor, camera placement, or other variables not captured in the model. In this case, we care more about the probability of an occurrence happening, and some species are more detectable. We are losing information, but it may decrease noise.
+
+
+### Model Notation
+
+$$ Yobs_{i,j,k} \sim Bern(Detect_i) * truestate_{i,j,k}) $$
+
+$$ truestate_{i,j,k} \sim Bern(\lambda_{i,j,k}) $$
+
+$$logit(\p_{i,j,k})<-\alpha_i + \beta_i * abs(Bill_i - Corolla_j) * \beta_2 * Resources_k + \beta_3 * Resources_k * abs(Bill_i - Corolla_j) $$
+
+**Priors**
+
+$$ Detect \sim U(0,1) $$
+$$\alpha_i \sim N(intercept,\tau_{\alpha})$$
+$$\beta_{1,i} \sim N(\gamma_1i,\tau_{\beta_1})$$
+$$\beta_{2,i} \sim N(\gamma_2i,\tau_{\beta_2})$$
+$$\beta_{3,i} \sim N(\gamma_3i,\tau_{\beta_3})$$
+
+
+**Hyperpriors**
+
+Group Level Means
+
+$$\gamma_{1,i} \sim N(0.001,0.001)$$
+$$\gamma_{2,i} \sim N(0.001,0.001)$$
+$$\gamma_{3,i} \sim N(0.001,0.001)$$
+$$ intercept \sim N(0.001,0.001)$$
+
+Group Level Variance
+
+$$\tau_{\alpha} \sim Gamma(0.001,0.001)$$
+$$\tau_\beta1 \sim Gamma(0.001,0.001)$$
+$$\tau_\beta2 \sim Gamma(0.001,0.001)$$
+$$\tau_\beta3 \sim Gamma(0.001,0.001)$$
+
+**Derived quantities**
+
+$$\sigma_{int} = \frac{1}{\tau_{\alpha}}^2$$
+$$\sigma_{slope1} = \frac{1}{\tau_{\beta_1}}^2$$
+$$\sigma_{slope2} = \frac{1}{\tau_{\beta_2}}^2$$
+$$\sigma_{slope3} = \frac{1}{\tau_{\beta_3}}^2$$
+
+
+```{r,eval=T,strip.white=T}
+
+#Source model
+source("Bayesian/OccupancyModelRagged.R")
+
+#print model
+writeLines(readLines("Bayesian/OccupancyModelRagged.R"))
+
+#Input Data
+Dat <- list(
+  #Observations
+  Yobs=obsf$Binary,
+  Nobs=nrow(obsf),
+  
+  #indices
+  Bird=obsf$Bird,
+  Plant=obsf$Plant,
+  Time=1:nrow(obsf),
+  
+  #Length of variables
+  Birds=max(obsf$Bird),
+  resources=obsf$Availability,
+  traitmatch=obsf$Traitmatch)
+
+#Inits
+initB<-rep(.5,Dat$Birds)
+Ninit<-rep(1,Dat$Nobs)
+
+InitStage <- function(){list(beta1=initB,beta2=initB,detect=initB,beta3=initB,alpha=initB,intercept=0,tau_alpha=0.1,tau_beta1=0.1,tau_beta2=0.1,tau_beta3=0.1,gamma1=0,gamma2=0,gamma3=0,true_state=Ninit)}
+
+#Parameters to track
+ParsStage <- c("alpha","beta1","beta2","beta3","intercept","sigma_int","sigma_slope1","sigma_slope2","sigma_slope3","gamma1","gamma2","gamma3","detect","p","eff.p","fit","fitnew")
+
+#MCMC options
+
+ni <- 1000  # number of draws from the posterior
+nt <- 2  #thinning rate
+nb <- ni*.95 # number to discard for burn-in
+nc <- 2  # number of chains
+
+#Jags
+
+m = jags(inits=InitStage,
+         n.chains=nc,
+         model.file="Bayesian/OccupancyModelRagged.jags",
+         working.directory=getwd(),
+         data=Dat,
+         parameters.to.save=ParsStage,
+         n.thin=nt,
+         n.iter=ni,
+         n.burnin=nb,
+         DIC=T)
+```
+
+```{r}
+pars<-extract_par(m)
+```
+
+###Assess Convergence
+
+```{r,cache=FALSE,eval=TRUE,fig.width=11,fig.height=5}
+#Intercept
+ggplot(pars[pars$par %in% c("alpha"),],aes(x=Draw,y=estimate,col=as.factor(Chain))) + geom_line() + facet_wrap(~species,scale="free") + theme_bw() + labs(col="Chain") + ggtitle("Detection Probability")
+
+###Slopes
+ggplot(pars[pars$par %in% c("alpha","beta1","beta2","beta3"),],aes(x=Draw,y=estimate,col=as.factor(Chain))) + geom_line() + facet_grid(par~species,scale="free") + theme_bw() + labs(col="Chain") + ggtitle("Regression Convergence")
+
+```
+
+```{r,fig.height=5,fig.width=11,eval=T}
+ggplot(pars[pars$par %in% c("gamma1","gamma2","gamma3","sigma_int","sigma_slope1","sigma_slope2","sigma_slope3"),],aes(x=Draw,y=estimate,col=as.factor(Chain))) + geom_line() + theme_bw() + labs(col="Chain") + ggtitle("Trait-matching Hierarchical regression") + facet_wrap(~par,scales="free")
+```
+
+###Posteriors
+
+Intercept
+
+```{r,cache=FALSE,fig.width=7,fig.height=13}
+
+#intercept
+ggplot(pars[pars$par %in% c("alpha"),],aes(x=estimate,fill=as.factor(species))) + geom_histogram() + ggtitle("Estimate of Intercept") + theme_bw() + ggtitle("Species Posteriors")
+
+###Slope Posterior Distributions
+psim<-ggplot(pars[pars$par %in% c("beta1","beta2","beta3"),],aes(x=estimate)) + geom_histogram() + ggtitle("Estimate of regression parameters") + facet_grid(species~par,scales="free") + theme_bw() + ggtitle("Species Posteriors")
+
+###Detection Posterior Distributions
+ggplot(pars[pars$par %in% c("detect"),],aes(x=estimate)) + geom_histogram() + ggtitle("Estimate of regression parameters") + facet_wrap(~species,scales="free") + theme_bw() + ggtitle("Species Posteriors")
+
+#ggsave("Figures/ObservedPosteriors.jpg",dpi=300,height=8,width=8)
+```
+
+```{r,cache=FALSE,eval=TRUE,fig.height=13,fig.width=10}
+
+psim2<-ggplot(pars[pars$par %in% c("gamma1","gamma2","gamma3","intercept","sigma_int","sigma_slope1","sigma_slope2","sigma_slope3"),],aes(x=estimate)) + geom_histogram() + ggtitle("Hierarchical Posteriors") + facet_wrap(~par,scale="free",nrow=2) + theme_bw() 
+
+grid.arrange(psim,psim2,heights=c(.6,.4))
+```
+
+###Predicted Relationship 
+
+```{r,fig.height=4,fig.width=4}
+#Expand out pars
+castdf<-dcast(pars[pars$par %in% c("gamma1","gamma2","gamma3","intercept"),], Chain + Draw~par,value.var="estimate")
+```
+
+```{r}
+#Trajectories from posterior
+predy<-trajF(alpha=castdf$intercept,beta1=castdf$gamma1,x=Dat$traitmatch,resources=Dat$resources,beta2=castdf$gamma2,beta3=castdf$gamma3)
+
+psim3<-ggplot(data=predy,aes(x=x)) + geom_ribbon(aes(ymin=lower,ymax=upper),alpha=0.1,fill="red")  + geom_line(aes(y=mean),size=.8,col="red",linetype="dashed") + theme_bw() + ylab("Interactions") + xlab("Difference between Bill and Corolla Length") + geom_point(data=obsf,aes(x=Traitmatch,y=Yobs))
+psim3
+
+#ggsave("Figures/SimulationResults.jpg",height=5,width=6,dpi=300)
+```
+
+###Visualize interactions
+
+```{r}
+predyint<-intF(alpha=castdf$intercept,beta1=castdf$gamma1,x=Dat$traitmatch,resources=Dat$resources,beta2=castdf$gamma2,beta3=castdf$gamma3)
+
+psim4<-ggplot(data=predyint,aes(x=x)) + geom_ribbon(aes(ymin=lower,ymax=upper),alpha=0.3,fill="black") + theme_bw() + ylab("Effect of Resources on Trait Matching") + geom_line(aes(y=mean),size=.8,col="black",linetype="dashed") + xlab("Difference between Bill and Corolla Length") 
+
+psim4
+```
+
+###Species Predictions
+
+```{r}
+#orignal data to plot as ppints
+odat<-merge(obsf,bindex,by.x="Bird",by.y="Index")
+odat<-merge(odat,pindex,by.x="Plant",by.y="Index")
+```
+
+```{r,fig.height=10,fig.width=11,eval=T}
+
+castdf<-dcast(pars[pars$par %in% c("beta1","beta2","beta3","alpha"),], species +Chain + plant+ Draw~par,value.var="estimate")
+
+#Turn to 
+castdf$species<-factor(castdf$species,levels=1:max(as.numeric(castdf$species)))
+
+species.split<-split(castdf,list(castdf$species),drop = T)
+
+species.traj<-list()
+
+for(d in 1:length(species.split)){
+  x<-species.split[[d]]
+  index<-unique(x$species)
+  
+  #get data for those species
+  billd<-obsf[obsf$Bird %in% index,]
+  
+  species.traj[[d]]<-trajF(alpha=x$alpha,beta1=x$beta1,beta2=x$beta2,beta3=x$beta3,resources=billd$Availability,x=billd$Traitmatch)
+  }
+
+names(species.traj)<-names(species.split)
+
+species.traj<-melt(species.traj,id.var=colnames(species.traj[[1]]))
+
+#split out names and model
+species.traj[,c("Index")]<-colsplit(species.traj$L1,"\\.",c("Index"))
+
+spe<-merge(species.traj,bindex,by.x="Index",by.y="Index")
+
+
+#match colnames
+colnames(odat)[13:14]<-c("Species","Iplant_Double")
+
+#plot and compare to original data
+p<-ggplot(data=spe,aes(x=x)) + geom_ribbon(aes(ymin=lower,ymax=upper),alpha=0.2) + geom_line(aes(y=mean),size=1) + theme_bw() + ylab("Interactions")+ xlab("Difference between Bill and Corolla Length") + facet_wrap(~Species,scales="free",ncol=3) + geom_point(data=odat,aes(x=Traitmatch,y=Yobs))
+
+print(p)
+```
+
+###Species Level Interaction
+
+```{r,fig.height=10,fig.width=11,eval=T}
+
+castdf<-dcast(pars[pars$par %in% c("beta1","beta2","beta3","alpha"),], species +Chain + plant+ Draw~par,value.var="estimate")
+
+#Turn to 
+castdf$species<-factor(castdf$species,levels=1:max(as.numeric(castdf$species)))
+
+species.split<-split(castdf,list(castdf$species),drop = T)
+
+species.traj<-list()
+
+for(d in 1:length(species.split)){
+  dat<-species.split[[d]]
+  index<-unique(dat$species)
+  
+  #get data for those species
+  billd<-obsf[obsf$Bird %in% index,]
+  
+  #Calculate interaction effect
+  species.traj[[d]]<-intF(alpha=dat$alpha,beta1=dat$beta1,x=billd$Traitmatch,resources=billd$Availability,beta2=dat$beta2,beta3=dat$beta3)
+  
+  }
+
+names(species.traj)<-names(species.split)
+
+species.traj<-melt(species.traj,id.var=colnames(species.traj[[1]]))
+
+#split out names and model
+species.traj[,c("Index")]<-colsplit(species.traj$L1,"\\.",c("Index"))
+
+spe<-merge(species.traj,bindex,by.x="Index",by.y="Index")
+
+
+#match colnames
+colnames(odat)[13:14]<-c("Species","Iplant_Double")
+
+#plot and compare to original data
+p<-ggplot(data=spe,aes(x=x)) + geom_ribbon(aes(ymin=lower,ymax=upper,fill=Species),alpha=0.2) + geom_line(aes(y=mean,col=Species),size=1) + theme_bw() + ylab("Interactions")+ xlab("Difference between Bill and Corolla Length")  + ylab("Effect of Resources on Trait Matching") 
+
+print(p)
+```
+
+
+###Posterior Check
+
+```{r,fig.height=4,fig.width=8,eval=T}
+
+fitstat<-droplevels(pars[pars$par %in% c("fit","fitnew"),])
+fitstat<-dcast(fitstat[,-c(1,5,6)],Draw+Chain~par,value.var="estimate")
+
+#add 1:1 line
+ymin<-round(min(c(fitstat$fit,fitstat$fitnew)))
+ymax<-round(max(c(fitstat$fit,fitstat$fitnew)))
+ab<-data.frame(x=ymin:ymax,y=ymin:ymax)
+
+p<-ggplot(fitstat,aes(x=fit,y=fitnew)) + geom_point() + theme_bw() + coord_equal()
+psim5<-p  + labs(x="Discrepancy of observed data",y="Discrepancy of replicated data",col="Model") + geom_line(data=ab,aes(x=x,y=y)) + ggtitle("Simulated Data")
+
+psim5
+```
+
+
 
 ```{r}
 save.image("Observed.RData")
