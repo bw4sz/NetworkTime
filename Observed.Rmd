@@ -55,7 +55,7 @@ source("Bayesian/BayesFunctions.R")
 
 ```{r,eval=F}
 #load data is needed
-#load("Observed.RData")
+load("Observed.RData")
 ```
 
 #Read in Data
@@ -506,8 +506,8 @@ ParsStage <- c("alpha","beta1","beta2","beta3","intercept","sigma_int","sigma_sl
 
 #MCMC options
 
-ni <- 100000  # number of draws from the posterior
-nt <- 3  #thinning rate
+ni <- 1000  # number of draws from the posterior
+nt <- 2  #thinning rate
 nb <- ni*.95 # number to discard for burn-in
 nc <- 2  # number of chains
 
@@ -527,11 +527,6 @@ m = jags(inits=InitStage,
 
 ```{r}
 pars<-extract_par(m)
-
-#Since this was a ragged matrix, need to correct the observed data species and plant
-
-pars$plant<-as.numeric(pars$plant)
-
 ```
 
 ###Assess Convergence
@@ -551,13 +546,18 @@ ggplot(pars[pars$par %in% c("gamma1","gamma2","gamma3","sigma_int","sigma_slope1
 
 ###Posteriors
 
+Intercept
+
 ```{r,cache=FALSE,fig.width=7,fig.height=13}
 
 #intercept
-ggplot(pars[pars$par %in% c("alpha"),],aes(x=estimate,fill=as.factor(species))) + geom_histogram() + ggtitle("Estimate of parameters") + theme_bw() + ggtitle("Species Posteriors")
+ggplot(pars[pars$par %in% c("alpha"),],aes(x=estimate,fill=as.factor(species))) + geom_histogram() + ggtitle("Estimate of Intercept") + theme_bw() + ggtitle("Species Posteriors")
 
 ###Slope Posterior Distributions
-psim<-ggplot(pars[pars$par %in% c("beta1","beta2","beta3"),],aes(x=estimate)) + geom_histogram() + ggtitle("Estimate of parameters") + facet_grid(species~par,scales="free") + theme_bw() + ggtitle("Species Posteriors")
+psim<-ggplot(pars[pars$par %in% c("beta1","beta2","beta3"),],aes(x=estimate)) + geom_histogram() + ggtitle("Estimate of regression parameters") + facet_grid(species~par,scales="free") + theme_bw() + ggtitle("Species Posteriors")
+
+###Detection Posterior Distributions
+psim<-ggplot(pars[pars$par %in% c("detect"),],aes(x=estimate)) + geom_histogram() + ggtitle("Estimate of regression parameters") + facet_wrap(~species,scales="free") + theme_bw() + ggtitle("Species Posteriors")
 
 #ggsave("Figures/ObservedPosteriors.jpg",dpi=300,height=8,width=8)
 ```
@@ -572,8 +572,7 @@ grid.arrange(psim,psim2,heights=c(.6,.4))
 ###Predicted Relationship 
 
 ```{r,fig.height=4,fig.width=4}
-#get hierarchical parameters 
-
+#Expand out pars
 castdf<-dcast(pars[pars$par %in% c("gamma1","gamma2","gamma3","intercept"),], Chain + Draw~par,value.var="estimate")
 
 ```
@@ -581,7 +580,7 @@ castdf<-dcast(pars[pars$par %in% c("gamma1","gamma2","gamma3","intercept"),], Ch
 Calculated predicted y
 
 ```{r}
-
+#Trajectories from posterior
 predy<-trajF(alpha=castdf$intercept,beta1=castdf$gamma1,x=Dat$traitmatch,resources=Dat$resources,beta2=castdf$gamma2,beta3=castdf$gamma3)
 
 psim3<-ggplot(data=predy,aes(x=x)) + geom_ribbon(aes(ymin=lower,ymax=upper),alpha=0.1,fill="red")  + geom_line(aes(y=mean),size=.8,col="red",linetype="dashed") + theme_bw() + ylab("Interactions") + xlab("Difference between Bill and Corolla Length") + geom_point(data=obsf,aes(x=Traitmatch,y=Yobs))
@@ -647,6 +646,51 @@ p<-ggplot(data=spe,aes(x=x)) + geom_ribbon(aes(ymin=lower,ymax=upper),alpha=0.2)
 
 print(p)
 ```
+
+###Species Level Interaction
+
+```{r,fig.height=10,fig.width=11,eval=T}
+
+castdf<-dcast(pars[pars$par %in% c("beta1","beta2","beta3","alpha"),], species +Chain + plant+ Draw~par,value.var="estimate")
+
+#Turn to 
+castdf$species<-factor(castdf$species,levels=1:max(as.numeric(castdf$species)))
+
+species.split<-split(castdf,list(castdf$species),drop = T)
+
+species.traj<-list()
+
+for(d in 1:length(species.split)){
+  dat<-species.split[[d]]
+  index<-unique(dat$species)
+  
+  #get data for those species
+  billd<-obsf[obsf$Bird %in% index,]
+  
+  #Calculate interaction effect
+  species.traj[[d]]<-intF(alpha=dat$alpha,beta1=dat$beta1,x=billd$Traitmatch,resources=billd$Flowers,beta2=dat$beta2,beta3=dat$beta3)
+  
+  }
+
+names(species.traj)<-names(species.split)
+
+species.traj<-melt(species.traj,id.var=colnames(species.traj[[1]]))
+
+#split out names and model
+species.traj[,c("Index")]<-colsplit(species.traj$L1,"\\.",c("Index"))
+
+spe<-merge(species.traj,bindex,by.x="Index",by.y="Index")
+
+
+#match colnames
+colnames(odat)[13:14]<-c("Species","Iplant_Double")
+
+#plot and compare to original data
+p<-ggplot(data=spe,aes(x=x)) + geom_ribbon(aes(ymin=lower,ymax=upper,fill=Species),alpha=0.2) + geom_line(aes(y=mean,col=Species),size=1) + theme_bw() + ylab("Interactions")+ xlab("Difference between Bill and Corolla Length")  + ylab("Effect of Resources on Trait Matching") 
+
+print(p)
+```
+
 
 ###Posterior Check
 

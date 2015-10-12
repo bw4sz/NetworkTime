@@ -2,10 +2,20 @@
     model {
     for (x in 1:Nobs){
     
-    # True state model for the only partially observed true state    
+    # Covariates for true state   
     log(lambda[Bird[x],Plant[x],Time[x]]) <- alpha[Bird[x]] + beta1[Bird[x]] * traitmatch[x] + beta2[Bird[x]] * resources[x] + beta3[Bird[x]] * resources[x] * traitmatch[x]      
+    
+    #True State
     N[x] ~ dpois(lambda[Bird[x],Plant[x],Time[x]] )    
+    
+    #Observation Process
     Yobs[x] ~ dbin(detect[Bird[x]],N[x])    
+
+    #Assess Model Fit
+    #Chi-squared discrepancy statistics
+    eval[x]<-detect[Bird[x]] * lambda[Bird[x],Plant[x],Time[x]]
+    E[x]<-pow((Yobs[x]-eval[x]),2)/(eval[x]+0.5)
+    
 
     }
     
