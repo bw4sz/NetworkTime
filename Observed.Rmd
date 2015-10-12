@@ -5,6 +5,7 @@ author: "Ben Weinstein"
 date: "Tuesday, October 14, 2014"
 output:
   html_document:
+  toc: true
     theme: spacelab
   word_document: default
   keep_md: true
@@ -254,6 +255,32 @@ indatlong<-acast(indatraw,Bird~Plant~Time~Transect_R,value.var="Yobs")
 indatlong[is.na(indatlong)]<-0
 ```
 
+##Resource availability at each data point
+
+```{r}
+#merge with original data, easier to do as factors
+indatraw<-as.tbl(indatraw)
+indatraw$Time<-as.factor(indatraw$Time)
+
+#flower surveys are done twice a month, get the average
+flower.monthD<-flower.month %>% arrange(Month,Year,Transect_R) %>% group_by(Month,Year,Transect_R) %>% summarize(Flowers=mean(Flowers,na.rm=T),Availability=max(as.numeric(as.character(Availability))))
+
+#We lose some data here, needs to be cleaned.
+obs<-merge(indatraw,flower.monthD,by=c("Month","Year","Transect_R"))
+```
+
+
+```{r}
+#match the traits
+for(x in 1:nrow(obs)){
+  obs$Traitmatch[x]<-traitmatchT[obs$Bird[x],obs$Plant[x]]
+}
+
+#add in hummingbird names
+obs<-merge(obs,bindex,by.x="Bird",by.y="Index")
+```
+
+#Choosing a distribution
 Before we account for elevation and availability, what is the distribution of intensity of interactions?
 
 ```{r}
@@ -292,30 +319,6 @@ The best fitting moment is in opaque red. The observed data is in black.
 
 Ignoring non-detections for the moment.
 
-##Resource availability at each data point
-
-```{r}
-#merge with original data, easier to do as factors
-indatraw<-as.tbl(indatraw)
-indatraw$Time<-as.factor(indatraw$Time)
-
-#flower surveys are done twice a month, get the average
-flower.monthD<-flower.month %>% arrange(Month,Year,Transect_R) %>% group_by(Month,Year,Transect_R) %>% summarize(Flowers=mean(Flowers,na.rm=T),Availability=max(as.numeric(as.character(Availability))))
-
-#We lose some data here, needs to be cleaned.
-obs<-merge(indatraw,flower.monthD,by=c("Month","Year","Transect_R"))
-```
-
-
-```{r}
-#match the traits
-for(x in 1:nrow(obs)){
-  obs$Traitmatch[x]<-traitmatchT[obs$Bird[x],obs$Plant[x]]
-}
-
-#add in hummingbird names
-obs<-merge(obs,bindex,by.x="Bird",by.y="Index")
-```
 
 #Exploratory Model Fitting
 
@@ -451,22 +454,6 @@ Visualize interaction model
 plot(effect("Traitmatch:Availability", tr_interaction))
 ```
 
-##Mixed Effect models with non-detections
-Binary Logistic Counts
-```{r}
-obsf$Binary<-(obsf$Yobs>0)*1
-#Trait only
-traitonly<-glmer(data=obsf,Binary~Traitmatch + (1|Bird),family="binomial")
-trait_resource<-glmer(data=obsf,Binary~Traitmatch + scale(Flowers) + (1|Bird) + (1|Plant),family="binomial")
-tr_interaction<-glmer(data=obsf,Binary~Traitmatch * scale(Flowers) + (1|Bird) + (1|Plant),family="binomial")
-
-tr_interaction<-glmer(data=obsf,Binary~Traitmatch * Availability + (1|Bird) + (1|Plant),family="binomial")
-
-anova(traitonly,trait_resource,tr_interaction)
-summary(tr_interaction)
-
-```
-
 
 ##Hierarchical Bayesian Model
 
@@ -548,7 +535,7 @@ ParsStage <- c("alpha","beta1","beta2","beta3","intercept","sigma_int","sigma_sl
 
 #MCMC options
 
-ni <- 1000  # number of draws from the posterior
+ni <- 20000  # number of draws from the posterior
 nt <- 2  #thinning rate
 nb <- ni*.95 # number to discard for burn-in
 nc <- 2  # number of chains
@@ -753,7 +740,23 @@ psim5
 
 Perhaps the intensity of the visit (number of visits per day), is more driven by local factors such as individual plan vigor, camera placement, or other variables not captured in the model. In this case, we care more about the probability of an occurrence happening, and some species are more detectable. We are losing information, but it may decrease noise.
 
+##Mixed Effect models with non-detections
+Binary Logistic Counts
+```{r}
+obsf$Binary<-(obsf$Yobs>0)*1
+#Trait only
+traitonly<-glmer(data=obsf,Binary~Traitmatch + (1|Bird),family="binomial")
+trait_resource<-glmer(data=obsf,Binary~Traitmatch + scale(Flowers) + (1|Bird) + (1|Plant),family="binomial")
+tr_interaction<-glmer(data=obsf,Binary~Traitmatch * scale(Flowers) + (1|Bird) + (1|Plant),family="binomial")
 
+tr_interaction<-glmer(data=obsf,Binary~Traitmatch * Availability + (1|Bird) + (1|Plant),family="binomial")
+
+anova(traitonly,trait_resource,tr_interaction)
+summary(tr_interaction)
+
+```
+
+##Hierarchical Bayesian Model
 ### Model Notation
 
 $$ Yobs_{i,j,k} \sim Bern(Detect_i) * truestate_{i,j,k}) $$
@@ -830,7 +833,7 @@ ParsStage <- c("alpha","beta1","beta2","beta3","intercept","sigma_int","sigma_sl
 
 #MCMC options
 
-ni <- 1000  # number of draws from the posterior
+ni <- 20000  # number of draws from the posterior
 nt <- 2  #thinning rate
 nb <- ni*.95 # number to discard for burn-in
 nc <- 2  # number of chains
