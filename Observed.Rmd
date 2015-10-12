@@ -60,7 +60,6 @@ load("Observed.RData")
 
 #Read in Data
 ```{r}
-###Read in data
 #read in flower morphology data, comes from Nectar.R
 droppath<-"C:/Users/Ben/Dropbox/"
 fl.morph<-read.csv(paste(droppath,"Thesis/Maquipucuna_SantaLucia/Results/FlowerMorphology.csv",sep=""))
@@ -470,6 +469,47 @@ summary(tr_interaction)
 ##Hierarchical Bayesian Model
 
 
+### Model Fitting
+
+$$ Yobs_{i,j,k} \sim Binom(Detect_i,N_{i,j,k}) $$
+
+$$ N_{i,j,k} \sim Pois(\lambda_{i,j,k}) $$
+
+$$log(\lambda_{i,j,k})<-\alpha_i + \beta_i * abs(Bill_i - Corolla_j) * \beta_2 * Resources_k + \beta_3 * Resources_k * abs(Bill_i - Corolla_j) $$
+
+**Priors**
+
+$$ Detect \sim U(0,1) $$
+$$\alpha_i \sim N(intercept,\tau_{\alpha})$$
+$$\beta_{1,i} \sim N(\gamma_1i,\tau_{\beta_1})$$
+$$\beta_{2,i} \sim N(\gamma_2i,\tau_{\beta_2})$$
+$$\beta_{3,i} \sim N(\gamma_3i,\tau_{\beta_3})$$
+
+
+**Hyperpriors**
+
+Group Level Means
+
+$$\gamma_{1,i} \sim N(0.001,0.001)$$
+$$\gamma_{2,i} \sim N(0.001,0.001)$$
+$$\gamma_{3,i} \sim N(0.001,0.001)$$
+$$ intercept \sim N(0.001,0.001)$$
+
+Group Level Variance
+
+$$\tau_{\alpha} \sim Gamma(0.001,0.001)$$
+$$\tau_\beta1 \sim Gamma(0.001,0.001)$$
+$$\tau_\beta2 \sim Gamma(0.001,0.001)$$
+$$\tau_\beta3 \sim Gamma(0.001,0.001)$$
+
+**Derived quantities**
+
+$$\sigma_{int} = \frac{1}{\tau_{\alpha}}^2$$
+$$\sigma_{slope1} = \frac{1}{\tau_{\beta_1}}^2$$
+$$\sigma_{slope2} = \frac{1}{\tau_{\beta_2}}^2$$
+$$\sigma_{slope3} = \frac{1}{\tau_{\beta_3}}^2$$
+
+
 ```{r,eval=T,strip.white=T}
 
 #Source model
@@ -502,7 +542,7 @@ Ninit<-rep(max(obsf$Yobs),Dat$Nobs)
 InitStage <- function(){list(beta1=initB,beta2=initB,detect=initB,beta3=initB,alpha=initB,intercept=0,tau_alpha=0.1,tau_beta1=0.1,tau_beta2=0.1,tau_beta3=0.1,gamma1=0,gamma2=0,gamma3=0,N=Ninit)}
 
 #Parameters to track
-ParsStage <- c("alpha","beta1","beta2","beta3","intercept","sigma_int","sigma_slope1","sigma_slope2","sigma_slope3","gamma1","gamma2","gamma3","detect","Yobs")
+ParsStage <- c("alpha","beta1","beta2","beta3","intercept","sigma_int","sigma_slope1","sigma_slope2","sigma_slope3","gamma1","gamma2","gamma3","detect","fit","fitnew")
 
 #MCMC options
 
@@ -557,7 +597,7 @@ ggplot(pars[pars$par %in% c("alpha"),],aes(x=estimate,fill=as.factor(species))) 
 psim<-ggplot(pars[pars$par %in% c("beta1","beta2","beta3"),],aes(x=estimate)) + geom_histogram() + ggtitle("Estimate of regression parameters") + facet_grid(species~par,scales="free") + theme_bw() + ggtitle("Species Posteriors")
 
 ###Detection Posterior Distributions
-psim<-ggplot(pars[pars$par %in% c("detect"),],aes(x=estimate)) + geom_histogram() + ggtitle("Estimate of regression parameters") + facet_wrap(~species,scales="free") + theme_bw() + ggtitle("Species Posteriors")
+ggplot(pars[pars$par %in% c("detect"),],aes(x=estimate)) + geom_histogram() + ggtitle("Estimate of regression parameters") + facet_wrap(~species,scales="free") + theme_bw() + ggtitle("Species Posteriors")
 
 #ggsave("Figures/ObservedPosteriors.jpg",dpi=300,height=8,width=8)
 ```
@@ -574,10 +614,7 @@ grid.arrange(psim,psim2,heights=c(.6,.4))
 ```{r,fig.height=4,fig.width=4}
 #Expand out pars
 castdf<-dcast(pars[pars$par %in% c("gamma1","gamma2","gamma3","intercept"),], Chain + Draw~par,value.var="estimate")
-
 ```
-
-Calculated predicted y
 
 ```{r}
 #Trajectories from posterior
@@ -694,16 +731,16 @@ print(p)
 
 ###Posterior Check
 
-```{r,fig.height=4,fig.width=8,eval=F}
+```{r,fig.height=4,fig.width=8,eval=T}
 
 fitstat<-droplevels(pars[pars$par %in% c("fit","fitnew"),])
-fitstat<-dcast(fitstat,Draw+Chain~par,value.var="estimate")
+fitstat<-dcast(fitstat[,-c(1,5,6)],Draw+Chain~par,value.var="estimate")
 
 #add 1:1 line
-
 ymin<-round(min(c(fitstat$fit,fitstat$fitnew)))
 ymax<-round(max(c(fitstat$fit,fitstat$fitnew)))
 ab<-data.frame(x=ymin:ymax,y=ymin:ymax)
+
 p<-ggplot(fitstat,aes(x=fit,y=fitnew)) + geom_point() + theme_bw() + coord_equal()
 psim5<-p  + labs(x="Discrepancy of observed data",y="Discrepancy of replicated data",col="Model") + geom_line(data=ab,aes(x=x,y=y)) + ggtitle("Simulated Data")
 

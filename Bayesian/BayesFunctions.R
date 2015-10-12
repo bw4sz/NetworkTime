@@ -4,8 +4,6 @@ extract_par<-function(x){
 #extract desired info from the models
 parsO<-melt(x$BUGSoutput$sims.array)
 colnames(parsO)<-c("Draw","Chain","parameter","estimate")
-#just model the last 5% of draws
-parsO<-parsO[!parsO$Draw %in% 1:(max(parsO$Draw)*.9),]
 
 #label species and plants
 l<-levels(parsO$parameter)
@@ -13,9 +11,8 @@ l<-levels(parsO$parameter)
 #parameters to save
 totrack<-x$parameters.to.save
 
-sp_pl<-data.frame(parameter=l,species=str_match(l,pattern="\\[(\\d+)]")[,2],plant=str_match(l,pattern="\\[(\\d+),(\\d+)")[,3],par=str_extract(l,"\\w+"))
-
-sp_pl[is.na(sp_pl$species),c("species")]<-str_extract(sp_pl[is.na(sp_pl$species),"parameter"],"\\d+")
+#assign species index to ragged frame.
+sp_pl<-data.frame(parameter=l,species=obsf[as.numeric(str_match(l,pattern="\\[(\\d+)]")[,2]),"Bird"],plant=obsf[as.numeric(str_match(l,pattern="\\[(\\d+)]")[,2]),"Plant"],par=str_extract(l,"\\w+"))
 
 #merge levels
 pars<-merge(parsO,sp_pl)

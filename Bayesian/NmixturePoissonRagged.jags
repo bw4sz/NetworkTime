@@ -12,10 +12,13 @@
     Yobs[x] ~ dbin(detect[Bird[x]],N[x])    
 
     #Assess Model Fit
-    #Chi-squared discrepancy statistics
-    eval[x]<-detect[Bird[x]] * lambda[Bird[x],Plant[x],Time[x]]
+      
+    #Fit discrepancy statistics
+    eval[x]<-detect[Bird[x]]*N[x]
     E[x]<-pow((Yobs[x]-eval[x]),2)/(eval[x]+0.5)
-    
+
+    y.new[x]~dbin(detect[Bird[x]],N[x])
+    E.new[x]<-pow((y.new[x]-eval[x]),2)/(eval[x]+0.5)
 
     }
     
@@ -48,6 +51,10 @@
     sigma_slope1<-pow(1/tau_beta1,0.5)
     sigma_slope2<-pow(1/tau_beta2,0.5)
     sigma_slope3<-pow(1/tau_beta3,0.5)
+   
+    #derived posterior check
+    fit<-sum(E[]) #Discrepancy for the observed data
+    fitnew<-sum(E.new[])
     
     }
     
