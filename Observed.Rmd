@@ -705,7 +705,7 @@ for(d in 1:length(species.split)){
   billd<-obsf[obsf$Bird %in% index,]
   
   #Calculate interaction effect
-  species.traj[[d]]<-intF(alpha=dat$alpha,beta1=dat$beta1,x=billd$Traitmatch,resources=billd$Flowers,beta2=dat$beta2,beta3=dat$beta3)
+  species.traj[[d]]<-intF(alpha=dat$alpha,beta1=dat$beta1,x=billd$Traitmatch,resources=billd$Availability,beta2=dat$beta2,beta3=dat$beta3)
   
   }
 
