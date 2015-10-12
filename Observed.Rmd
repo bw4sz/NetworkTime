@@ -463,7 +463,6 @@ tr_interaction<-glmer(data=obsf,Binary~Traitmatch * Availability + (1|Bird) + (1
 
 anova(traitonly,trait_resource,tr_interaction)
 summary(tr_interaction)
-coefplot(tr_interaction)
 
 ```
 
@@ -474,10 +473,10 @@ coefplot(tr_interaction)
 ```{r,eval=T,strip.white=T}
 
 #Source model
-source("Bayesian/PoissonRagged.R")
+source("Bayesian/NmixturePoissonRagged.R")
 
 #print model
-writeLines(readLines("Bayesian/PoissonRagged.R"))
+writeLines(readLines("Bayesian/NmixturePoissonRagged.R"))
 
 #Input Data
 Dat <- list(
@@ -500,15 +499,15 @@ initB<-rep(.5,Dat$Birds)
 #Ninit<-array(dim=c(Dat$Birds,Dat$Plants,Dat$Time),data=10)
 Ninit<-rep(max(obsf$Yobs),Dat$Nobs)
 
-InitStage <- function(){list(beta1=initB,beta2=initB,beta3=initB,alpha=initB,intercept=0,tau_alpha=0.1,tau_beta1=0.1,tau_beta2=0.1,tau_beta3=0.1,gamma1=0,gamma2=0,gamma3=0)}
+InitStage <- function(){list(beta1=initB,beta2=initB,detect=initB,beta3=initB,alpha=initB,intercept=0,tau_alpha=0.1,tau_beta1=0.1,tau_beta2=0.1,tau_beta3=0.1,gamma1=0,gamma2=0,gamma3=0,N=Ninit)}
 
 #Parameters to track
-ParsStage <- c("alpha","beta1","beta2","beta3","intercept","sigma_int","sigma_slope1","sigma_slope2","sigma_slope3","gamma1","gamma2","gamma3","Yobs")
+ParsStage <- c("alpha","beta1","beta2","beta3","intercept","sigma_int","sigma_slope1","sigma_slope2","sigma_slope3","gamma1","gamma2","gamma3","detect","Yobs")
 
 #MCMC options
 
-ni <- 50000  # number of draws from the posterior
-nt <- 2  #thinning rate
+ni <- 70000  # number of draws from the posterior
+nt <- 3  #thinning rate
 nb <- ni*.9 # number to discard for burn-in
 nc <- 2  # number of chains
 
@@ -516,7 +515,7 @@ nc <- 2  # number of chains
 
 m = jags(inits=InitStage,
          n.chains=nc,
-         model.file="Bayesian/PoissonRagged.jags",
+         model.file="Bayesian/NmixturePoissonRagged.jags",
          working.directory=getwd(),
          data=Dat,
          parameters.to.save=ParsStage,
