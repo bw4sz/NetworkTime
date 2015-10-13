@@ -5,7 +5,7 @@ author: "Ben Weinstein"
 date: "Tuesday, October 14, 2014"
 output:
   html_document:
-  toc: true
+    toc: true
     theme: spacelab
   word_document: default
   keep_md: true
@@ -542,7 +542,7 @@ ParsStage <- c("alpha","beta1","beta2","beta3","intercept","sigma_int","sigma_sl
 
 #MCMC options
 
-ni <- 100000  # number of draws from the posterior
+ni <- 200000  # number of draws from the posterior
 nt <- 10  #thinning rate
 nb <- ni*.95 # number to discard for burn-in
 nc <- 2  # number of chains
@@ -641,7 +641,7 @@ odat<-merge(odat,pindex,by.x="Plant",by.y="Index")
 
 ```{r,fig.height=10,fig.width=11,eval=T}
 
-castdf<-dcast(pars[pars$par %in% c("beta1","beta2","beta3","alpha"),], species +Chain + plant+ Draw~par,value.var="estimate")
+castdf<-dcast(pars[pars$par %in% c("beta1","beta2","beta3","alpha"),], species +Chain +Draw ~par ,value.var="estimate")
 
 #Turn to 
 castdf$species<-factor(castdf$species,levels=1:max(as.numeric(castdf$species)))
@@ -838,8 +838,8 @@ ParsStage <- c("alpha","beta1","beta2","beta3","intercept","sigma_int","sigma_sl
 
 #MCMC options
 
-ni <- 20000  # number of draws from the posterior
-nt <- 2  #thinning rate
+ni <- 200000  # number of draws from the posterior
+nt <- 10  #thinning rate
 nb <- ni*.95 # number to discard for burn-in
 nc <- 2  # number of chains
 

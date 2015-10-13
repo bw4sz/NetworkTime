@@ -12,7 +12,7 @@ l<-levels(parsO$parameter)
 totrack<-x$parameters.to.save
 
 #assign species index to ragged frame.
-sp_pl<-data.frame(parameter=l,species=obsf[as.numeric(str_match(l,pattern="\\[(\\d+)]")[,2]),"Bird"],plant=obsf[as.numeric(str_match(l,pattern="\\[(\\d+)]")[,2]),"Plant"],par=str_extract(l,"\\w+"))
+sp_pl<-data.frame(parameter=l,species=as.numeric(str_match(l,pattern="\\[(\\d+)]")[,2]),par=str_extract(l,"\\w+"))
 
 #merge levels
 pars<-merge(parsO,sp_pl)
