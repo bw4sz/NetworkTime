@@ -70,6 +70,8 @@ fl.morph<-read.csv(paste(droppath,"Thesis/Maquipucuna_SantaLucia/Results/FlowerM
 #First row is empty
 fl.morph<-fl.morph[-1,]
 
+fl.morph$Group.1[fl.morph$Group.1 %in%"Drymonia teuscheri",]
+
 #Bring in Hummingbird Morphology Dataset, comes from
 hum.morph<-read.csv(paste(droppath,"Thesis/Maquipucuna_SantaLucia/Results/HummingbirdMorphology.csv",sep=""))
 
@@ -896,8 +898,7 @@ ggplot(pars[pars$par %in% c("detect"),],aes(x=estimate)) + geom_histogram() + gg
 
 ```{r,cache=FALSE,eval=TRUE,fig.height=13,fig.width=12}
 
-psim2<-ggplot(pars[pars$par %in% c("gamma1","gamma2","gamma3","intercept","sigma_int","sigma_slope1","sigma_slope2","sigma_slope3"),],aes(x=estimate)) + geom_histogram() + ggtitle("Hierarchical Posteriors") + facet_wrap(~par,scale="free",nrow=2) + theme_bw() 
-psim2
+ggplot(pars[pars$par %in% c("gamma1","gamma2","gamma3","intercept","sigma_int","sigma_slope1","sigma_slope2","sigma_slope3"),],aes(x=estimate)) + geom_histogram() + ggtitle("Hierarchical Posteriors") + facet_wrap(~par,scale="free",nrow=2) + theme_bw() 
 ```
 
 ###Predicted Relationship 
@@ -922,7 +923,7 @@ psim3
 ```{r}
 predyint<-intF(alpha=castdf$intercept,beta1=castdf$gamma1,x=Dat$traitmatch,resources=Dat$resources,beta2=castdf$gamma2,beta3=castdf$gamma3)
 
-psim4<-ggplot(data=predyint,aes(x=x)) + geom_ribbon(aes(ymin=lower,ymax=upper),alpha=0.3,fill="black") + theme_bw() + ylab("Effect of Resources on Trait Matching") + geom_line(aes(y=mean),size=.8,col="black",linetype="dashed") + xlab("Difference between Bill and Corolla Length") 
+psim4<-ggplot(data=predyint,aes(x=x)) + geom_ribbon(aes(ymin=lower,ymax=upper),alpha=0.2,fill="black") + theme_bw() + ylab("Effect of Resources on Trait Matching") + geom_line(aes(y=mean),size=.8,col="black",linetype="dashed") + xlab("Difference between Bill and Corolla Length") 
 
 psim4
 ```
@@ -1014,7 +1015,7 @@ spe<-merge(species.traj,bindex,by.x="Index",by.y="Index")
 colnames(odat)[13:14]<-c("Species","Iplant_Double")
 
 #plot and compare to original data
-p<-ggplot(data=spe,aes(x=x)) + geom_ribbon(aes(ymin=lower,ymax=upper,fill=Species),alpha=0.2) + geom_line(aes(y=mean,col=Species),size=1) + theme_bw() + ylab("Interactions")+ xlab("Difference between Bill and Corolla Length")  + ylab("Effect of Resources on Trait Matching") 
+p<-ggplot(data=spe,aes(x=x)) + geom_ribbon(aes(ymin=lower,ymax=upper,fill=Species),alpha=0.1) + geom_line(aes(y=mean,col=Species),size=1) + theme_bw() + ylab("Interactions")+ xlab("Difference between Bill and Corolla Length")  + ylab("Effect of Resources on Trait Matching") + facet_wrap(~Species,scales="free")
 
 print(p)
 ```
