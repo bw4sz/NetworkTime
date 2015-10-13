@@ -40,6 +40,7 @@ library(effects)
 library(chron)
 library(gridExtra)
 library(MASS)
+library(boot)
 
 #Set Dropbox Location
 #setwd to dropbox
@@ -506,7 +507,7 @@ $$\sigma_{slope2} = \frac{1}{\tau_{\beta_2}}^2$$
 $$\sigma_{slope3} = \frac{1}{\tau_{\beta_3}}^2$$
 
 
-```{r,eval=T,strip.white=T}
+```{r,eval=F,strip.white=T}
 
 #Source model
 source("Bayesian/NmixturePoissonRagged.R")
@@ -549,7 +550,7 @@ nc <- 2  # number of chains
 
 #Jags
 
-m = jags(inits=InitStage,
+m1 = jags(inits=InitStage,
          n.chains=nc,
          model.file="Bayesian/NmixturePoissonRagged.jags",
          working.directory=getwd(),
@@ -559,10 +560,19 @@ m = jags(inits=InitStage,
          n.iter=ni,
          n.burnin=nb,
          DIC=T)
+
+#save model output
+save(list="m1",file="Bayesian/SavedModels/NmixturePoissonRagged.RData")
 ```
 
 ```{r}
-pars<-extract_par(m)
+#Bring in a model from file if needed
+load(file="Bayesian/SavedModels/NmixturePoissonRagged.RData")
+recompile(m1)
+```
+
+```{r}
+pars<-extract_par(m1)
 ```
 
 ###Assess Convergence
@@ -834,7 +844,7 @@ Ninit<-rep(1,Dat$Nobs)
 InitStage <- function(){list(beta1=initB,beta2=initB,detect=initB,beta3=initB,alpha=initB,intercept=0,tau_alpha=0.1,tau_beta1=0.1,tau_beta2=0.1,tau_beta3=0.1,gamma1=0,gamma2=0,gamma3=0,true_state=Ninit)}
 
 #Parameters to track
-ParsStage <- c("alpha","beta1","beta2","beta3","intercept","sigma_int","sigma_slope1","sigma_slope2","sigma_slope3","gamma1","gamma2","gamma3","detect","eff.p","fit","fitnew","p")
+ParsStage <- c("alpha","beta1","beta2","beta3","intercept","sigma_int","sigma_slope1","sigma_slope2","sigma_slope3","gamma1","gamma2","gamma3","detect","eff.p","fit","fitnew")
 
 #MCMC options
 
@@ -845,7 +855,7 @@ nc <- 2  # number of chains
 
 #Jags
 
-m = jags(inits=InitStage,
+m2 = jags(inits=InitStage,
          n.chains=nc,
          model.file="Bayesian/OccupancyModelRagged.jags",
          working.directory=getwd(),
@@ -855,10 +865,19 @@ m = jags(inits=InitStage,
          n.iter=ni,
          n.burnin=nb,
          DIC=T)
+
+#save model output
+save(list="m2",file="Bayesian/SavedModels/OccupancyModelRagged.RData")
 ```
 
 ```{r}
-pars<-extract_par(m)
+#Bring in a model from file if needed
+load(file="Bayesian/SavedModels/OccupancyModelRagged.RData")
+recompile(m2)
+```
+
+```{r}
+pars<-extract_par(m2)
 ```
 
 ###Assess Convergence
@@ -909,7 +928,7 @@ castdf<-dcast(pars[pars$par %in% c("gamma1","gamma2","gamma3","intercept"),], Ch
 
 ```{r}
 #Trajectories from posterior
-predy<-trajF(alpha=castdf$intercept,beta1=castdf$gamma1,x=Dat$traitmatch,resources=Dat$resources,beta2=castdf$gamma2,beta3=castdf$gamma3)
+predy<-trajLogistic(alpha=castdf$intercept,beta1=castdf$gamma1,x=Dat$traitmatch,resources=Dat$resources,beta2=castdf$gamma2,beta3=castdf$gamma3)
 
 psim3<-ggplot(data=predy,aes(x=x)) + geom_ribbon(aes(ymin=lower,ymax=upper),alpha=0.1,fill="red")  + geom_line(aes(y=mean),size=.8,col="red",linetype="dashed") + theme_bw() + ylab("Probability of Interaction") + xlab("Difference between Bill and Corolla Length") + geom_point(data=obsf,aes(x=Traitmatch,y=Binary)) + ylim(0,1)
 psim3
@@ -937,7 +956,7 @@ odat<-merge(odat,pindex,by.x="Plant",by.y="Index")
 
 ```{r,fig.height=10,fig.width=12,eval=T}
 
-castdf<-dcast(pars[pars$par %in% c("beta1","beta2","beta3","alpha"),], species +Chain + plant+ Draw~par,value.var="estimate")
+castdf<-dcast(pars[pars$par %in% c("beta1","beta2","beta3","alpha"),], species +Chain + Draw~par,value.var="estimate")
 
 #Turn to 
 castdf$species<-factor(castdf$species,levels=1:max(as.numeric(castdf$species)))
@@ -964,7 +983,6 @@ species.traj<-melt(species.traj,id.var=colnames(species.traj[[1]]))
 species.traj[,c("Index")]<-colsplit(species.traj$L1,"\\.",c("Index"))
 
 spe<-merge(species.traj,bindex,by.x="Index",by.y="Index")
-
 
 #match colnames
 colnames(odat)[13:14]<-c("Species","Iplant_Double")
