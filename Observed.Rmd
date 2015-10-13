@@ -76,7 +76,14 @@ hum.morph<-read.csv(paste(droppath,"Thesis/Maquipucuna_SantaLucia/Results/Hummin
 #Bring in Interaction Matrix
 int<-read.csv(paste(droppath,"Thesis/Maquipucuna_SantaLucia/Results/Network/HummingbirdInteractions.csv",sep=""),row.names=1)
 
+#Correct known taxonomic errors
+int[int$Iplant_Double=="Alloplectus purpureus","Iplant_Double"]<-"Glossoloma purpureum"
+int[int$Iplant_Double=="Columnea mastersonii","Iplant_Double"]<-"Columnea cinerea"
+int[int$Iplant_Double=="Capanea affinis","Iplant_Double"]<-"Kohleria affinis"
+
+
 m.dat<-int[colnames(int) %in% c("ID","Video","Time","Hummingbird","Sex","TransectID","Transect_R","Iplant_Double","Pierce","DateP","Month","ele","Type")]
+
 
 m.dat$Year<-years(as.Date(m.dat$DateP))
 #one missing date
@@ -535,8 +542,8 @@ ParsStage <- c("alpha","beta1","beta2","beta3","intercept","sigma_int","sigma_sl
 
 #MCMC options
 
-ni <- 20000  # number of draws from the posterior
-nt <- 2  #thinning rate
+ni <- 100000  # number of draws from the posterior
+nt <- 10  #thinning rate
 nb <- ni*.95 # number to discard for burn-in
 nc <- 2  # number of chains
 
@@ -583,7 +590,7 @@ Intercept
 ggplot(pars[pars$par %in% c("alpha"),],aes(x=estimate,fill=as.factor(species))) + geom_histogram() + ggtitle("Estimate of Intercept") + theme_bw() + ggtitle("Species Posteriors")
 
 ###Slope Posterior Distributions
-psim<-ggplot(pars[pars$par %in% c("beta1","beta2","beta3"),],aes(x=estimate)) + geom_histogram() + ggtitle("Estimate of regression parameters") + facet_grid(species~par,scales="free") + theme_bw() + ggtitle("Species Posteriors")
+ggplot(pars[pars$par %in% c("beta1","beta2","beta3"),],aes(x=estimate)) + geom_histogram() + ggtitle("Estimate of regression parameters") + facet_grid(species~par,scales="free") + theme_bw() + ggtitle("Species Posteriors")
 
 ###Detection Posterior Distributions
 ggplot(pars[pars$par %in% c("detect"),],aes(x=estimate)) + geom_histogram() + ggtitle("Estimate of regression parameters") + facet_wrap(~species,scales="free") + theme_bw() + ggtitle("Species Posteriors")
@@ -593,9 +600,8 @@ ggplot(pars[pars$par %in% c("detect"),],aes(x=estimate)) + geom_histogram() + gg
 
 ```{r,cache=FALSE,eval=TRUE,fig.height=13,fig.width=10}
 
-psim2<-ggplot(pars[pars$par %in% c("gamma1","gamma2","gamma3","intercept","sigma_int","sigma_slope1","sigma_slope2","sigma_slope3"),],aes(x=estimate)) + geom_histogram() + ggtitle("Hierarchical Posteriors") + facet_wrap(~par,scale="free",nrow=2) + theme_bw() 
+ggplot(pars[pars$par %in% c("gamma1","gamma2","gamma3","intercept","sigma_int","sigma_slope1","sigma_slope2","sigma_slope3"),],aes(x=estimate)) + geom_histogram() + ggtitle("Hierarchical Posteriors") + facet_wrap(~par,scale="free",nrow=2) + theme_bw() 
 
-grid.arrange(psim,psim2,heights=c(.6,.4))
 ```
 
 ###Predicted Relationship 
@@ -668,9 +674,8 @@ spe<-merge(species.traj,bindex,by.x="Index",by.y="Index")
 colnames(odat)[13:14]<-c("Species","Iplant_Double")
 
 #plot and compare to original data
-p<-ggplot(data=spe,aes(x=x)) + geom_ribbon(aes(ymin=lower,ymax=upper),alpha=0.2) + geom_line(aes(y=mean),size=1) + theme_bw() + ylab("Interactions")+ xlab("Difference between Bill and Corolla Length") + facet_wrap(~Species,scales="free",ncol=3) + geom_point(data=odat,aes(x=Traitmatch,y=Yobs))
+p<-ggplot(data=spe,aes(x=x)) + geom_ribbon(aes(ymin=lower,ymax=upper),alpha=0.1) + geom_line(aes(y=mean),size=1) + theme_bw() + ylab("Occurrence Probability")+ xlab("Difference between Bill and Corolla Length") + facet_wrap(~Species,scales="free",ncol=3) + geom_point(data=odat,aes(x=Traitmatch,y=Binary))
 
-print(p)
 ```
 
 ###Species Level Interaction
@@ -712,7 +717,7 @@ spe<-merge(species.traj,bindex,by.x="Index",by.y="Index")
 colnames(odat)[13:14]<-c("Species","Iplant_Double")
 
 #plot and compare to original data
-p<-ggplot(data=spe,aes(x=x)) + geom_ribbon(aes(ymin=lower,ymax=upper,fill=Species),alpha=0.2) + geom_line(aes(y=mean,col=Species),size=1) + theme_bw() + ylab("Interactions")+ xlab("Difference between Bill and Corolla Length")  + ylab("Effect of Resources on Trait Matching") 
+p<-ggplot(data=spe,aes(x=x)) + geom_ribbon(aes(ymin=lower,ymax=upper,fill=Species),alpha=0.1) + geom_line(aes(y=mean,col=Species),size=1) + theme_bw() + xlab("Difference between Bill and Corolla Length")  + ylab("Effect of Resources on Trait Matching") + facet_wrap(~Species,scales="free")
 
 print(p)
 ```
