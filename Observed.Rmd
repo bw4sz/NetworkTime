@@ -573,6 +573,12 @@ recompile(m1)
 
 ```{r}
 pars<-extract_par(m1)
+=======
+```
+
+```{r}
+pars<-extract_par(m)
+>>>>>>> 3b8218aae881e9ec3d8a26831a90d28d1c5843a0
 ```
 
 ###Assess Convergence
@@ -846,6 +852,7 @@ InitStage <- function(){list(beta1=initB,beta2=initB,detect=initB,beta3=initB,al
 #Parameters to track
 ParsStage <- c("alpha","beta1","beta2","beta3","intercept","sigma_int","sigma_slope1","sigma_slope2","sigma_slope3","gamma1","gamma2","gamma3","detect","fit","fitnew")
 
+
 #MCMC options
 
 ni <- 200000  # number of draws from the posterior
@@ -878,6 +885,12 @@ recompile(m2)
 
 ```{r}
 pars<-extract_par(m2)
+=======
+```
+
+```{r}
+pars<-extract_par(m)
+>>>>>>> 3b8218aae881e9ec3d8a26831a90d28d1c5843a0
 ```
 
 ###Assess Convergence
