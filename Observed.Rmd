@@ -507,7 +507,7 @@ $$\sigma_{slope2} = \frac{1}{\tau_{\beta_2}}^2$$
 $$\sigma_{slope3} = \frac{1}{\tau_{\beta_3}}^2$$
 
 
-```{r,eval=F,strip.white=T}
+```{r,eval=T,strip.white=T}
 
 #Source model
 source("Bayesian/NmixturePoissonRagged.R")
@@ -543,9 +543,9 @@ ParsStage <- c("alpha","beta1","beta2","beta3","intercept","sigma_int","sigma_sl
 
 #MCMC options
 
-ni <- 200000  # number of draws from the posterior
-nt <- 10  #thinning rate
-nb <- ni*.95 # number to discard for burn-in
+ni <- 100000  # number of draws from the posterior
+nt <- 25  #thinning rate
+nb <- ni*.90 # number to discard for burn-in
 nc <- 2  # number of chains
 
 #Jags
@@ -565,20 +565,15 @@ m1 = jags(inits=InitStage,
 save(list="m1",file="Bayesian/SavedModels/NmixturePoissonRagged.RData")
 ```
 
-```{r}
+```{r,eval=F}
 #Bring in a model from file if needed
 load(file="Bayesian/SavedModels/NmixturePoissonRagged.RData")
 recompile(m1)
 ```
 
-```{r}
+```{r,eval=T}
+#format params
 pars<-extract_par(m1)
-=======
-```
-
-```{r}
-pars<-extract_par(m)
->>>>>>> 3b8218aae881e9ec3d8a26831a90d28d1c5843a0
 ```
 
 ###Assess Convergence
@@ -687,7 +682,7 @@ spe<-merge(species.traj,bindex,by.x="Index",by.y="Index")
 
 
 #match colnames
-colnames(odat)[13:14]<-c("Species","Iplant_Double")
+colnames(odat)[12:13]<-c("Species","Iplant_Double")
 
 #plot and compare to original data
 p<-ggplot(data=spe,aes(x=x)) + geom_ribbon(aes(ymin=lower,ymax=upper),alpha=0.1) + geom_line(aes(y=mean),size=1) + theme_bw() + ylab("Occurrence Probability")+ xlab("Difference between Bill and Corolla Length") + facet_wrap(~Species,scales="free",ncol=3) + geom_point(data=odat,aes(x=Traitmatch,y=Binary))
@@ -698,7 +693,7 @@ p<-ggplot(data=spe,aes(x=x)) + geom_ribbon(aes(ymin=lower,ymax=upper),alpha=0.1)
 
 ```{r,fig.height=10,fig.width=11,eval=T}
 
-castdf<-dcast(pars[pars$par %in% c("beta1","beta2","beta3","alpha"),], species +Chain + plant+ Draw~par,value.var="estimate")
+castdf<-dcast(pars[pars$par %in% c("beta1","beta2","beta3","alpha"),], species +Chain + Draw~par,value.var="estimate")
 
 #Turn to 
 castdf$species<-factor(castdf$species,levels=1:max(as.numeric(castdf$species)))
@@ -730,7 +725,7 @@ spe<-merge(species.traj,bindex,by.x="Index",by.y="Index")
 
 
 #match colnames
-colnames(odat)[13:14]<-c("Species","Iplant_Double")
+colnames(odat)[12:13]<-c("Species","Iplant_Double")
 
 #plot and compare to original data
 p<-ggplot(data=spe,aes(x=x)) + geom_ribbon(aes(ymin=lower,ymax=upper,fill=Species),alpha=0.1) + geom_line(aes(y=mean,col=Species),size=1) + theme_bw() + xlab("Difference between Bill and Corolla Length")  + ylab("Effect of Resources on Trait Matching") + facet_wrap(~Species,scales="free")
@@ -744,7 +739,7 @@ print(p)
 ```{r,fig.height=4,fig.width=8,eval=T}
 
 fitstat<-droplevels(pars[pars$par %in% c("fit","fitnew"),])
-fitstat<-dcast(fitstat[,-c(1,5,6)],Draw+Chain~par,value.var="estimate")
+fitstat<-dcast(fitstat,Draw+Chain~par,value.var="estimate")
 
 #add 1:1 line
 ymin<-round(min(c(fitstat$fit,fitstat$fitnew)))
@@ -784,7 +779,7 @@ $$ Yobs_{i,j,k} \sim Bern(Detect_i) * truestate_{i,j,k}) $$
 
 $$ truestate_{i,j,k} \sim Bern(\lambda_{i,j,k}) $$
 
-$$logit(\p_{i,j,k})<-\alpha_i + \beta_i * abs(Bill_i - Corolla_j) * \beta_2 * Resources_k + \beta_3 * Resources_k * abs(Bill_i - Corolla_j) $$
+$$logit(p_{i,j,k})<-\alpha_i + \beta_i * abs(Bill_i - Corolla_j) * \beta_2 * Resources_k + \beta_3 * Resources_k * abs(Bill_i - Corolla_j) $$
 
 **Priors**
 
@@ -855,8 +850,8 @@ ParsStage <- c("alpha","beta1","beta2","beta3","intercept","sigma_int","sigma_sl
 
 #MCMC options
 
-ni <- 200000  # number of draws from the posterior
-nt <- 10  #thinning rate
+ni <- 70000  # number of draws from the posterior
+nt <- 5  #thinning rate
 nb <- ni*.95 # number to discard for burn-in
 nc <- 2  # number of chains
 
@@ -877,7 +872,7 @@ m2 = jags(inits=InitStage,
 save(list="m2",file="Bayesian/SavedModels/OccupancyModelRagged.RData")
 ```
 
-```{r}
+```{r,eval=F}
 #Bring in a model from file if needed
 load(file="Bayesian/SavedModels/OccupancyModelRagged.RData")
 recompile(m2)
@@ -885,12 +880,6 @@ recompile(m2)
 
 ```{r}
 pars<-extract_par(m2)
-=======
-```
-
-```{r}
-pars<-extract_par(m)
->>>>>>> 3b8218aae881e9ec3d8a26831a90d28d1c5843a0
 ```
 
 ###Assess Convergence
@@ -1056,7 +1045,7 @@ print(p)
 ```{r,fig.height=4,fig.width=8,eval=T}
 
 fitstat<-droplevels(pars[pars$par %in% c("fit","fitnew"),])
-fitstat<-dcast(fitstat[,-c(1,5,6)],Draw+Chain~par,value.var="estimate")
+fitstat<-dcast(fitstat,Draw+Chain~par,value.var="estimate")
 
 #add 1:1 line
 ymin<-round(min(c(fitstat$fit,fitstat$fitnew)))
