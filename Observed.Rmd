@@ -509,9 +509,6 @@ mobs<-obsf[,] %>% group_by(Bird,Plant) %>% summarize(Events=n(),d=mean(Yobs),Tra
 mobss<-merge(mobs,pindex,by.x="Plant",by.y="Index")
 colnames(mobss)<-c("Plant","Species","Events","d","Traitmatch","ElevD","Iplant_Double")
 
-ggplot(mobss,aes(x=ElevD,y=d,col=Traitmatch)) + geom_point(aes(size=Events),alpha=.8) + theme_bw() + facet_wrap(~Species,scales="free") + scale_color_continuous(low="blue",high="red") + ylab("Average Number of Visits") + geom_text(data=mobss[mobss$ElevD>500,],aes(label=Iplant_Double)) 
-+ ggtitle("Elevation Ranges")
-
 ggplot(obsf,aes(x=ElevD,y=(Yobs>0)*1,col=Traitmatch)) + geom_point(alpha=.8) + theme_bw() + facet_wrap(~Bird,scales="free") + scale_color_continuous(low="blue",high="red")  + ylab("Number of Visits") + xlim(0,1000) + geom_smooth(method="glm",family="binomial")
 
 ```
@@ -621,7 +618,7 @@ ParsStage <- c("alpha","beta1","beta2","beta3","intercept","sigma_int","sigma_sl
 
 #MCMC options
 
-ni <- 10000  # number of draws from the posterior
+ni <- 100000  # number of draws from the posterior
 nt <- 25  #thinning rate
 nb <- ni*.95 # number to discard for burn-in
 nc <- 2  # number of chains
