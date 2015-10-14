@@ -3,4 +3,4 @@
 .RData
 jp_cache/*
 NetworkTime_cache/*
-Bayesian/SavedModels/*
+Observed.RData
