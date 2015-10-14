@@ -5,7 +5,7 @@ author: "Ben Weinstein"
 date: "Tuesday, October 14, 2014"
 output:
   html_document:
-  toc: true
+    toc: true
     theme: spacelab
   word_document: default
   keep_md: true
@@ -40,6 +40,7 @@ library(effects)
 library(chron)
 library(gridExtra)
 library(MASS)
+library(boot)
 
 #Set Dropbox Location
 #setwd to dropbox
@@ -545,13 +546,13 @@ ParsStage <- c("alpha","beta1","beta2","beta3","intercept","sigma_int","sigma_sl
 #MCMC options
 
 ni <- 100000  # number of draws from the posterior
-nt <- 10  #thinning rate
-nb <- ni*.95 # number to discard for burn-in
+nt <- 25  #thinning rate
+nb <- ni*.90 # number to discard for burn-in
 nc <- 2  # number of chains
 
 #Jags
 
-m = jags(inits=InitStage,
+m1 = jags(inits=InitStage,
          n.chains=nc,
          model.file="Bayesian/NmixturePoissonRagged.jags",
          working.directory=getwd(),
@@ -561,10 +562,20 @@ m = jags(inits=InitStage,
          n.iter=ni,
          n.burnin=nb,
          DIC=T)
+
+#save model output
+save(list="m1",file="Bayesian/SavedModels/NmixturePoissonRagged.RData")
 ```
 
-```{r}
-pars<-extract_par(m)
+```{r,eval=F}
+#Bring in a model from file if needed
+load(file="Bayesian/SavedModels/NmixturePoissonRagged.RData")
+recompile(m1)
+```
+
+```{r,eval=T}
+#format params
+pars<-extract_par(m1)
 ```
 
 ###Assess Convergence
@@ -643,7 +654,7 @@ odat<-merge(odat,pindex,by.x="Plant",by.y="Index")
 
 ```{r,fig.height=10,fig.width=11,eval=T}
 
-castdf<-dcast(pars[pars$par %in% c("beta1","beta2","beta3","alpha"),], species +Chain + plant+ Draw~par,value.var="estimate")
+castdf<-dcast(pars[pars$par %in% c("beta1","beta2","beta3","alpha"),], species +Chain +Draw ~par ,value.var="estimate")
 
 #Turn to 
 castdf$species<-factor(castdf$species,levels=1:max(as.numeric(castdf$species)))
@@ -673,7 +684,7 @@ spe<-merge(species.traj,bindex,by.x="Index",by.y="Index")
 
 
 #match colnames
-colnames(odat)[13:14]<-c("Species","Iplant_Double")
+colnames(odat)[12:13]<-c("Species","Iplant_Double")
 
 #plot and compare to original data
 p<-ggplot(data=spe,aes(x=x)) + geom_ribbon(aes(ymin=lower,ymax=upper),alpha=0.1) + geom_line(aes(y=mean),size=1) + theme_bw() + ylab("Occurrence Probability")+ xlab("Difference between Bill and Corolla Length") + facet_wrap(~Species,scales="free",ncol=3) + geom_point(data=odat,aes(x=Traitmatch,y=Binary))
@@ -684,7 +695,7 @@ p<-ggplot(data=spe,aes(x=x)) + geom_ribbon(aes(ymin=lower,ymax=upper),alpha=0.1)
 
 ```{r,fig.height=10,fig.width=11,eval=T}
 
-castdf<-dcast(pars[pars$par %in% c("beta1","beta2","beta3","alpha"),], species +Chain + plant+ Draw~par,value.var="estimate")
+castdf<-dcast(pars[pars$par %in% c("beta1","beta2","beta3","alpha"),], species +Chain + Draw~par,value.var="estimate")
 
 #Turn to 
 castdf$species<-factor(castdf$species,levels=1:max(as.numeric(castdf$species)))
@@ -716,7 +727,7 @@ spe<-merge(species.traj,bindex,by.x="Index",by.y="Index")
 
 
 #match colnames
-colnames(odat)[13:14]<-c("Species","Iplant_Double")
+colnames(odat)[12:13]<-c("Species","Iplant_Double")
 
 #plot and compare to original data
 p<-ggplot(data=spe,aes(x=x)) + geom_ribbon(aes(ymin=lower,ymax=upper,fill=Species),alpha=0.1) + geom_line(aes(y=mean,col=Species),size=1) + theme_bw() + xlab("Difference between Bill and Corolla Length")  + ylab("Effect of Resources on Trait Matching") + facet_wrap(~Species,scales="free")
@@ -730,7 +741,7 @@ print(p)
 ```{r,fig.height=4,fig.width=8,eval=T}
 
 fitstat<-droplevels(pars[pars$par %in% c("fit","fitnew"),])
-fitstat<-dcast(fitstat[,-c(1,5,6)],Draw+Chain~par,value.var="estimate")
+fitstat<-dcast(fitstat,Draw+Chain~par,value.var="estimate")
 
 #add 1:1 line
 ymin<-round(min(c(fitstat$fit,fitstat$fitnew)))
@@ -770,7 +781,7 @@ $$ Yobs_{i,j,k} \sim Bern(Detect_i) * truestate_{i,j,k}) $$
 
 $$ truestate_{i,j,k} \sim Bern(\lambda_{i,j,k}) $$
 
-$$logit(\p_{i,j,k})<-\alpha_i + \beta_i * abs(Bill_i - Corolla_j) * \beta_2 * Resources_k + \beta_3 * Resources_k * abs(Bill_i - Corolla_j) $$
+$$logit(p_{i,j,k})<-\alpha_i + \beta_i * abs(Bill_i - Corolla_j) * \beta_2 * Resources_k + \beta_3 * Resources_k * abs(Bill_i - Corolla_j) $$
 
 **Priors**
 
@@ -836,18 +847,19 @@ Ninit<-rep(1,Dat$Nobs)
 InitStage <- function(){list(beta1=initB,beta2=initB,detect=initB,beta3=initB,alpha=initB,intercept=0,tau_alpha=0.1,tau_beta1=0.1,tau_beta2=0.1,tau_beta3=0.1,gamma1=0,gamma2=0,gamma3=0,true_state=Ninit)}
 
 #Parameters to track
-ParsStage <- c("alpha","beta1","beta2","beta3","intercept","sigma_int","sigma_slope1","sigma_slope2","sigma_slope3","gamma1","gamma2","gamma3","detect","eff.p","fit","fitnew","p")
+ParsStage <- c("alpha","beta1","beta2","beta3","intercept","sigma_int","sigma_slope1","sigma_slope2","sigma_slope3","gamma1","gamma2","gamma3","detect","fit","fitnew")
+
 
 #MCMC options
 
-ni <- 20000  # number of draws from the posterior
-nt <- 2  #thinning rate
+ni <- 70000  # number of draws from the posterior
+nt <- 5  #thinning rate
 nb <- ni*.95 # number to discard for burn-in
 nc <- 2  # number of chains
 
 #Jags
 
-m = jags(inits=InitStage,
+m2 = jags(inits=InitStage,
          n.chains=nc,
          model.file="Bayesian/OccupancyModelRagged.jags",
          working.directory=getwd(),
@@ -857,10 +869,19 @@ m = jags(inits=InitStage,
          n.iter=ni,
          n.burnin=nb,
          DIC=T)
+
+#save model output
+save(list="m2",file="Bayesian/SavedModels/OccupancyModelRagged.RData")
+```
+
+```{r,eval=F}
+#Bring in a model from file if needed
+load(file="Bayesian/SavedModels/OccupancyModelRagged.RData")
+recompile(m2)
 ```
 
 ```{r}
-pars<-extract_par(m)
+pars<-extract_par(m2)
 ```
 
 ###Assess Convergence
@@ -910,7 +931,7 @@ castdf<-dcast(pars[pars$par %in% c("gamma1","gamma2","gamma3","intercept"),], Ch
 
 ```{r}
 #Trajectories from posterior
-predy<-trajF(alpha=castdf$intercept,beta1=castdf$gamma1,x=Dat$traitmatch,resources=Dat$resources,beta2=castdf$gamma2,beta3=castdf$gamma3)
+predy<-trajLogistic(alpha=castdf$intercept,beta1=castdf$gamma1,x=Dat$traitmatch,resources=Dat$resources,beta2=castdf$gamma2,beta3=castdf$gamma3)
 
 psim3<-ggplot(data=predy,aes(x=x)) + geom_ribbon(aes(ymin=lower,ymax=upper),alpha=0.1,fill="red")  + geom_line(aes(y=mean),size=.8,col="red",linetype="dashed") + theme_bw() + ylab("Probability of Interaction") + xlab("Difference between Bill and Corolla Length") + geom_point(data=obsf,aes(x=Traitmatch,y=Binary)) + ylim(0,1)
 psim3
@@ -938,7 +959,7 @@ odat<-merge(odat,pindex,by.x="Plant",by.y="Index")
 
 ```{r,fig.height=10,fig.width=12,eval=T}
 
-castdf<-dcast(pars[pars$par %in% c("beta1","beta2","beta3","alpha"),], species +Chain + plant+ Draw~par,value.var="estimate")
+castdf<-dcast(pars[pars$par %in% c("beta1","beta2","beta3","alpha"),], species +Chain + Draw~par,value.var="estimate")
 
 #Turn to 
 castdf$species<-factor(castdf$species,levels=1:max(as.numeric(castdf$species)))
@@ -966,7 +987,6 @@ species.traj[,c("Index")]<-colsplit(species.traj$L1,"\\.",c("Index"))
 
 spe<-merge(species.traj,bindex,by.x="Index",by.y="Index")
 
-
 #match colnames
 colnames(odat)[13:14]<-c("Species","Iplant_Double")
 
@@ -980,7 +1000,7 @@ print(p)
 
 ```{r,fig.height=10,fig.width=11,eval=T}
 
-castdf<-dcast(pars[pars$par %in% c("beta1","beta2","beta3","alpha"),], species +Chain + plant+ Draw~par,value.var="estimate")
+castdf<-dcast(pars[pars$par %in% c("beta1","beta2","beta3","alpha"),], species +Chain + Draw~par,value.var="estimate")
 
 #Turn to 
 castdf$species<-factor(castdf$species,levels=1:max(as.numeric(castdf$species)))
@@ -1026,7 +1046,7 @@ print(p)
 ```{r,fig.height=4,fig.width=8,eval=T}
 
 fitstat<-droplevels(pars[pars$par %in% c("fit","fitnew"),])
-fitstat<-dcast(fitstat[,-c(1,5,6)],Draw+Chain~par,value.var="estimate")
+fitstat<-dcast(fitstat,Draw+Chain~par,value.var="estimate")
 
 #add 1:1 line
 ymin<-round(min(c(fitstat$fit,fitstat$fitnew)))
