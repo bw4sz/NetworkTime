@@ -159,8 +159,9 @@ flower.month$minElev<-as.numeric(str_extract(flower.month$Transect_R,"(\\d+)"))
 flower.month$maxElev<-as.numeric(str_match(flower.month$Transect_R,"(\\d+)_(\\d+)")[,3])
 ```
 
-### What is the temporal distribution of resources?
-```{r}
+What is the temporal distribution of resources?
+
+```{r,fig.height=5,fig.width=5}
 #moment 
 moment<-fitdistr(flower.month$Flowers,"log-normal")
 
@@ -327,7 +328,7 @@ ggplot(indatraw,aes(x=Yobs)) + geom_histogram(fill="black") + geom_histogram(dat
 
 What about log normal?
 
-```{r,fig.weight=5,fig.height=5}
+```{r,fig.width=5=5,fig.height=5}
 moment<-fitdistr(indatraw$Yobs,"lognormal")
 est<-data.frame(Yobs=rpois(n=length(indatraw$Yobs),lambda=moment$estimate[[1]]))
 ggplot(indatraw,aes(x=Yobs)) + geom_histogram(fill="black") + geom_histogram(data=est,fill="red",alpha=.4) + theme_bw()
@@ -666,12 +667,12 @@ chainplot(pars,c("gamma1","gamma2","gamma3","sigma_int","sigma_slope1","sigma_sl
 tracegplot(pars,"detect","Detection Parameters") + xlim(0,1) + facet_wrap(~species)
 ```
 
-```{r,fig.height=4}
+```{r,fig.height=8}
 ###Slope Posterior Distributions
-tracegplot(pars,c("alpha","beta1","beta2","beta3"),"Detection Parameters") + facet_grid(species~par)
+tracegplot(pars,c("alpha","beta1","beta2","beta3"),"Species Level Parameters") + facet_grid(species~par)
 ```
 
-```{r}
+```{r,fig.height=7}
 ###Detection Posterior Distributions
 tracegplot(pars,c("gamma1","gamma2","gamma3","sigma_int","sigma_slope1","sigma_slope2","sigma_slope3"),"Group-level Parameters") + facet_wrap(~par,nrow=2)
 ```
@@ -683,7 +684,7 @@ tracegplot(pars,c("gamma1","gamma2","gamma3","sigma_int","sigma_slope1","sigma_s
 castdf<-dcast(pars[pars$par %in% c("gamma1","gamma2","gamma3","intercept"),], Chain + Draw~par,value.var="estimate")
 ```
 
-```{r}
+```{r,fig.width=9,fig.height=7}
 #Trajectories from posterior
 predy<-trajF(alpha=castdf$intercept,beta1=castdf$gamma1,x=Dat$traitmatch,resources=Dat$resources,beta2=castdf$gamma2,beta3=castdf$gamma3)
 
