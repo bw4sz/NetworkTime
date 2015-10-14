@@ -108,3 +108,16 @@ intF<-function(alpha,beta1,beta2,beta3,x,resources){
   #Compute CI intervals
   predy<-group_by(sample_all,x) %>% summarise(lower=quantile(y,0.025,na.rm=T),upper=quantile(y,0.975,na.rm=T),mean=mean(y,na.rm=T))
 }
+
+#plots
+#converge of chains
+chainplot<-function(pars,param,title){
+  ggplot(pars[pars$par %in% param,],aes(x=Draw,y=estimate,col=as.factor(Chain))) + geom_line() + facet_wrap(~species,scale="free") + theme_bw() + labs(col="Chain") + ggtitle(title)  
+}
+
+#posteriors
+tracegplot<-function(pars,param,title){
+  ggplot(pars[pars$par %in% param,],aes(x=estimate)) + geom_histogram() + ggtitle("Estimate of Intercept") + theme_bw() + ggtitle(title)
+}
+
+
