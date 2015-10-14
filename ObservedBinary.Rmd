@@ -84,7 +84,9 @@ int[int$Iplant_Double=="Alloplectus purpureus","Iplant_Double"]<-"Glossoloma pur
 int[int$Iplant_Double=="Capanea affinis","Iplant_Double"]<-"Kohleria affinis"
 int[int$Iplant_Double=="Columnea cinerea","Iplant_Double"]<-"Columnea mastersonii"
 
+
 m.dat<-droplevels(int[colnames(int) %in% c("ID","Video","Time","Hummingbird","Sex","TransectID","Transect_R","Iplant_Double","Pierce","DateP","Month","ele","Type")])
+
 
 m.dat$Year<-years(as.Date(m.dat$DateP))
 #one missing date
@@ -157,6 +159,7 @@ ggplot(flower.month,aes(x=Month.a,log(Flowers),shape=as.factor(Year),col=Availab
 #turn min and max eelvation into seperate columns for the range
 flower.month$minElev<-as.numeric(str_extract(flower.month$Transect_R,"(\\d+)"))
 flower.month$maxElev<-as.numeric(str_match(flower.month$Transect_R,"(\\d+)_(\\d+)")[,3])
+
 ```
 
 ### What is the temporal distribution of resources?
@@ -255,6 +258,7 @@ indatraw$Transect_R<-cut(indatraw$Elev,seq(1300,2700,200),labels=labs)
 
 ```{r}
 indatlong<-acast(indatraw,Bird~Plant~Time~Transect_R,value.var="Yobs")
+
 indatlong[is.na(indatlong)]<-0
 ```
 
@@ -271,6 +275,7 @@ flower.monthD<-flower.month %>% arrange(Month,Year,Transect_R) %>% group_by(Mont
 #We lose some data here, needs to be cleaned.
 obs<-merge(indatraw,flower.monthD,by=c("Month","Year","Transect_R"))
 ```
+
 
 ```{r}
 #match the traits
@@ -296,103 +301,6 @@ for (x in 1:nrow(obs)){
   d<-abs(elevP[p,"m"] - elevH[b,"m"])
   obs[x,"ElevD"]<-d
 }
-```
-
-#Choosing a response distribution
-Before we account for elevation and availability, what is the distribution of intensity of interactions?
-
-```{r}
-ggplot(indatraw,aes(x=Yobs)) + geom_histogram()
-```
-
-If we tend to think of the intensity of events as poisson, our data is extremely ones-inflated. The first moment of the poisson does not well capture the data.
-
-The best fitting moment is in opaque red. The observed data is in black.
-
-```{r,fig.width=5,fig.height=5}
-moment<-fitdistr(indatraw$Yobs,"poisson")
-est<-data.frame(Yobs=rpois(n=length(indatraw$Yobs),lambda=moment$estimate[[1]]))
-ggplot(indatraw,aes(x=Yobs)) + geom_histogram(fill="black") + geom_histogram(data=est,fill="red",alpha=.4) + theme_bw() + ggtitle("Intensity of interactions")
-```
-
-What about negative binomial?
-
-The best fitting moment is in opaque red. The observed data is in black.
-
-```{r,fig.width=5,fig.height=5}
-moment<-fitdistr(indatraw$Yobs,"negative binomial")
-est<-data.frame(Yobs=rpois(n=length(indatraw$Yobs),lambda=moment$estimate[[1]]))
-ggplot(indatraw,aes(x=Yobs)) + geom_histogram(fill="black") + geom_histogram(data=est,fill="red",alpha=.4) + theme_bw()
-```
-
-What about log normal?
-
-```{r,fig.weight=5,fig.height=5}
-moment<-fitdistr(indatraw$Yobs,"lognormal")
-est<-data.frame(Yobs=rpois(n=length(indatraw$Yobs),lambda=moment$estimate[[1]]))
-ggplot(indatraw,aes(x=Yobs)) + geom_histogram(fill="black") + geom_histogram(data=est,fill="red",alpha=.4) + theme_bw()
-```
-
-The best fitting moment is in opaque red. The observed data is in black.
-
-Ignoring non-detections for the moment.
-
-#Exploratory Model Fitting
-
-First thought on sampling, take the mean interaction for each bird, plant combination for high and low resource periods. Connect intensity with a line.
-
-##Intensity as a function of traits
-```{r}
-mobs<-obs[,] %>% group_by(Species,Plant,Availability) %>% summarize(Events=n(),d=mean(Yobs),Traitmatch=unique(Traitmatch))
-
-#merge with names
-mobss<-merge(mobs,pindex,by.x="Plant",by.y="Index")
-colnames(mobss)<-c("Plant","Species","Availability","Events","d","Traitmatch","Iplant_Double")
-
-ggplot(mobss,aes(x=Traitmatch,y=d,col=as.factor(Availability))) + geom_point(aes(size=Events),alpha=.8) + theme_bw() + facet_wrap(~Species,scales="free") + geom_line(aes(group=Plant),col="black") + scale_size_continuous(range=c(3,7)) + labs(col="Flower Availability")
-```
-
-##Intensity as a function of resources
-
-```{r}
-mobs<-obs[,] %>% group_by(Species,Plant,Month,Transect_R) %>% summarize(Events=n(),d=mean(Yobs),Traitmatch=unique(Traitmatch),Flowers=mean(Flowers))
-
-#merge with names
-mobss<-merge(mobs,pindex,by.x="Plant",by.y="Index")
-colnames(mobss)<-c("Plant","Species","Month","Transect_R","Events","d","Traitmatch","Flowers","Iplant_Double")
-
-ggplot(mobss,aes(x=Flowers,y=d,col=Traitmatch)) + geom_point(aes(size=Events),alpha=.8) + theme_bw() + facet_wrap(~Species,scales="free") + scale_color_continuous(low="blue",high="red") + geom_smooth(method="glm",family="poisson")
-```
-
-##Intensity as a function of elevation range
-
-```{r}
-mobs<-obs[,] %>% group_by(Species,Plant) %>% summarize(Events=n(),d=mean(Yobs),Traitmatch=unique(Traitmatch),ElevD=mean(ElevD))
-
-#merge with names
-mobss<-merge(mobs,pindex,by.x="Plant",by.y="Index")
-colnames(mobss)<-c("Plant","Species","Events","d","Traitmatch","ElevD","Iplant_Double")
-
-ggplot(mobss,aes(x=ElevD,y=d,col=Traitmatch)) + geom_point(aes(size=Events),alpha=.8) + theme_bw() + facet_wrap(~Species,scales="free") + scale_color_continuous(low="blue",high="red") + geom_smooth(method="glm",family="poisson") + geom_text(aes(label=Iplant_Double),size=3)
-```
-
-##Mixed Effect models
-
-First look at the importance of predictors on intensity of interaction. These data do NOT yet include 0's. 
-
-```{r}
-#Trait only
-traitonly<-glmer(data=obs,Yobs~Traitmatch + (1|Bird),family="poisson")
-trait_resource<-glmer(data=obs,Yobs~Traitmatch + Availability + (1|Bird) + (1|Plant),family="poisson")
-trait_resource<-glmer(data=obs,Yobs~Traitmatch + Availability + (1|Bird) + (1|Plant),family="poisson")
-
-tr_interaction<-glmer(data=obs,Yobs~Traitmatch * Availability + (1|Bird) + (1|Plant),family="poisson")
-
-mall<-glmer(data=obs,Yobs~scale(ElevD) + Traitmatch * Availability + (1|Bird) + (1|Plant),family="poisson")
-
-anova(traitonly,trait_resource,tr_interaction)
-summary(tr_interaction)
-summary(mall)
 ```
 
 #Absences - accounting for non-detection
@@ -467,7 +375,8 @@ for (x in 1:nrow(obsf)){
 
 Let's look at the same figures as above, with the addition of informed 0's for non-detections.
 
-##Intensity as a function of traits
+
+##Occurrence as a function of traits
 ```{r}
 mobs<-obsf[,] %>% group_by(Bird,Plant,Availability) %>% summarize(Events=n(),d=mean(Yobs),Traitmatch=unique(Traitmatch))
 
@@ -478,7 +387,7 @@ colnames(mobss)<-c("Plant","Species","Availability","Events","d","Traitmatch","I
 ggplot(mobss,aes(x=Traitmatch,y=d,col=as.factor(Availability))) + geom_point(aes(size=Events),alpha=.8) + theme_bw() + facet_wrap(~Species,scales="free") + geom_line(aes(group=Plant),col="black") + scale_size_continuous(range=c(2,6)) + labs(col="Flower Availability",y="Average Number of Visits") 
 ```
 
-##Intensity as a function of resources
+##Occurrence as a function of resources
 
 ```{r}
 mobs<-obsf[,] %>% group_by(Bird,Plant,Month,Transect_R) %>% summarize(Events=n(),d=mean(Yobs),Traitmatch=unique(Traitmatch),Flowers=mean(Flowers))
@@ -491,7 +400,7 @@ ggplot(mobss,aes(x=log(Flowers),y=d,col=Traitmatch)) + geom_point(aes(size=Event
 ```
 
 
-##Intensity as a function of elevation range
+##Occurrence as a function of elevation range
 
 ```{r}
 mobs<-obsf[,] %>% group_by(Bird,Plant) %>% summarize(Events=n(),d=mean(Yobs),Traitmatch=unique(Traitmatch),ElevD=unique(ElevD))
@@ -530,15 +439,14 @@ summary(tr_interactionA)
 ```
 
 ##Hierarchical Bayesian Model
-
-
 ### Model Fitting
 
-$$ Yobs_{i,j,k} \sim Binom(Detect_i,N_{i,j,k}) $$
 
-$$ N_{i,j,k} \sim Pois(\lambda_{i,j,k}) $$
+$$ Yobs_{i,j,k} \sim Bern(Detect_i) * truestate_{i,j,k}) $$
 
-$$log(\lambda_{i,j,k})<-\alpha_i + \beta_i * abs(Bill_i - Corolla_j) * \beta_2 * Resources_k + \beta_3 * Resources_k * abs(Bill_i - Corolla_j) $$
+$$ truestate_{i,j,k} \sim Bern(\lambda_{i,j,k}) $$
+
+$$logit(p_{i,j,k})<-\alpha_i + \beta_i * abs(Bill_i - Corolla_j) * \beta_2 * Resources_k + \beta_3 * Resources_k * abs(Bill_i - Corolla_j) $$
 
 **Priors**
 
@@ -547,7 +455,6 @@ $$\alpha_i \sim N(intercept,\tau_{\alpha})$$
 $$\beta_{1,i} \sim N(\gamma_1i,\tau_{\beta_1})$$
 $$\beta_{2,i} \sim N(\gamma_2i,\tau_{\beta_2})$$
 $$\beta_{3,i} \sim N(\gamma_3i,\tau_{\beta_3})$$
-
 
 **Hyperpriors**
 
@@ -572,14 +479,13 @@ $$\sigma_{slope1} = \frac{1}{\tau_{\beta_1}}^2$$
 $$\sigma_{slope2} = \frac{1}{\tau_{\beta_2}}^2$$
 $$\sigma_{slope3} = \frac{1}{\tau_{\beta_3}}^2$$
 
-
 ```{r,eval=T,strip.white=T}
 
 #Source model
-source("Bayesian/NmixturePoissonRagged.R")
+source("Bayesian/OccupancyModelRagged.R")
 
 #print model
-writeLines(readLines("Bayesian/NmixturePoissonRagged.R"))
+writeLines(readLines("Bayesian/OccupancyModelRagged.R"))
 
 #Input Data
 Dat <- list(
@@ -609,7 +515,7 @@ ParsStage <- c("alpha","beta1","beta2","beta3","intercept","sigma_int","sigma_sl
 
 #MCMC options
 
-ni <- 70000  # number of draws from the posterior
+ni <- 1000  # number of draws from the posterior
 nt <- 5  #thinning rate
 nb <- ni*.95 # number to discard for burn-in
 nc <- 2  # number of chains
@@ -618,7 +524,7 @@ nc <- 2  # number of chains
 
 m1 = jags(inits=InitStage,
          n.chains=nc,
-         model.file="Bayesian/NmixturePoissonRagged.jags",
+         model.file="Bayesian/OccupancyModelRagged.jags",
          working.directory=getwd(),
          data=Dat,
          parameters.to.save=ParsStage,
@@ -628,12 +534,12 @@ m1 = jags(inits=InitStage,
          DIC=T)
 
 #save model output
-save(list="m1",file="Bayesian/SavedModels/NmixturePoissonRagged.RData")
+save(list="m1",file="Bayesian/SavedModels/OccupancyModelRagged.RData")
 ```
 
 ```{r,eval=F}
 #Bring in a model from file if needed
-load(file="Bayesian/SavedModels/NmixturePoissonRagged.RData")
+load(file="Bayesian/SavedModels/OccupancyModelRagged.RData")
 recompile(m1)
 ```
 
@@ -647,31 +553,23 @@ pars<-extract_par(m1)
 ```{r,cache=FALSE,eval=TRUE,fig.height=5}
 #Intercept
 chainplot(pars,"detect","Detection Probabily")
-```
 
-```{r,fig.height=10}
 ###Species level Slopes
 chainplot(pars,c("alpha","beta1","beta2","beta3"),"Species regression") + facet_grid(species~par)
-```
 
-```{r,fig.height=4}
 chainplot(pars,c("gamma1","gamma2","gamma3","sigma_int","sigma_slope1","sigma_slope2","sigma_slope3"),"Group Level Regression") + facet_wrap(~par)
 ```
 
 ###Posteriors
 
-```{r,cache=FALSE,fig.width=8,fig.height=10}
+```{r,cache=FALSE,fig.width=12,fig.height=8}
 
 #intercept
 tracegplot(pars,"detect","Detection Parameters") + xlim(0,1) + facet_wrap(~species)
-```
 
-```{r,fig.height=4}
 ###Slope Posterior Distributions
 tracegplot(pars,c("alpha","beta1","beta2","beta3"),"Detection Parameters") + facet_grid(species~par)
-```
 
-```{r}
 ###Detection Posterior Distributions
 tracegplot(pars,c("gamma1","gamma2","gamma3","sigma_int","sigma_slope1","sigma_slope2","sigma_slope3"),"Group-level Parameters") + facet_wrap(~par,nrow=2)
 ```
@@ -779,6 +677,7 @@ species.traj<-melt(species.traj,id.var=colnames(species.traj[[1]]))
 species.traj[,c("Index")]<-colsplit(species.traj$L1,"\\.",c("Index"))
 
 spe<-merge(species.traj,bindex,by.x="Index",by.y="Index")
+
 
 #match colnames
 colnames(odat)[13:14]<-c("Species","Iplant_Double")
