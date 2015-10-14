@@ -303,104 +303,6 @@ for (x in 1:nrow(obs)){
 }
 ```
 
-#Choosing a response distribution
-Before we account for elevation and availability, what is the distribution of intensity of interactions?
-
-```{r}
-ggplot(indatraw,aes(x=Yobs)) + geom_histogram()
-```
-
-If we tend to think of the intensity of events as poisson, our data is extremely ones-inflated. The first moment of the poisson does not well capture the data.
-
-The best fitting moment is in opaque red. The observed data is in black.
-
-```{r}
-moment<-fitdistr(indatraw$Yobs,"poisson")
-est<-data.frame(Yobs=rpois(n=length(indatraw$Yobs),lambda=moment$estimate[[1]]))
-ggplot(indatraw,aes(x=Yobs)) + geom_histogram(fill="black") + geom_histogram(data=est,fill="red",alpha=.4) + theme_bw() + ggtitle("Intensity of interactions")
-```
-
-What about negative binomial?
-
-The best fitting moment is in opaque red. The observed data is in black.
-
-```{r}
-moment<-fitdistr(indatraw$Yobs,"negative binomial")
-est<-data.frame(Yobs=rpois(n=length(indatraw$Yobs),lambda=moment$estimate[[1]]))
-ggplot(indatraw,aes(x=Yobs)) + geom_histogram(fill="black") + geom_histogram(data=est,fill="red",alpha=.4) + theme_bw()
-```
-
-What about log normal?
-
-```{r}
-moment<-fitdistr(indatraw$Yobs,"lognormal")
-est<-data.frame(Yobs=rpois(n=length(indatraw$Yobs),lambda=moment$estimate[[1]]))
-ggplot(indatraw,aes(x=Yobs)) + geom_histogram(fill="black") + geom_histogram(data=est,fill="red",alpha=.4) + theme_bw()
-```
-
-The best fitting moment is in opaque red. The observed data is in black.
-
-Ignoring non-detections for the moment.
-
-
-#Exploratory Model Fitting
-
-First thought on sampling, take the mean interaction for each bird, plant combination for high and low resource periods. Connect intensity with a line.
-
-##Intensity as a function of traits
-```{r}
-mobs<-obs[,] %>% group_by(Species,Plant,Availability) %>% summarize(Events=n(),d=mean(Yobs),Traitmatch=unique(Traitmatch))
-
-#merge with names
-mobss<-merge(mobs,pindex,by.x="Plant",by.y="Index")
-colnames(mobss)<-c("Plant","Species","Availability","Events","d","Traitmatch","Iplant_Double")
-
-ggplot(mobss,aes(x=Traitmatch,y=d,col=as.factor(Availability))) + geom_point(aes(size=Events),alpha=.8) + theme_bw() + facet_wrap(~Species,scales="free") + geom_line(aes(group=Plant),col="black") + scale_size_continuous(range=c(3,7)) + labs(col="Flower Availability")
-```
-
-##Intensity as a function of resources
-
-```{r}
-mobs<-obs[,] %>% group_by(Species,Plant,Month,Transect_R) %>% summarize(Events=n(),d=mean(Yobs),Traitmatch=unique(Traitmatch),Flowers=mean(Flowers))
-
-#merge with names
-mobss<-merge(mobs,pindex,by.x="Plant",by.y="Index")
-colnames(mobss)<-c("Plant","Species","Month","Transect_R","Events","d","Traitmatch","Flowers","Iplant_Double")
-
-ggplot(mobss,aes(x=Flowers,y=d,col=Traitmatch)) + geom_point(aes(size=Events),alpha=.8) + theme_bw() + facet_wrap(~Species,scales="free") + scale_color_continuous(low="blue",high="red") + geom_smooth(method="glm",family="poisson")
-```
-
-##Intensity as a function of elevation range
-
-```{r}
-mobs<-obs[,] %>% group_by(Species,Plant) %>% summarize(Events=n(),d=mean(Yobs),Traitmatch=unique(Traitmatch),ElevD=mean(ElevD))
-
-#merge with names
-mobss<-merge(mobs,pindex,by.x="Plant",by.y="Index")
-colnames(mobss)<-c("Plant","Species","Events","d","Traitmatch","ElevD","Iplant_Double")
-
-ggplot(mobss,aes(x=ElevD,y=d,col=Traitmatch)) + geom_point(aes(size=Events),alpha=.8) + theme_bw() + facet_wrap(~Species,scales="free") + scale_color_continuous(low="blue",high="red") + geom_smooth(method="glm",family="poisson") + geom_text(aes(label=Iplant_Double),size=3)
-```
-
-##Mixed Effect models
-
-First look at the importance of predictors on intensity of interaction. These data do NOT yet include 0's. 
-
-```{r}
-#Trait only
-traitonly<-glmer(data=obs,Yobs~Traitmatch + (1|Bird),family="poisson")
-trait_resource<-glmer(data=obs,Yobs~Traitmatch + Availability + (1|Bird) + (1|Plant),family="poisson")
-trait_resource<-glmer(data=obs,Yobs~Traitmatch + Availability + (1|Bird) + (1|Plant),family="poisson")
-
-tr_interaction<-glmer(data=obs,Yobs~Traitmatch * Availability + (1|Bird) + (1|Plant),family="poisson")
-
-mall<-glmer(data=obs,Yobs~scale(ElevD) + Traitmatch * Availability + (1|Bird) + (1|Plant),family="poisson")
-
-anova(traitonly,trait_resource,tr_interaction)
-summary(tr_interaction)
-summary(mall)
-```
-
 #Absences - accounting for non-detection
 
 We have more information than just the presences, given species elevation ranges, we have absences as well. Absences are birds that occur at the elevation of the plant sample, but were not recorded feeding on the flower.
@@ -469,14 +371,12 @@ for (x in 1:nrow(obsf)){
 }
 ```
 
-
-
 ##Exploratory model fitting
 
 Let's look at the same figures as above, with the addition of informed 0's for non-detections.
 
 
-##Intensity as a function of traits
+##Occurrence as a function of traits
 ```{r}
 mobs<-obsf[,] %>% group_by(Bird,Plant,Availability) %>% summarize(Events=n(),d=mean(Yobs),Traitmatch=unique(Traitmatch))
 
@@ -487,7 +387,7 @@ colnames(mobss)<-c("Plant","Species","Availability","Events","d","Traitmatch","I
 ggplot(mobss,aes(x=Traitmatch,y=d,col=as.factor(Availability))) + geom_point(aes(size=Events),alpha=.8) + theme_bw() + facet_wrap(~Species,scales="free") + geom_line(aes(group=Plant),col="black") + scale_size_continuous(range=c(2,6)) + labs(col="Flower Availability",y="Average Number of Visits") 
 ```
 
-##Intensity as a function of resources
+##Occurrence as a function of resources
 
 ```{r}
 mobs<-obsf[,] %>% group_by(Bird,Plant,Month,Transect_R) %>% summarize(Events=n(),d=mean(Yobs),Traitmatch=unique(Traitmatch),Flowers=mean(Flowers))
@@ -500,7 +400,7 @@ ggplot(mobss,aes(x=log(Flowers),y=d,col=Traitmatch)) + geom_point(aes(size=Event
 ```
 
 
-##Intensity as a function of elevation range
+##Occurrence as a function of elevation range
 
 ```{r}
 mobs<-obsf[,] %>% group_by(Bird,Plant) %>% summarize(Events=n(),d=mean(Yobs),Traitmatch=unique(Traitmatch),ElevD=unique(ElevD))
@@ -508,9 +408,6 @@ mobs<-obsf[,] %>% group_by(Bird,Plant) %>% summarize(Events=n(),d=mean(Yobs),Tra
 #merge with names
 mobss<-merge(mobs,pindex,by.x="Plant",by.y="Index")
 colnames(mobss)<-c("Plant","Species","Events","d","Traitmatch","ElevD","Iplant_Double")
-
-ggplot(mobss,aes(x=ElevD,y=d,col=Traitmatch)) + geom_point(aes(size=Events),alpha=.8) + theme_bw() + facet_wrap(~Species,scales="free") + scale_color_continuous(low="blue",high="red") + ylab("Average Number of Visits") + geom_text(data=mobss[mobss$ElevD>500,],aes(label=Iplant_Double)) 
-+ ggtitle("Elevation Ranges")
 
 ggplot(obsf,aes(x=ElevD,y=(Yobs>0)*1,col=Traitmatch)) + geom_point(alpha=.8) + theme_bw() + facet_wrap(~Bird,scales="free") + scale_color_continuous(low="blue",high="red")  + ylab("Number of Visits") + xlim(0,1000) + geom_smooth(method="glm",family="binomial")
 
@@ -542,12 +439,8 @@ summary(tr_interactionA)
 ```
 
 ##Hierarchical Bayesian Model
-
-
 ### Model Fitting
 
-##Hierarchical Bayesian Model
-### Model Notation
 
 $$ Yobs_{i,j,k} \sim Bern(Detect_i) * truestate_{i,j,k}) $$
 
@@ -562,7 +455,6 @@ $$\alpha_i \sim N(intercept,\tau_{\alpha})$$
 $$\beta_{1,i} \sim N(\gamma_1i,\tau_{\beta_1})$$
 $$\beta_{2,i} \sim N(\gamma_2i,\tau_{\beta_2})$$
 $$\beta_{3,i} \sim N(\gamma_3i,\tau_{\beta_3})$$
-
 
 **Hyperpriors**
 
@@ -586,7 +478,6 @@ $$\sigma_{int} = \frac{1}{\tau_{\alpha}}^2$$
 $$\sigma_{slope1} = \frac{1}{\tau_{\beta_1}}^2$$
 $$\sigma_{slope2} = \frac{1}{\tau_{\beta_2}}^2$$
 $$\sigma_{slope3} = \frac{1}{\tau_{\beta_3}}^2$$
-
 
 ```{r,eval=T,strip.white=T}
 
@@ -624,8 +515,8 @@ ParsStage <- c("alpha","beta1","beta2","beta3","intercept","sigma_int","sigma_sl
 
 #MCMC options
 
-ni <- 10000  # number of draws from the posterior
-nt <- 25  #thinning rate
+ni <- 1000  # number of draws from the posterior
+nt <- 5  #thinning rate
 nb <- ni*.95 # number to discard for burn-in
 nc <- 2  # number of chains
 
