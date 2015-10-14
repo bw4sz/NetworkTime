@@ -546,11 +546,14 @@ summary(tr_interactionA)
 
 ### Model Fitting
 
-$$ Yobs_{i,j,k} \sim Binom(Detect_i,N_{i,j,k}) $$
+##Hierarchical Bayesian Model
+### Model Notation
 
-$$ N_{i,j,k} \sim Pois(\lambda_{i,j,k}) $$
+$$ Yobs_{i,j,k} \sim Bern(Detect_i) * truestate_{i,j,k}) $$
 
-$$log(\lambda_{i,j,k})<-\alpha_i + \beta_i * abs(Bill_i - Corolla_j) * \beta_2 * Resources_k + \beta_3 * Resources_k * abs(Bill_i - Corolla_j) $$
+$$ truestate_{i,j,k} \sim Bern(\lambda_{i,j,k}) $$
+
+$$logit(p_{i,j,k})<-\alpha_i + \beta_i * abs(Bill_i - Corolla_j) * \beta_2 * Resources_k + \beta_3 * Resources_k * abs(Bill_i - Corolla_j) $$
 
 **Priors**
 
@@ -588,10 +591,10 @@ $$\sigma_{slope3} = \frac{1}{\tau_{\beta_3}}^2$$
 ```{r,eval=T,strip.white=T}
 
 #Source model
-source("Bayesian/NmixturePoissonRagged.R")
+source("Bayesian/OccupancyModelRagged.R")
 
 #print model
-writeLines(readLines("Bayesian/NmixturePoissonRagged.R"))
+writeLines(readLines("Bayesian/OccupancyModelRagged.R"))
 
 #Input Data
 Dat <- list(
@@ -630,7 +633,7 @@ nc <- 2  # number of chains
 
 m1 = jags(inits=InitStage,
          n.chains=nc,
-         model.file="Bayesian/NmixturePoissonRagged.jags",
+         model.file="Bayesian/OccupancyModelRagged.jags",
          working.directory=getwd(),
          data=Dat,
          parameters.to.save=ParsStage,
@@ -640,12 +643,12 @@ m1 = jags(inits=InitStage,
          DIC=T)
 
 #save model output
-save(list="m1",file="Bayesian/SavedModels/NmixturePoissonRagged.RData")
+save(list="m1",file="Bayesian/SavedModels/OccupancyModelRagged.RData")
 ```
 
 ```{r,eval=F}
 #Bring in a model from file if needed
-load(file="Bayesian/SavedModels/NmixturePoissonRagged.RData")
+load(file="Bayesian/SavedModels/OccupancyModelRagged.RData")
 recompile(m1)
 ```
 
@@ -745,7 +748,7 @@ species.traj[,c("Index")]<-colsplit(species.traj$L1,"\\.",c("Index"))
 spe<-merge(species.traj,bindex,by.x="Index",by.y="Index")
 
 #match colnames
-colnames(odat)[12:13]<-c("Species","Iplant_Double")
+colnames(odat)[13:14]<-c("Species","Iplant_Double")
 
 #plot and compare to original data
 ggplot(data=spe,aes(x=x)) + geom_ribbon(aes(ymin=lower,ymax=upper),alpha=0.1) + geom_line(aes(y=mean),size=1) + theme_bw() + ylab("Occurrence Probability")+ xlab("Difference between Bill and Corolla Length") + facet_wrap(~Species,scales="free",ncol=3) + geom_point(data=odat,aes(x=Traitmatch,y=Yobs))
@@ -786,7 +789,7 @@ spe<-merge(species.traj,bindex,by.x="Index",by.y="Index")
 
 
 #match colnames
-colnames(odat)[12:13]<-c("Species","Iplant_Double")
+colnames(odat)[13:14]<-c("Species","Iplant_Double")
 
 #plot and compare to original data
 ggplot(data=spe,aes(x=x)) + geom_ribbon(aes(ymin=lower,ymax=upper,fill=Species),alpha=0.1) + geom_line(aes(y=mean,col=Species),size=1) + theme_bw() + xlab("Difference between Bill and Corolla Length")  + ylab("Effect of Resources on Trait Matching") + facet_wrap(~Species,scales="free")
