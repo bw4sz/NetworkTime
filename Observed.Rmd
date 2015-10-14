@@ -521,14 +521,24 @@ Poisson Counts
 ```{r}
 #Trait only
 traitonly<-glmer(data=obsf,Yobs~Traitmatch + (1|Bird),family="poisson")
+
+#Traits and resources
 trait_resource<-glmer(data=obsf,Yobs~Traitmatch + scale(Flowers) + (1|Bird) + (1|Plant),family="poisson")
-tr_interaction<-glmer(data=obsf,Yobs~Traitmatch * scale(Flowers) + (1|Bird) + (1|Plant),family="poisson")
 
-tr_interaction<-glmer(data=obsf,Yobs~Traitmatch * Availability + (1|Bird) + (1|Plant),family="poisson")
+#Interaction of trait and resources
+tr_interactionF<-glmer(data=obsf,Yobs~Traitmatch * scale(Flowers) + (1|Bird) + (1|Plant),family="poisson")
 
-anova(traitonly,trait_resource,tr_interaction)
-summary(tr_interaction)
-plot(tr_interaction)
+#Interaction of trait and resources as a binary variable
+tr_interactionA<-glmer(data=obsf,Yobs~Traitmatch * Availability + (1|Bird),family="poisson")
+
+#Interaction of trait and resources as a binary variable
+tr_interactionA<-glmer(data=obsf,Yobs~Traitmatch * Availability + (1|Bird) ,family="poisson")
+
+#Full model
+full<-glmer(data=obsf,Yobs~scale(ElevD) + Traitmatch * scale(Flowers) + (1|Bird) + (1|Plant),family="poisson")
+
+anova(traitonly,trait_resource,tr_interactionF,tr_interactionA)
+summary(tr_interactionA)
 ```
 
 ##Hierarchical Bayesian Model
