@@ -84,9 +84,7 @@ int[int$Iplant_Double=="Alloplectus purpureus","Iplant_Double"]<-"Glossoloma pur
 int[int$Iplant_Double=="Capanea affinis","Iplant_Double"]<-"Kohleria affinis"
 int[int$Iplant_Double=="Columnea cinerea","Iplant_Double"]<-"Columnea mastersonii"
 
-
 m.dat<-droplevels(int[colnames(int) %in% c("ID","Video","Time","Hummingbird","Sex","TransectID","Transect_R","Iplant_Double","Pierce","DateP","Month","ele","Type")])
-
 
 m.dat$Year<-years(as.Date(m.dat$DateP))
 #one missing date
@@ -159,11 +157,11 @@ ggplot(flower.month,aes(x=Month.a,log(Flowers),shape=as.factor(Year),col=Availab
 #turn min and max eelvation into seperate columns for the range
 flower.month$minElev<-as.numeric(str_extract(flower.month$Transect_R,"(\\d+)"))
 flower.month$maxElev<-as.numeric(str_match(flower.month$Transect_R,"(\\d+)_(\\d+)")[,3])
-
 ```
 
-### What is the temporal distribution of resources?
-```{r}
+What is the temporal distribution of resources?
+
+```{r,fig.height=5,fig.width=5}
 #moment 
 moment<-fitdistr(flower.month$Flowers,"log-normal")
 
@@ -258,7 +256,6 @@ indatraw$Transect_R<-cut(indatraw$Elev,seq(1300,2700,200),labels=labs)
 
 ```{r}
 indatlong<-acast(indatraw,Bird~Plant~Time~Transect_R,value.var="Yobs")
-
 indatlong[is.na(indatlong)]<-0
 ```
 
@@ -275,7 +272,6 @@ flower.monthD<-flower.month %>% arrange(Month,Year,Transect_R) %>% group_by(Mont
 #We lose some data here, needs to be cleaned.
 obs<-merge(indatraw,flower.monthD,by=c("Month","Year","Transect_R"))
 ```
-
 
 ```{r}
 #match the traits
@@ -314,7 +310,7 @@ If we tend to think of the intensity of events as poisson, our data is extremely
 
 The best fitting moment is in opaque red. The observed data is in black.
 
-```{r}
+```{r,fig.width=5,fig.height=5}
 moment<-fitdistr(indatraw$Yobs,"poisson")
 est<-data.frame(Yobs=rpois(n=length(indatraw$Yobs),lambda=moment$estimate[[1]]))
 ggplot(indatraw,aes(x=Yobs)) + geom_histogram(fill="black") + geom_histogram(data=est,fill="red",alpha=.4) + theme_bw() + ggtitle("Intensity of interactions")
@@ -324,7 +320,7 @@ What about negative binomial?
 
 The best fitting moment is in opaque red. The observed data is in black.
 
-```{r}
+```{r,fig.width=5,fig.height=5}
 moment<-fitdistr(indatraw$Yobs,"negative binomial")
 est<-data.frame(Yobs=rpois(n=length(indatraw$Yobs),lambda=moment$estimate[[1]]))
 ggplot(indatraw,aes(x=Yobs)) + geom_histogram(fill="black") + geom_histogram(data=est,fill="red",alpha=.4) + theme_bw()
@@ -332,7 +328,7 @@ ggplot(indatraw,aes(x=Yobs)) + geom_histogram(fill="black") + geom_histogram(dat
 
 What about log normal?
 
-```{r}
+```{r,fig.width=5=5,fig.height=5}
 moment<-fitdistr(indatraw$Yobs,"lognormal")
 est<-data.frame(Yobs=rpois(n=length(indatraw$Yobs),lambda=moment$estimate[[1]]))
 ggplot(indatraw,aes(x=Yobs)) + geom_histogram(fill="black") + geom_histogram(data=est,fill="red",alpha=.4) + theme_bw()
@@ -341,7 +337,6 @@ ggplot(indatraw,aes(x=Yobs)) + geom_histogram(fill="black") + geom_histogram(dat
 The best fitting moment is in opaque red. The observed data is in black.
 
 Ignoring non-detections for the moment.
-
 
 #Exploratory Model Fitting
 
@@ -472,7 +467,6 @@ for (x in 1:nrow(obsf)){
 ##Exploratory model fitting
 
 Let's look at the same figures as above, with the addition of informed 0's for non-detections.
-
 
 ##Intensity as a function of traits
 ```{r}
@@ -616,8 +610,8 @@ ParsStage <- c("alpha","beta1","beta2","beta3","intercept","sigma_int","sigma_sl
 
 #MCMC options
 
-ni <- 100000  # number of draws from the posterior
-nt <- 25  #thinning rate
+ni <- 80000  # number of draws from the posterior
+nt <- 10  #thinning rate
 nb <- ni*.95 # number to discard for burn-in
 nc <- 2  # number of chains
 
@@ -654,23 +648,31 @@ pars<-extract_par(m1)
 ```{r,cache=FALSE,eval=TRUE,fig.height=5}
 #Intercept
 chainplot(pars,"detect","Detection Probabily")
+```
 
+```{r,fig.height=10}
 ###Species level Slopes
 chainplot(pars,c("alpha","beta1","beta2","beta3"),"Species regression") + facet_grid(species~par)
+```
 
+```{r,fig.height=4}
 chainplot(pars,c("gamma1","gamma2","gamma3","sigma_int","sigma_slope1","sigma_slope2","sigma_slope3"),"Group Level Regression") + facet_wrap(~par)
 ```
 
 ###Posteriors
 
-```{r,cache=FALSE,fig.width=12,fig.height=8}
+```{r,cache=FALSE,fig.width=8,fig.height=10}
 
 #intercept
 tracegplot(pars,"detect","Detection Parameters") + xlim(0,1) + facet_wrap(~species)
+```
 
+```{r,fig.height=8}
 ###Slope Posterior Distributions
-tracegplot(pars,c("alpha","beta1","beta2","beta3"),"Detection Parameters") + facet_grid(species~par)
+tracegplot(pars,c("alpha","beta1","beta2","beta3"),"Species Level Parameters") + facet_grid(species~par)
+```
 
+```{r,fig.height=7}
 ###Detection Posterior Distributions
 tracegplot(pars,c("gamma1","gamma2","gamma3","sigma_int","sigma_slope1","sigma_slope2","sigma_slope3"),"Group-level Parameters") + facet_wrap(~par,nrow=2)
 ```
@@ -682,7 +684,7 @@ tracegplot(pars,c("gamma1","gamma2","gamma3","sigma_int","sigma_slope1","sigma_s
 castdf<-dcast(pars[pars$par %in% c("gamma1","gamma2","gamma3","intercept"),], Chain + Draw~par,value.var="estimate")
 ```
 
-```{r}
+```{r,fig.width=9,fig.height=7}
 #Trajectories from posterior
 predy<-trajF(alpha=castdf$intercept,beta1=castdf$gamma1,x=Dat$traitmatch,resources=Dat$resources,beta2=castdf$gamma2,beta3=castdf$gamma3)
 
@@ -778,7 +780,6 @@ species.traj<-melt(species.traj,id.var=colnames(species.traj[[1]]))
 species.traj[,c("Index")]<-colsplit(species.traj$L1,"\\.",c("Index"))
 
 spe<-merge(species.traj,bindex,by.x="Index",by.y="Index")
-
 
 #match colnames
 colnames(odat)[13:14]<-c("Species","Iplant_Double")

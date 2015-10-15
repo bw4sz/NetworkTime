@@ -4,8 +4,6 @@ sink("Bayesian/OccupancyModelRagged.jags")
 cat("
     model {
     for (x in 1:Nobs){
-    #set true condition for full definition
-    p[1,1,1]<-1
     #True Occupancy State
     true_state[x] ~ dbern(p[Bird[x],Plant[x],Time[x]])    
     # Covariates for true state   
