@@ -482,11 +482,11 @@ Ninit<-rep(max(obsf$Binary),Dat$Nobs)
 InitStage <- function(){list(beta1=initB,beta2=initB,detect=initB,beta3=initB,alpha=initB,intercept=0,tau_alpha=0.1,tau_beta1=0.1,tau_beta2=0.1,tau_beta3=0.1,gamma1=0,gamma2=0,gamma3=0)}
 
 #Parameters to track
-ParsStage <- c("alpha","beta1","beta2","beta3","intercept","sigma_int","sigma_slope1","sigma_slope2","sigma_slope3","gamma1","gamma2","gamma3","detect","fit","fitnew")
+ParsStage <- c("alpha","beta1","beta2","beta3","intercept","sigma_int","sigma_slope1","sigma_slope2","sigma_slope3","gamma1","gamma2","gamma3","detect","fit","fitnew","true_state")
 
 #MCMC options
 
-ni <- 100000  # number of draws from the posterior
+ni <- 200000  # number of draws from the posterior
 nt <- 25  #thinning rate
 nb <- ni*.95 # number to discard for burn-in
 nc <- 2  # number of chains
@@ -540,9 +540,11 @@ tracegplot(pars,"detect","Detection Parameters") + xlim(0,1) + facet_wrap(~speci
 
 ###Slope Posterior Distributions
 tracegplot(pars,c("alpha","beta1","beta2","beta3"),"Detection Parameters") + facet_grid(species~par)
+```
 
+```{r,fig.height=5,fig.width=12}
 ###Detection Posterior Distributions
-tracegplot(pars,c("gamma1","gamma2","gamma3","sigma_int","sigma_slope1","sigma_slope2","sigma_slope3"),"Group-level Parameters") + facet_wrap(~par,nrow=2)
+tracegplot(pars,c("gamma1","gamma2","gamma3","sigma_int","sigma_slope1","sigma_slope2","sigma_slope3"),"Group-level Parameters") + facet_wrap(~par,nrow=1)
 ```
 
 ###Predicted Relationship 
@@ -672,5 +674,5 @@ psim5
 ```
 
 ```{r}
-save.image("Observed.RData")
+save.image("ObservedBinary.RData")
 ```
