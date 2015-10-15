@@ -86,6 +86,11 @@ int[int$Iplant_Double=="Columnea cinerea","Iplant_Double"]<-"Columnea mastersoni
 
 m.dat<-droplevels(int[colnames(int) %in% c("ID","Video","Time","Hummingbird","Sex","TransectID","Transect_R","Iplant_Double","Pierce","DateP","Month","ele","Type")])
 
+#Does the data come from camera or transect?
+m.dat$Type<-(is.na(m.dat$TransectID))*1
+
+m.dat<-m.dat[m.dat$Type==1,]
+
 m.dat$Year<-years(as.Date(m.dat$DateP))
 #one missing date
 m.dat$Year[m.dat$Year %in% 2012]<-2013
@@ -328,7 +333,7 @@ ggplot(indatraw,aes(x=Yobs)) + geom_histogram(fill="black") + geom_histogram(dat
 
 What about log normal?
 
-```{r,fig.width=5=5,fig.height=5}
+```{r,fig.width=5,fig.height=5}
 moment<-fitdistr(indatraw$Yobs,"lognormal")
 est<-data.frame(Yobs=rpois(n=length(indatraw$Yobs),lambda=moment$estimate[[1]]))
 ggplot(indatraw,aes(x=Yobs)) + geom_histogram(fill="black") + geom_histogram(data=est,fill="red",alpha=.4) + theme_bw()
@@ -491,7 +496,6 @@ colnames(mobss)<-c("Plant","Species","Month","Transect_R","Events","d","Traitmat
 ggplot(mobss,aes(x=log(Flowers),y=d,col=Traitmatch)) + geom_point(aes(size=Events),alpha=.8) + theme_bw() + facet_wrap(~Species,scales="free") + scale_color_continuous(low="blue",high="red") + labs(y="Average Number of Visits")
 ```
 
-
 ##Intensity as a function of elevation range
 
 ```{r}
@@ -600,19 +604,18 @@ Dat <- list(
 
 #Inits
 initB<-rep(.5,Dat$Birds)
-#Ninit<-array(dim=c(Dat$Birds,Dat$Plants,Dat$Time),data=10)
 Ninit<-rep(max(obsf$Yobs),Dat$Nobs)
 
-InitStage <- function(){list(beta1=initB,beta2=initB,detect=initB,beta3=initB,alpha=initB,intercept=0,tau_alpha=0.1,tau_beta1=0.1,tau_beta2=0.1,tau_beta3=0.1,gamma1=0,gamma2=0,gamma3=0,N=Ninit)}
+InitStage <- function(){list(beta1=initB,beta2=initB,detect=initB,beta4=initB,beta3=initB,alpha=initB,intercept=0,tau_alpha=0.1,tau_beta1=0.1,tau_beta2=0.1,tau_beta3=0.1,tau_beta4=0.1,gamma1=0,gamma2=0,gamma3=0,gamma4=0,N=Ninit)}
 
 #Parameters to track
-ParsStage <- c("alpha","beta1","beta2","beta3","intercept","sigma_int","sigma_slope1","sigma_slope2","sigma_slope3","gamma1","gamma2","gamma3","detect","fit","fitnew")
+ParsStage <- c("alpha","beta1","beta2","beta3","intercept","sigma_int","sigma_slope1","sigma_slope2","sigma_slope3","sigma_slope4","gamma1","gamma2","gamma3","gamma4","detect","fit","fitnew","E")
 
 #MCMC options
 
-ni <- 80000  # number of draws from the posterior
+ni <- 70000  # number of draws from the posterior
 nt <- 10  #thinning rate
-nb <- ni*.95 # number to discard for burn-in
+nb <- ni*.9 # number to discard for burn-in
 nc <- 2  # number of chains
 
 #Jags
@@ -652,7 +655,7 @@ chainplot(pars,"detect","Detection Probabily")
 
 ```{r,fig.height=10}
 ###Species level Slopes
-chainplot(pars,c("alpha","beta1","beta2","beta3"),"Species regression") + facet_grid(species~par)
+chainplot(pars,c("alpha","beta1","beta2","beta3","beta4"),"Species regression") + facet_grid(species~par)
 ```
 
 ```{r,fig.height=4}
@@ -662,7 +665,6 @@ chainplot(pars,c("gamma1","gamma2","gamma3","sigma_int","sigma_slope1","sigma_sl
 ###Posteriors
 
 ```{r,cache=FALSE,fig.width=8,fig.height=10}
-
 #intercept
 tracegplot(pars,"detect","Detection Parameters") + xlim(0,1) + facet_wrap(~species)
 ```
@@ -693,6 +695,20 @@ psim3
 
 ```
 
+Trajectories under low and high resource availability
+```{r}
+
+#Trajectories from posterior
+pred_low<-trajF(alpha=castdf$intercept,beta1=castdf$gamma1,x=Dat$traitmatch,resources=rep(0,length(Dat$resources)),beta2=castdf$gamma2,beta3=castdf$gamma3)
+
+pred_high<-trajF(alpha=castdf$intercept,beta1=castdf$gamma1,x=Dat$traitmatch,resources=rep(1,length(Dat$resources)),beta2=castdf$gamma2,beta3=castdf$gamma3)
+
+predA<-melt(list(Low=pred_low,High=pred_high),id.vars=colnames(pred_low))
+
+ggplot(data=predA,aes(x=x)) + geom_ribbon(aes(ymin=lower,ymax=upper,fill=L1),alpha=0.4)  + geom_line(aes(y=mean,col=L1),size=.8,linetype="dashed") + theme_bw() + ylab("Interactions") + xlab("Difference between Bill and Corolla Length") + geom_point(data=obsf,aes(x=Traitmatch,y=Yobs)) + labs(fill="Resource Availability")
+
+```
+
 ###Visualize interactions
 
 ```{r}
@@ -709,6 +725,9 @@ psim4
 #orignal data to plot as ppints
 odat<-merge(obsf,bindex,by.x="Bird",by.y="Index")
 odat<-merge(odat,pindex,by.x="Plant",by.y="Index")
+colnames(odat)[colnames(odat) %in% "Species.x"]<-"Species"
+colnames(odat)[colnames(odat) %in% "Species.y"]<-"Iplant_Double"
+
 ```
 
 ```{r,fig.height=10,fig.width=11,eval=T}
@@ -741,11 +760,47 @@ species.traj[,c("Index")]<-colsplit(species.traj$L1,"\\.",c("Index"))
 
 spe<-merge(species.traj,bindex,by.x="Index",by.y="Index")
 
-#match colnames
-colnames(odat)[13:14]<-c("Species","Iplant_Double")
-
 #plot and compare to original data
 ggplot(data=spe,aes(x=x)) + geom_ribbon(aes(ymin=lower,ymax=upper),alpha=0.1) + geom_line(aes(y=mean),size=1) + theme_bw() + ylab("Occurrence Probability")+ xlab("Difference between Bill and Corolla Length") + facet_wrap(~Species,scales="free",ncol=3) + geom_point(data=odat,aes(x=Traitmatch,y=Yobs))
+```
+
+###Predicted at high and low resource densities
+
+```{r}
+castdf<-dcast(pars[pars$par %in% c("beta1","beta2","beta3","alpha"),], species +Chain +Draw ~par ,value.var="estimate")
+
+#Turn to 
+castdf$species<-factor(castdf$species,levels=1:max(as.numeric(castdf$species)))
+
+species.split<-split(castdf,list(castdf$species),drop = T)
+
+species.traj<-list()
+
+for(d in 1:length(species.split)){
+  x<-species.split[[d]]
+  index<-unique(x$species)
+  
+  #get data for those species
+  billd<-obsf[obsf$Bird %in% index,]
+  
+  Low<-trajF(alpha=x$alpha,beta1=x$beta1,beta2=x$beta2,beta3=x$beta3,resources=rep(0,length(billd$Availability)),x=billd$Traitmatch)
+  High<-trajF(alpha=x$alpha,beta1=x$beta1,beta2=x$beta2,beta3=x$beta3,resources=rep(1,length(billd$Availability)),x=billd$Traitmatch)
+  r<-melt(list(Low=Low,High=High),id.vars=colnames(Low))
+  colnames(r)[colnames(r) %in% "L1"]<-"R"
+  species.traj[[d]]<-r
+  }
+
+names(species.traj)<-names(species.split)
+
+species.traj<-melt(species.traj,id.var=colnames(species.traj[[1]]))
+
+#split out names and model
+species.traj[,c("Index")]<-colsplit(species.traj$L1,"\\.",c("Index"))
+
+spe<-merge(species.traj,bindex,by.x="Index",by.y="Index")
+
+#plot and compare to original data
+ggplot(data=spe,aes(x=x)) + geom_ribbon(aes(ymin=lower,ymax=upper,fill=R),alpha=0.1) + geom_line(aes(y=mean,col=R),size=1) + theme_bw() + ylab("Occurrence Probability")+ xlab("Difference between Bill and Corolla Length") + facet_wrap(~Species,scales="free",ncol=4) + geom_point(data=odat,aes(x=Traitmatch,y=Yobs))
 ```
 
 ###Species Level Interaction
@@ -804,6 +859,42 @@ psim5<-p  + labs(x="Discrepancy of observed data",y="Discrepancy of replicated d
 
 psim5
 ```
+
+#What is the model missing?
+
+```{r}
+pp<-pars %>% dplyr::filter(par %in% "E") %>% group_by(parameter,species) %>% summarize(chisq=mean(estimate))
+
+#extract row
+pp$Index<-as.numeric(str_match(pp$parameter,pattern="\\[(\\d+)]")[,2])
+
+#add to original data
+obsf$chisq<-pp$chisq
+```
+
+Order predictions from worst to best
+
+```{r}
+#Species names
+for (x in 1:nrow(obsf)){
+  obsf$Iplant_Double<-elevP[obsf$Plant,"Species"]
+  obsf$Species<-elevH[obsf$Bird,"Species"]
+}
+
+chiorder<-obsf %>% arrange(desc(chisq),Bird)
+head(chiorder,50)
+
+#order `by highest average discrepancy
+chi<-obsf
+ord<-chi %>% dplyr::group_by(Species) %>% summarize(m=mean(chisq)) %>% arrange(desc(m)) %>% dplyr::select(Species) 
+chi$Species<-factor(chi$Species,levels=ord$Species)
+
+ord<-chi %>% dplyr::group_by(Iplant_Double) %>% summarize(m=mean(chisq)) %>% arrange(desc(m)) %>% dplyr::select(Iplant_Double) 
+chi$Iplant_Double<-factor(chi$Iplant_Double,levels=ord$Iplant_Double)
+
+ggplot(chi,aes(x=Species,y=Iplant_Double,fill=log(chisq))) + geom_tile() + theme_bw() + labs(fill="Chi-squared discrepancy") + theme(axis.text.x = element_text(angle = 90, hjust = 1)) + scale_fill_gradientn(limits=c(-10,10),colours=c("blue","white","red"))
+```
+
 
 ```{r}
 save.image("Observed.RData")
