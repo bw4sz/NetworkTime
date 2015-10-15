@@ -59,7 +59,7 @@ source("Bayesian/BayesFunctions.R")
 
 ```{r,eval=F}
 #load data is needed
-load("Observed.RData")
+#load("Observed.RData")
 ```
 
 #Read in Data
@@ -163,7 +163,7 @@ flower.month$maxElev<-as.numeric(str_match(flower.month$Transect_R,"(\\d+)_(\\d+
 ```
 
 ### What is the temporal distribution of resources?
-```{r}
+```{r,fig.height=5,fig.wight=6}
 #moment 
 moment<-fitdistr(flower.month$Flowers,"log-normal")
 

@@ -150,7 +150,7 @@ flower.month$Month.a<-factor(month.abb[flower.month$Month],month.abb[c(1:12)])
 flower.month$Year<-as.factor(flower.month$Year)
 
 #get quantile for each transect
-thresh<-melt(group_by(flower.month,Transect_R) %>% summarize(Threshold=quantile(log(Flowers),0.8)) )
+thresh<-melt(group_by(flower.month,Transect_R) %>% summarize(Threshold=quantile(log(Flowers),0.75)) )
 flower.month<-merge(flower.month,thresh)
 flower.month$Availability<-as.factor((log(flower.month$Flowers)>flower.month$value) * 1)
 #plot
@@ -469,8 +469,6 @@ for (x in 1:nrow(obsf)){
 }
 ```
 
-
-
 ##Exploratory model fitting
 
 Let's look at the same figures as above, with the addition of informed 0's for non-detections.
@@ -742,7 +740,7 @@ species.traj[,c("Index")]<-colsplit(species.traj$L1,"\\.",c("Index"))
 spe<-merge(species.traj,bindex,by.x="Index",by.y="Index")
 
 #match colnames
-colnames(odat)[12:13]<-c("Species","Iplant_Double")
+colnames(odat)[13:14]<-c("Species","Iplant_Double")
 
 #plot and compare to original data
 ggplot(data=spe,aes(x=x)) + geom_ribbon(aes(ymin=lower,ymax=upper),alpha=0.1) + geom_line(aes(y=mean),size=1) + theme_bw() + ylab("Occurrence Probability")+ xlab("Difference between Bill and Corolla Length") + facet_wrap(~Species,scales="free",ncol=3) + geom_point(data=odat,aes(x=Traitmatch,y=Yobs))
@@ -783,7 +781,7 @@ spe<-merge(species.traj,bindex,by.x="Index",by.y="Index")
 
 
 #match colnames
-colnames(odat)[12:13]<-c("Species","Iplant_Double")
+colnames(odat)[13:14]<-c("Species","Iplant_Double")
 
 #plot and compare to original data
 ggplot(data=spe,aes(x=x)) + geom_ribbon(aes(ymin=lower,ymax=upper,fill=Species),alpha=0.1) + geom_line(aes(y=mean,col=Species),size=1) + theme_bw() + xlab("Difference between Bill and Corolla Length")  + ylab("Effect of Resources on Trait Matching") + facet_wrap(~Species,scales="free")
