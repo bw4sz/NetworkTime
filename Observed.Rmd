@@ -610,8 +610,8 @@ ParsStage <- c("alpha","beta1","beta2","beta3","intercept","sigma_int","sigma_sl
 
 #MCMC options
 
-ni <- 70000  # number of draws from the posterior
-nt <- 5  #thinning rate
+ni <- 80000  # number of draws from the posterior
+nt <- 10  #thinning rate
 nb <- ni*.95 # number to discard for burn-in
 nc <- 2  # number of chains
 
