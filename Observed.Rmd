@@ -121,6 +121,67 @@ dath<-merge(dath,fl.morph, by.x="Iplant_Double",by.y="X")
 dath<-dath[!dath$Pierce %in% c("y","Y"),]
 ```
 
+##Match Species to Morphology
+
+```{r}
+#remove species with less than  10 observations
+keep<-names(which(table(dath$Hummingbird) > 10))
+
+dath<-droplevels(dath[dath$Hummingbird %in% keep,])
+
+#observed traitmatching
+traitmatchF<-abs(t(sapply(hum.morph$Bill,function(x){x-fl.morph$TotalCorolla})))
+
+rownames(traitmatchF)<-hum.morph$English
+colnames(traitmatchF)<-fl.morph$Group.1
+```
+
+```{r}
+#match names
+#Round to 2 decimals
+#Convert to cm for winbugs, avoids numerical underflow
+traitmatchT<-round(traitmatchF[rownames(traitmatchF) %in% dath$Hummingbird,colnames(traitmatchF) %in% dath$Iplant_Double],2)/10
+```
+
+```{r}
+#Formatting indexes
+
+for (x in 1:nrow(dath)){
+  dath$Bird[x]<-elevH[elevH$Species %in% dath$Hummingbird[x],"Index"]
+  dath$Plant[x]<-elevP[elevP$Species %in% dath$Iplant_Double[x],"Index"]
+}
+
+dath$obs<-1
+
+traitmatchT<-traitmatchT[sort(rownames(traitmatchT)),sort(colnames(traitmatchT))]
+
+```
+
+###Elevation ranges
+
+Create a binary variable whether each observation was in a low elevation or high elevation transect. We have some species that just occur at the top of the gradient, and are not present in the sampling window of flowers at the low elevation.
+
+Accounting for non-availability.
+We have to figure out which plants were sampled in which periods, and if it was sampled, the non-detection are 0 if it wasn't the non-detection are NA. then remove all the Na's.
+
+```{r}
+elevH<-read.csv("InputData/HummingbirdElevation.csv",row.names=1)
+head(elevH)
+colnames(elevH)[5]<-"Elevation"
+elevH$Index<-1:nrow(elevH)
+
+#high elevation or low elevation
+elevP<-read.csv("InputData/PlantElevation.csv",row.names=1)
+colnames(elevP)[5]<-"Elevation"
+elevP$Index<-1:nrow(elevP)
+elevP$Iplant_Double<-as.character(elevP$Iplant_Double)
+
+#Correct known taxonomic errors
+elevP[elevP$Iplant_Double %in% "Alloplectus purpureus","Iplant_Double"]<-"Glossoloma purpureum"
+elevP[elevP$Iplant_Double %in% "Capanea affinis","Iplant_Double"]<-"Kohleria affinis"
+elevP[elevP$Iplant_Double %in% "Columnea cinerea","Iplant_Double"]<-"Columnea mastersonii"
+```
+
 #Available Resources
 
 ```{r}
@@ -174,65 +235,6 @@ ggplot(flower.month,aes(x=Flowers)) + geom_density(fill="black") + geom_line(dat
 
 Appears to be a log normal distribution with the existance of rare, but intense, pulses.
 
-##Match Species to Morphology
-
-```{r}
-#remove species with less than  10 observations
-keep<-names(which(table(dath$Hummingbird) > 10))
-
-dath<-droplevels(dath[dath$Hummingbird %in% keep,])
-
-#observed traitmatching
-traitmatchF<-abs(t(sapply(hum.morph$Bill,function(x){x-fl.morph$TotalCorolla})))
-
-rownames(traitmatchF)<-hum.morph$English
-colnames(traitmatchF)<-fl.morph$Group.1
-```
-
-```{r}
-#match names
-#Round to 2 decimals
-#Convert to cm for winbugs, avoids numerical underflow
-traitmatchT<-round(traitmatchF[rownames(traitmatchF) %in% dath$Hummingbird,colnames(traitmatchF) %in% dath$Iplant_Double],2)/10
-```
-
-```{r}
-#Formatting indexes
-
-for (x in 1:nrow(dath)){
-  dath$Bird[x]<-elevH[elevH$Species %in% dath$Hummingbird[x],"Index"]
-  dath$Plant[x]<-elevP[elevP$Species %in% dath$Iplant_Double[x],"Index"]
-}
-
-dath$obs<-1
-
-traitmatchT<-traitmatchT[sort(rownames(traitmatchT)),sort(colnames(traitmatchT))]
-
-```
-
-###Elevation ranges
-
-Create a binary variable whether each observation was in a low elevation or high elevation transect. We have some species that just occur at the top of the gradient, and are not present in the sampling window of flowers at the low elevation.
-
-Accounting for non-availability.
-We have to figure out which plants were sampled in which periods, and if it was sampled, the non-detection are 0 if it wasn't the non-detection are NA. then remove all the Na's.
-
-```{r}
-elevH<-read.csv("InputData/HummingbirdElevation.csv",row.names=1)
-head(elevH)
-colnames(elevH)[5]<-"Elevation"
-
-#high elevation or low elevation
-elevP<-read.csv("InputData/PlantElevation.csv",row.names=1)
-colnames(elevP)[5]<-"Elevation"
-
-elevP$Iplant_Double<-as.character(elevP$Iplant_Double)
-
-#Correct known taxonomic errors
-elevP[elevP$Iplant_Double %in% "Alloplectus purpureus","Iplant_Double"]<-"Glossoloma purpureum"
-elevP[elevP$Iplant_Double %in% "Capanea affinis","Iplant_Double"]<-"Kohleria affinis"
-elevP[elevP$Iplant_Double %in% "Columnea cinerea","Iplant_Double"]<-"Columnea mastersonii"
-```
 
 ```{r}
 #ID for NA is holger transects, make the id's 1:n for each day of transect at each elevation, assuming no elevation was split across days.
