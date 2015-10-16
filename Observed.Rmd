@@ -59,7 +59,7 @@ source("Bayesian/BayesFunctions.R")
 
 ```{r,eval=F}
 #load data is needed
-load("Observed.RData")
+#load("Observed.RData")
 ```
 
 #Read in Data
@@ -198,17 +198,16 @@ traitmatchT<-round(traitmatchF[rownames(traitmatchF) %in% dath$Hummingbird,colna
 
 ```{r}
 #Formatting indexes
-dath$Bird<-as.numeric(factor(dath$Hummingbird,sort(unique(dath$Hummingbird))))
-dath$Plant<-as.numeric(factor(dath$Iplant_Double,sort(unique(dath$Iplant_Double))))
+
+for (x in 1:nrow(dath)){
+  dath$Bird[x]<-elevH[elevH$Species %in% dath$Hummingbird[x],"Index"]
+  dath$Plant[x]<-elevP[elevP$Species %in% dath$Iplant_Double[x],"Index"]
+}
+
 dath$obs<-1
 
 traitmatchT<-traitmatchT[sort(rownames(traitmatchT)),sort(colnames(traitmatchT))]
 
-#Create an index to connect to species names
-#remerge species levels
-bindex<-data.frame(Index=1:length(rownames(traitmatchT)),Species=rownames(traitmatchT))
-
-pindex<-data.frame(Index=1:length(colnames(traitmatchT)),Species=colnames(traitmatchT))
 ```
 
 ###Elevation ranges
@@ -223,9 +222,6 @@ elevH<-read.csv("InputData/HummingbirdElevation.csv",row.names=1)
 head(elevH)
 colnames(elevH)[5]<-"Elevation"
 
-#merge to names
-elevH<-merge(bindex,elevH,by.x="Species",by.y="Hummingbird")
-
 #high elevation or low elevation
 elevP<-read.csv("InputData/PlantElevation.csv",row.names=1)
 colnames(elevP)[5]<-"Elevation"
@@ -236,21 +232,20 @@ elevP$Iplant_Double<-as.character(elevP$Iplant_Double)
 elevP[elevP$Iplant_Double %in% "Alloplectus purpureus","Iplant_Double"]<-"Glossoloma purpureum"
 elevP[elevP$Iplant_Double %in% "Capanea affinis","Iplant_Double"]<-"Kohleria affinis"
 elevP[elevP$Iplant_Double %in% "Columnea cinerea","Iplant_Double"]<-"Columnea mastersonii"
-
-
-elevP<-merge(pindex,elevP,by.x="Species",by.y="Iplant_Double",all=T)
-
-#add elevation from cameras
-
 ```
 
 ```{r}
-#ID for NA is 1
+#ID for NA is holger transects, make the id's 1:n for each day of transect at each elevation, assuming no elevation was split across days.
 dath$ID<-as.character(dath$ID)
-dath[which(is.na(dath$ID)),"ID"]<-dath$TransectID[which(is.na(dath$ID))]
 
-indatraw<- dath %>% group_by(Bird,Plant,ID,DateP) %>% summarize(Yobs=n(),Elev=mean(ele,na.rm=T))  %>% ungroup() %>% arrange(desc(Yobs))
+noid<-dath[is.na(dath$ID),]
 
+id_topaste<-paste(noid$Transect_R,noid$DateP,"Transect",sep="_")
+dath[which(is.na(dath$ID)),"ID"]<-id_topaste
+  
+indatraw<- dath %>% group_by(Bird,Plant,ID,DateP) %>% summarize(Yobs=n(),Elev=mean(ele,na.rm=T)) 
+
+indatraw[order(indatraw$Yobs,decreasing=T),]
 #add unique ID
 indatraw$Time<-1:nrow(indatraw)
 
@@ -640,13 +635,6 @@ m1 = jags(inits=InitStage,
          DIC=T)
 
 #save model output
-save(list="m1",file="Bayesian/SavedModels/NmixturePoissonRagged.RData")
-```
-
-```{r,eval=F}
-#Bring in a model from file if needed
-load(file="Bayesian/SavedModels/NmixturePoissonRagged.RData")
-recompile(m1)
 ```
 
 ```{r,eval=T}
