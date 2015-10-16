@@ -156,12 +156,12 @@ We have to figure out which plants were sampled in which periods, and if it was 
 elevH<-read.csv("InputData/HummingbirdElevation.csv",row.names=1)
 head(elevH)
 colnames(elevH)[5]<-"Elevation"
-elevH$Index<-1:nrow(elevH)
+elevH$Bird<-1:nrow(elevH)
 
 #high elevation or low elevation
 elevP<-read.csv("InputData/PlantElevation.csv",row.names=1)
 colnames(elevP)[5]<-"Elevation"
-elevP$Index<-1:nrow(elevP)
+elevP$Plant<-1:nrow(elevP)
 elevP$Iplant_Double<-as.character(elevP$Iplant_Double)
 
 #Correct known taxonomic errors
@@ -172,8 +172,12 @@ elevP[elevP$Iplant_Double %in% "Columnea cinerea","Iplant_Double"]<-"Columnea ma
 elevP[elevP$Iplant_Double %in% "Alloplectus tenuis","Iplant_Double"]<-"Drymonia tenuis"
 
 #Merge to observed Data
-dath$Iplant_Double[!dath$Iplant_Double %in% elevP$Iplant_Double]
+#plants
 dathp<-merge(dath,elevP,by="Iplant_Double")
+
+#birds
+datph<-merge(dathp,elevH,by="Hummingbird")
+
 ```
 
 #Available Resources
@@ -233,14 +237,14 @@ Appears to be a log normal distribution with the existance of rare, but intense,
 
 ```{r}
 #ID for NA is holger transects, make the id's 1:n for each day of transect at each elevation, assuming no elevation was split across days.
-dath$ID<-as.character(dath$ID)
+datph$ID<-as.character(datph$ID)
 
-noid<-dath[is.na(dath$ID),]
+noid<-datph[is.na(datph$ID),]
 
 id_topaste<-paste(noid$Transect_R,noid$DateP,"Transect",sep="_")
-dath[which(is.na(dath$ID)),"ID"]<-id_topaste
+datph[which(is.na(datph$ID)),"ID"]<-id_topaste
   
-indatraw<- dath %>% group_by(Bird,Plant,ID,DateP) %>% summarize(Yobs=n(),Elev=mean(ele,na.rm=T)) 
+indatraw<- datph %>% group_by(Bird,Plant,ID,DateP) %>% summarize(Yobs=n(),Elev=mean(ele,na.rm=T),Transect_R=unique(Transect_R)) 
 
 indatraw[order(indatraw$Yobs,decreasing=T),]
 #add unique ID
@@ -249,14 +253,21 @@ indatraw$Time<-1:nrow(indatraw)
 #add months and years
 indatraw$Month<-as.numeric(factor(months(strptime(indatraw$DateP,format="%Y-%m-%d")),levels=month.name))
 indatraw$Year<-years(indatraw$DateP)
+
+#Species names
+for (x in 1:nrow(indatraw)){
+  indatraw$Hummingbird[x]<-as.character(elevH[elevH$Bird %in% indatraw$Bird[x],"Hummingbird"])
+  indatraw$Iplant_Double[x]<-as.character(elevP[elevP$Plant %in% indatraw$Plant[x],"Iplant_Double"])
+}
 ```
 
 What elevation transect is each observation in?
+The camera data need to be inferred from the GPS point.
 
 ```{r}
 #which elevation bin is each observation within
 labs<-paste(seq(1300,2500,200),seq(1500,2700,200),sep="_")
-indatraw$Transect_R<-cut(indatraw$Elev,seq(1300,2700,200),labels=labs)
+indatraw[is.na(indatraw$Transect_R),"Transect_R"]<-cut(indatraw[is.na(indatraw$Transect_R),]$Elev,seq(1300,2700,200),labels=labs)
 ```
 
 ```{r}
@@ -280,12 +291,10 @@ obs<-merge(indatraw,flower.monthD,by=c("Month","Year","Transect_R"))
 
 ```{r}
 #match the traits
-for(x in 1:nrow(obs)){
-  obs$Traitmatch[x]<-traitmatchT[obs$Bird[x],obs$Plant[x]]
-}
+traitmelt<-melt(traitmatchT)
+colnames(traitmelt)<-c("Hummingbird","Iplant_Double","Traitmatch")
 
-#add in hummingbird names
-obs<-merge(obs,bindex,by.x="Bird",by.y="Index")
+obs<-merge(obs,traitmelt,by=c("Hummingbird","Iplant_Double"))
 ```
 
 ##Elevation ranges
@@ -299,7 +308,7 @@ obs$ElevD<-NA
 for (x in 1:nrow(obs)){
   b<-obs[x,"Bird"]
   p<-obs[x,"Plant"]
-  d<-abs(elevP[p,"m"] - elevH[b,"m"])
+  d<-abs(elevP[elevP$Plant %in% p,"m"] - elevH[elevH$Bird %in% b,"m"])
   obs[x,"ElevD"]<-d
 }
 ```
@@ -349,37 +358,25 @@ First thought on sampling, take the mean interaction for each bird, plant combin
 
 ##Intensity as a function of traits
 ```{r}
-mobs<-obs[,] %>% group_by(Species,Plant,Availability) %>% summarize(Events=n(),d=mean(Yobs),Traitmatch=unique(Traitmatch))
+mobs<-obs[,] %>% group_by(Hummingbird,Iplant_Double,Availability) %>% summarize(Events=n(),d=mean(Yobs),Traitmatch=unique(Traitmatch))
 
-#merge with names
-mobss<-merge(mobs,pindex,by.x="Plant",by.y="Index")
-colnames(mobss)<-c("Plant","Species","Availability","Events","d","Traitmatch","Iplant_Double")
-
-ggplot(mobss,aes(x=Traitmatch,y=d,col=as.factor(Availability))) + geom_point(aes(size=Events),alpha=.8) + theme_bw() + facet_wrap(~Species,scales="free") + geom_line(aes(group=Plant),col="black") + scale_size_continuous(range=c(3,7)) + labs(col="Flower Availability")
+ggplot(mobs,aes(x=Traitmatch,y=d,col=as.factor(Availability))) + geom_point(aes(size=Events),alpha=.8) + theme_bw() + facet_wrap(~Hummingbird,scales="free") + geom_line(aes(group=Iplant_Double),col="black") + scale_size_continuous(range=c(3,7)) + labs(col="Flower Availability")
 ```
 
 ##Intensity as a function of resources
 
 ```{r}
-mobs<-obs[,] %>% group_by(Species,Plant,Month,Transect_R) %>% summarize(Events=n(),d=mean(Yobs),Traitmatch=unique(Traitmatch),Flowers=mean(Flowers))
+mobs<-obs[,] %>% group_by(Hummingbird,Iplant_Double,Month,Transect_R) %>% summarize(Events=n(),d=mean(Yobs),Traitmatch=unique(Traitmatch),Flowers=mean(Flowers))
 
-#merge with names
-mobss<-merge(mobs,pindex,by.x="Plant",by.y="Index")
-colnames(mobss)<-c("Plant","Species","Month","Transect_R","Events","d","Traitmatch","Flowers","Iplant_Double")
-
-ggplot(mobss,aes(x=Flowers,y=d,col=Traitmatch)) + geom_point(aes(size=Events),alpha=.8) + theme_bw() + facet_wrap(~Species,scales="free") + scale_color_continuous(low="blue",high="red") + geom_smooth(method="glm",family="poisson")
+ggplot(mobs,aes(x=Flowers,y=d,col=Traitmatch)) + geom_point(aes(size=Events),alpha=.8) + theme_bw() + facet_wrap(~Hummingbird,scales="free") + scale_color_continuous(low="blue",high="red") + geom_smooth(method="glm",family="poisson")
 ```
 
 ##Intensity as a function of elevation range
 
 ```{r}
-mobs<-obs[,] %>% group_by(Species,Plant) %>% summarize(Events=n(),d=mean(Yobs),Traitmatch=unique(Traitmatch),ElevD=mean(ElevD))
+mobs<-obs[,] %>% group_by(Hummingbird,Iplant_Double) %>% summarize(Events=n(),d=mean(Yobs),Traitmatch=unique(Traitmatch),ElevD=mean(ElevD))
 
-#merge with names
-mobss<-merge(mobs,pindex,by.x="Plant",by.y="Index")
-colnames(mobss)<-c("Plant","Species","Events","d","Traitmatch","ElevD","Iplant_Double")
-
-ggplot(mobss,aes(x=ElevD,y=d,col=Traitmatch)) + geom_point(aes(size=Events),alpha=.8) + theme_bw() + facet_wrap(~Species,scales="free") + scale_color_continuous(low="blue",high="red") + geom_smooth(method="glm",family="poisson") + geom_text(aes(label=Iplant_Double),size=3)
+ggplot(mobs,aes(x=ElevD,y=d,col=Traitmatch)) + geom_point(aes(size=Events),alpha=.8) + theme_bw() + facet_wrap(~Hummingbird,scales="free") + scale_color_continuous(low="blue",high="red") + geom_smooth(method="glm",family="poisson") + geom_text(aes(label=Iplant_Double),size=3)
 ```
 
 ##Mixed Effect models
@@ -425,7 +422,7 @@ for(x in 1:dim(indatlong)[3]){
   if(length(pres)>0){
     for (y in 1:length(pres)){
       #Plant range
-      pr<-elevP[elevP$Index %in% pres[y],"Elevation"]
+      pr<-elevP[elevP$Plant %in% pres[y],"Elevation"]
       #if there is not enough elevation area, make NA
       if(is.na(pr)|!pr==3){
         helim<-elevH[!elevH$Elevation %in% c(pr,3),"Index"]
@@ -451,13 +448,16 @@ indatmerge<-merge(indat,Timelookup,by=c("Time","Transect_R"),all.x=T)
 #Get flower information
 obsf<-merge(indatmerge,flower.monthD,by=c("Month","Year","Transect_R"))
 
-#Get trait information
-#match the traits
-for(x in 1:nrow(obsf)){
-  obsf$Traitmatch[x]<-traitmatchT[obsf$Bird[x],obsf$Plant[x]]
+#Species names
+for (x in 1:nrow(obsf)){
+  obsf$Hummingbird[x]<-as.character(elevH[elevH$Bird %in% obsf$Bird[x],"Hummingbird"])
+  obsf$Iplant_Double[x]<-as.character(elevP[elevP$Plant %in% obsf$Plant[x],"Iplant_Double"])
 }
 
-#Get elevation information
+#Get trait information
+#match the traits
+obsf<-merge(obsf,traitmelt,by=c("Hummingbird","Iplant_Double"))
+
 obsf$ElevD<-NA
 
 #Difference in mean elevations
@@ -465,7 +465,7 @@ obsf$ElevD<-NA
 for (x in 1:nrow(obsf)){
   b<-obsf[x,"Bird"]
   p<-obsf[x,"Plant"]
-  d<-abs(elevP[p,"m"] - elevH[b,"m"])
+  d<-abs(elevP[elevP$Plant %in% p,"m"] - elevH[elevH$Bird %in% b,"m"])
   obsf[x,"ElevD"]<-d
 }
 ```
@@ -476,36 +476,23 @@ Let's look at the same figures as above, with the addition of informed 0's for n
 
 ##Intensity as a function of traits
 ```{r}
-mobs<-obsf[,] %>% group_by(Bird,Plant,Availability) %>% summarize(Events=n(),d=mean(Yobs),Traitmatch=unique(Traitmatch))
+mobs<-obsf[,] %>% group_by(Hummingbird,Iplant_Double,Availability) %>% summarize(Events=n(),d=mean(Yobs),Traitmatch=unique(Traitmatch))
 
-#merge with names
-mobss<-merge(mobs,pindex,by.x="Plant",by.y="Index")
-colnames(mobss)<-c("Plant","Species","Availability","Events","d","Traitmatch","Iplant_Double")
-
-ggplot(mobss,aes(x=Traitmatch,y=d,col=as.factor(Availability))) + geom_point(aes(size=Events),alpha=.8) + theme_bw() + facet_wrap(~Species,scales="free") + geom_line(aes(group=Plant),col="black") + scale_size_continuous(range=c(2,6)) + labs(col="Flower Availability",y="Average Number of Visits") 
+ggplot(mobs,aes(x=Traitmatch,y=d,col=as.factor(Availability))) + geom_point(aes(size=Events),alpha=.8) + theme_bw() + facet_wrap(~Hummingbird,scales="free") + geom_line(aes(group=Iplant_Double),col="black") + scale_size_continuous(range=c(2,6)) + labs(col="Flower Availability",y="Average Number of Visits") 
 ```
 
 ##Intensity as a function of resources
 
 ```{r}
-mobs<-obsf[,] %>% group_by(Bird,Plant,Month,Transect_R) %>% summarize(Events=n(),d=mean(Yobs),Traitmatch=unique(Traitmatch),Flowers=mean(Flowers))
+mobs<-obsf[,] %>% group_by(Hummingbird,Iplant_Double,Month,Transect_R) %>% summarize(Events=n(),d=mean(Yobs),Traitmatch=unique(Traitmatch),Flowers=mean(Flowers))
 
-#merge with names
-mobss<-merge(mobs,pindex,by.x="Plant",by.y="Index")
-colnames(mobss)<-c("Plant","Species","Month","Transect_R","Events","d","Traitmatch","Flowers","Iplant_Double")
 
-ggplot(mobss,aes(x=log(Flowers),y=d,col=Traitmatch)) + geom_point(aes(size=Events),alpha=.8) + theme_bw() + facet_wrap(~Species,scales="free") + scale_color_continuous(low="blue",high="red") + labs(y="Average Number of Visits")
+ggplot(mobs,aes(x=log(Flowers),y=d,col=Traitmatch)) + geom_point(aes(size=Events),alpha=.8) + theme_bw() + facet_wrap(~Hummingbird,scales="free") + scale_color_continuous(low="blue",high="red") + labs(y="Average Number of Visits")
 ```
 
 ##Intensity as a function of elevation range
 
 ```{r}
-mobs<-obsf[,] %>% group_by(Bird,Plant) %>% summarize(Events=n(),d=mean(Yobs),Traitmatch=unique(Traitmatch),ElevD=unique(ElevD))
-
-#merge with names
-mobss<-merge(mobs,pindex,by.x="Plant",by.y="Index")
-colnames(mobss)<-c("Plant","Species","Events","d","Traitmatch","ElevD","Iplant_Double")
-
 ggplot(obsf,aes(x=ElevD,y=(Yobs>0)*1,col=Traitmatch)) + geom_point(alpha=.8) + theme_bw() + facet_wrap(~Bird,scales="free") + scale_color_continuous(low="blue",high="red")  + ylab("Number of Visits") + xlim(0,1000) + geom_smooth(method="glm",family="binomial")
 
 ```
@@ -613,7 +600,7 @@ ParsStage <- c("alpha","beta1","beta2","beta3","intercept","sigma_int","sigma_sl
 
 #MCMC options
 
-ni <- 100000  # number of draws from the posterior
+ni <- 50000  # number of draws from the posterior
 nt <- 5  #thinning rate
 nb <- ni*.8 # number to discard for burn-in
 nc <- 2  # number of chains
