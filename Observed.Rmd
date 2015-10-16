@@ -89,7 +89,7 @@ m.dat<-droplevels(int[colnames(int) %in% c("ID","Video","Time","Hummingbird","Se
 #Does the data come from camera or transect?
 m.dat$Type<-(is.na(m.dat$TransectID))*1
 
-m.dat<-m.dat[m.dat$Type==1,]
+#m.dat<-m.dat[m.dat$Type==1,]
 
 m.dat$Year<-years(as.Date(m.dat$DateP))
 #one missing date
@@ -98,9 +98,6 @@ m.dat$Year[m.dat$Year %in% 2012]<-2013
 #Fix spacing to match clades
 #Which are matching
 levels(m.dat$Hummingbird)[!levels(m.dat$Hummingbird) %in% hum.morph$English]
-
-#This needs to be checked
-#print(paste(levels(m.dat$Hummingbird)[!levels(m.dat$Hummingbird) %in% hum.morph$English],"not matched"))
 
 #Number of bird species
 h_species<-nlevels(m.dat$Hummingbird)
@@ -156,6 +153,7 @@ flower.month$Year<-as.factor(flower.month$Year)
 thresh<-melt(group_by(flower.month,Transect_R) %>% summarize(Threshold=quantile(log(Flowers),0.75)) )
 flower.month<-merge(flower.month,thresh)
 flower.month$Availability<-as.factor((log(flower.month$Flowers)>flower.month$value) * 1)
+
 #plot
 ggplot(flower.month,aes(x=Month.a,log(Flowers),shape=as.factor(Year),col=Availability)) + geom_point(size=3) + theme_bw()  + geom_smooth(aes(group=1)) + ylab("Flowers") + xlab("Month") + facet_wrap(~Transect_R,scales="free_y") + labs(shape="Year", y= "Log Available Flowers") + scale_x_discrete(breaks=month.abb[seq(1,12,2)]) + scale_color_manual(labels=c("Low","High"),values=c("black","red")) + labs(col="Resource Availability")
 
@@ -228,15 +226,22 @@ colnames(elevH)[5]<-"Elevation"
 #merge to names
 elevH<-merge(bindex,elevH,by.x="Species",by.y="Hummingbird")
 
-#remove plant species without dual names
-keepp<-colnames(traitmatchT)[which(!sapply(strsplit(colnames(traitmatchT), " "), length)==1)]
-
 #high elevation or low elevation
 elevP<-read.csv("InputData/PlantElevation.csv",row.names=1)
-elevP<-elevP[elevP$Iplant_Double %in% keepp,]
 colnames(elevP)[5]<-"Elevation"
 
-elevP<-merge(pindex,elevP,by.x="Species",by.y="Iplant_Double",keep=all)
+elevP$Iplant_Double<-as.character(elevP$Iplant_Double)
+
+#Correct known taxonomic errors
+elevP[elevP$Iplant_Double %in% "Alloplectus purpureus","Iplant_Double"]<-"Glossoloma purpureum"
+elevP[elevP$Iplant_Double %in% "Capanea affinis","Iplant_Double"]<-"Kohleria affinis"
+elevP[elevP$Iplant_Double %in% "Columnea cinerea","Iplant_Double"]<-"Columnea mastersonii"
+
+
+elevP<-merge(pindex,elevP,by.x="Species",by.y="Iplant_Double",all=T)
+
+#add elevation from cameras
+
 ```
 
 ```{r}
@@ -244,7 +249,10 @@ elevP<-merge(pindex,elevP,by.x="Species",by.y="Iplant_Double",keep=all)
 dath$ID<-as.character(dath$ID)
 dath[which(is.na(dath$ID)),"ID"]<-dath$TransectID[which(is.na(dath$ID))]
 
-indatraw<- dath %>% group_by(Bird,Plant,ID,DateP) %>% summarize(Yobs=n(),Elev=mean(ele,na.rm=T)) %>% filter(Plant %in% elevP$Index) %>% ungroup() %>% arrange(desc(Yobs)) %>% mutate(Time=as.numeric(as.factor(as.character(paste(ID,DateP))))) 
+indatraw<- dath %>% group_by(Bird,Plant,ID,DateP) %>% summarize(Yobs=n(),Elev=mean(ele,na.rm=T))  %>% ungroup() %>% arrange(desc(Yobs))
+
+#add unique ID
+indatraw$Time<-1:nrow(indatraw)
 
 #add months and years
 indatraw$Month<-as.numeric(factor(months(strptime(indatraw$DateP,format="%Y-%m-%d")),levels=month.name))
@@ -416,17 +424,18 @@ for(x in 1:dim(indatlong)[3]){
   
   #for each elevation
   for (j in 1:dim(a)[3]){
-  #No observations at that plant
-  toNA<-as.numeric(names(which(apply(a[,,j],2,sum)==0)))
-  pres<-as.numeric(names(which(!apply(a[,,j],2,sum)==0)))
-  indatlong[,colnames(a[,,j]) %in% toNA,x,j]<-NA
+    #No observations at that plant
+    toNA<-as.numeric(names(which(apply(a[,,j],2,sum)==0)))
+    pres<-as.numeric(names(which(!apply(a[,,j],2,sum)==0)))
+    indatlong[,colnames(a[,,j]) %in% toNA,x,j]<-NA
   
   #match elevation if there were presences, slightly terse code.
   if(length(pres)>0){
     for (y in 1:length(pres)){
       #Plant range
       pr<-elevP[elevP$Index %in% pres[y],"Elevation"]
-      if(!pr==3){
+      #if there is not enough elevation area, make NA
+      if(is.na(pr)|!pr==3){
         helim<-elevH[!elevH$Elevation %in% c(pr,3),"Index"]
         indatlong[helim,colnames(a) %in% pres[y],x,j]<-NA
         }
@@ -510,7 +519,6 @@ ggplot(obsf,aes(x=ElevD,y=(Yobs>0)*1,col=Traitmatch)) + geom_point(alpha=.8) + t
 ```
 
 ##Mixed Effect models with non-detections
-Poisson Counts
 ```{r}
 #Trait only
 traitonly<-glmer(data=obsf,Yobs~Traitmatch + (1|Bird),family="poisson")
@@ -531,7 +539,7 @@ tr_interactionA<-glmer(data=obsf,Yobs~Traitmatch * Availability + (1|Bird) ,fami
 full<-glmer(data=obsf,Yobs~scale(ElevD) + Traitmatch * scale(Flowers) + (1|Bird) + (1|Plant),family="poisson")
 
 anova(traitonly,trait_resource,tr_interactionF,tr_interactionA)
-summary(tr_interactionA)
+summary(full)
 ```
 
 ##Hierarchical Bayesian Model
@@ -606,16 +614,16 @@ Dat <- list(
 initB<-rep(.5,Dat$Birds)
 Ninit<-rep(max(obsf$Yobs),Dat$Nobs)
 
-InitStage <- function(){list(beta1=initB,beta2=initB,detect=initB,beta4=initB,beta3=initB,alpha=initB,intercept=0,tau_alpha=0.1,tau_beta1=0.1,tau_beta2=0.1,tau_beta3=0.1,tau_beta4=0.1,gamma1=0,gamma2=0,gamma3=0,gamma4=0,N=Ninit)}
+InitStage <- function(){list(beta1=initB,beta2=initB,detect=initB,beta3=initB,alpha=initB,intercept=0,tau_alpha=0.1,tau_beta1=0.1,tau_beta2=0.1,tau_beta3=0.1,gamma1=0,gamma2=0,gamma3=0,N=Ninit)}
 
 #Parameters to track
-ParsStage <- c("alpha","beta1","beta2","beta3","intercept","sigma_int","sigma_slope1","sigma_slope2","sigma_slope3","sigma_slope4","gamma1","gamma2","gamma3","gamma4","detect","fit","fitnew","E")
+ParsStage <- c("alpha","beta1","beta2","beta3","intercept","sigma_int","sigma_slope1","sigma_slope2","sigma_slope3","sigma_slope4","gamma1","gamma2","gamma3","detect","fit","fitnew","E")
 
 #MCMC options
 
-ni <- 70000  # number of draws from the posterior
-nt <- 10  #thinning rate
-nb <- ni*.9 # number to discard for burn-in
+ni <- 100000  # number of draws from the posterior
+nt <- 5  #thinning rate
+nb <- ni*.8 # number to discard for burn-in
 nc <- 2  # number of chains
 
 #Jags
@@ -653,13 +661,13 @@ pars<-extract_par(m1)
 chainplot(pars,"detect","Detection Probabily")
 ```
 
-```{r,fig.height=10}
+```{r,fig.height=12}
 ###Species level Slopes
 chainplot(pars,c("alpha","beta1","beta2","beta3","beta4"),"Species regression") + facet_grid(species~par)
 ```
 
 ```{r,fig.height=4}
-chainplot(pars,c("gamma1","gamma2","gamma3","sigma_int","sigma_slope1","sigma_slope2","sigma_slope3"),"Group Level Regression") + facet_wrap(~par)
+chainplot(pars,c("gamma1","gamma2","gamma3","sigma_int","sigma_slope1","sigma_slope2","sigma_slope3"),"Group Level Regression") + facet_wrap(~par,nrow=1)
 ```
 
 ###Posteriors
@@ -669,14 +677,14 @@ chainplot(pars,c("gamma1","gamma2","gamma3","sigma_int","sigma_slope1","sigma_sl
 tracegplot(pars,"detect","Detection Parameters") + xlim(0,1) + facet_wrap(~species)
 ```
 
-```{r,fig.height=8}
+```{r,fig.height=9}
 ###Slope Posterior Distributions
 tracegplot(pars,c("alpha","beta1","beta2","beta3"),"Species Level Parameters") + facet_grid(species~par)
 ```
 
-```{r,fig.height=7}
+```{r,fig.height=5}
 ###Detection Posterior Distributions
-tracegplot(pars,c("gamma1","gamma2","gamma3","sigma_int","sigma_slope1","sigma_slope2","sigma_slope3"),"Group-level Parameters") + facet_wrap(~par,nrow=2)
+tracegplot(pars,c("gamma1","gamma2","gamma3","sigma_int","sigma_slope1","sigma_slope2","sigma_slope3"),"Group-level Parameters") + facet_wrap(~par,nrow=1)
 ```
 
 ###Predicted Relationship 
@@ -882,7 +890,7 @@ for (x in 1:nrow(obsf)){
 }
 
 chiorder<-obsf %>% arrange(desc(chisq),Bird)
-head(chiorder,50)
+head(chiorder[,c("Species","Iplant_Double","chisq","Yobs","Flowers","ElevD","Traitmatch")],50)
 
 #order `by highest average discrepancy
 chi<-obsf
@@ -892,7 +900,7 @@ chi$Species<-factor(chi$Species,levels=ord$Species)
 ord<-chi %>% dplyr::group_by(Iplant_Double) %>% summarize(m=mean(chisq)) %>% arrange(desc(m)) %>% dplyr::select(Iplant_Double) 
 chi$Iplant_Double<-factor(chi$Iplant_Double,levels=ord$Iplant_Double)
 
-ggplot(chi,aes(x=Species,y=Iplant_Double,fill=log(chisq))) + geom_tile() + theme_bw() + labs(fill="Chi-squared discrepancy") + theme(axis.text.x = element_text(angle = 90, hjust = 1)) + scale_fill_gradientn(limits=c(-10,10),colours=c("blue","white","red"))
+ggplot(chi,aes(x=Species,y=Iplant_Double,fill=log(chisq))) + geom_tile() + theme_bw() + labs(fill="Chi-squared discrepancy") + theme(axis.text.x = element_text(angle = 90, hjust = 1)) + scale_fill_gradientn(limits=c(-10,10),colours=c("white","blue","red"))
 ```
 
 
