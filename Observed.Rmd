@@ -71,8 +71,6 @@ fl.morph<-read.csv(paste(droppath,"Thesis/Maquipucuna_SantaLucia/Results/FlowerM
 #First row is empty
 fl.morph<-fl.morph[-1,]
 
-fl.morph[fl.morph$Group.1 %in%"Drymonia teuscheri","Group.1"]<-"Alloplectus teuscheri"
-
 #Bring in Hummingbird Morphology Dataset, comes from
 hum.morph<-read.csv(paste(droppath,"Thesis/Maquipucuna_SantaLucia/Results/HummingbirdMorphology.csv",sep=""))
 
@@ -83,6 +81,7 @@ int<-read.csv(paste(droppath,"Thesis/Maquipucuna_SantaLucia/Results/Network/Humm
 int[int$Iplant_Double=="Alloplectus purpureus","Iplant_Double"]<-"Glossoloma purpureum"
 int[int$Iplant_Double=="Capanea affinis","Iplant_Double"]<-"Kohleria affinis"
 int[int$Iplant_Double=="Columnea cinerea","Iplant_Double"]<-"Columnea mastersonii"
+int[int$Iplant_Double=="Alloplectus teuscheri","Iplant_Double"]<-"Drymonia teuscheri"
 
 m.dat<-droplevels(int[colnames(int) %in% c("ID","Video","Time","Hummingbird","Sex","TransectID","Transect_R","Iplant_Double","Pierce","DateP","Month","ele","Type")])
 
@@ -141,17 +140,6 @@ colnames(traitmatchF)<-fl.morph$Group.1
 #Round to 2 decimals
 #Convert to cm for winbugs, avoids numerical underflow
 traitmatchT<-round(traitmatchF[rownames(traitmatchF) %in% dath$Hummingbird,colnames(traitmatchF) %in% dath$Iplant_Double],2)/10
-```
-
-```{r}
-#Formatting indexes
-
-for (x in 1:nrow(dath)){
-  dath$Bird[x]<-elevH[elevH$Species %in% dath$Hummingbird[x],"Index"]
-  dath$Plant[x]<-elevP[elevP$Species %in% dath$Iplant_Double[x],"Index"]
-}
-
-dath$obs<-1
 
 traitmatchT<-traitmatchT[sort(rownames(traitmatchT)),sort(colnames(traitmatchT))]
 
@@ -179,7 +167,13 @@ elevP$Iplant_Double<-as.character(elevP$Iplant_Double)
 #Correct known taxonomic errors
 elevP[elevP$Iplant_Double %in% "Alloplectus purpureus","Iplant_Double"]<-"Glossoloma purpureum"
 elevP[elevP$Iplant_Double %in% "Capanea affinis","Iplant_Double"]<-"Kohleria affinis"
+elevP[elevP$Iplant_Double %in% "Alloplectus teuscheri","Iplant_Double"]<-"Drymonia teuscheri"
 elevP[elevP$Iplant_Double %in% "Columnea cinerea","Iplant_Double"]<-"Columnea mastersonii"
+elevP[elevP$Iplant_Double %in% "Alloplectus tenuis","Iplant_Double"]<-"Drymonia tenuis"
+
+#Merge to observed Data
+dath$Iplant_Double[!dath$Iplant_Double %in% elevP$Iplant_Double]
+dathp<-merge(dath,elevP,by="Iplant_Double")
 ```
 
 #Available Resources
@@ -235,6 +229,7 @@ ggplot(flower.month,aes(x=Flowers)) + geom_density(fill="black") + geom_line(dat
 
 Appears to be a log normal distribution with the existance of rare, but intense, pulses.
 
+### Summarize Observations
 
 ```{r}
 #ID for NA is holger transects, make the id's 1:n for each day of transect at each elevation, assuming no elevation was split across days.

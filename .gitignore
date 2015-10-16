@@ -3,5 +3,4 @@
 .RData
 jp_cache/*
 NetworkTime_cache/*
-Observed.RData
-ObservedBinary.RData
+*.RData
