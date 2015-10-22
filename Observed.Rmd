@@ -59,7 +59,7 @@ source("Bayesian/BayesFunctions.R")
 
 ```{r,eval=F}
 #load data is needed
-load("Observed.RData")
+#load("Observed.RData")
 ```
 
 #Read in Data
@@ -83,6 +83,7 @@ int[int$Iplant_Double=="Capanea affinis","Iplant_Double"]<-"Kohleria affinis"
 int[int$Iplant_Double=="Columnea cinerea","Iplant_Double"]<-"Columnea mastersonii"
 int[int$Iplant_Double=="Alloplectus teuscheri","Iplant_Double"]<-"Drymonia teuscheri"
 
+int$Hummingbird[int$Hummingbird %in% "Green-crowned Woodnymph"]<-"Crowned Woodnymph"
 m.dat<-droplevels(int[colnames(int) %in% c("ID","Video","Time","Hummingbird","Sex","TransectID","Transect_R","Iplant_Double","Pierce","DateP","Month","ele","Type")])
 
 #Does the data come from camera or transect?
@@ -184,7 +185,10 @@ datph<-merge(dathp,elevH,by="Hummingbird")
 
 ```{r}
 #read in flower totals from FlowerTransects.R
-fltransects<-read.csv(paste(droppath,"Thesis/Maquipucuna_SantaLucia/Results/FlowerTransects/FlowerTransectClean.csv",sep=""))
+fl<-read.csv(paste(droppath,"Thesis/Maquipucuna_SantaLucia/Results/FlowerTransects/FlowerTransectClean.csv",sep=""))
+
+#select desired columns
+fltransects<-fl %>% dplyr::select(Iplant_Double,month,Year,ID,Transect.ID,Family,Genus,Species,Height,Total_Flowers,Transect_R,Date,lon,lat,ele)
 
 #dates need a bit of formatting
 fltransects$DateP<-as.POSIXlt(fltransects$Date,format="%d/%m/%y")
@@ -200,7 +204,7 @@ colnames(fltransects)[colnames(fltransects) %in% "month"]<-"Month"
 
 #Count of flowers per month
 fltransects$DateP<-as.character(fltransects$DateP)
-flower.month<-group_by(fltransects,Month,Year,Transect_R,Date_F) %>% dplyr::summarise(Flowers=sum(Total_Flowers,na.rm=TRUE))  %>% filter(Flowers>20)
+flower.month<-group_by(fltransects,Month,Year,Transect_R,DateP) %>% dplyr::summarise(Flowers=sum(Total_Flowers,na.rm=TRUE))  %>% filter(Flowers>20)
   
 #Make month abbreviation column, with the right order
 flower.month$Month.a<-factor(month.abb[flower.month$Month],month.abb[c(1:12)])
@@ -275,18 +279,82 @@ indatlong<-acast(indatraw,Bird~Plant~Time~Transect_R,value.var="Yobs")
 indatlong[is.na(indatlong)]<-0
 ```
 
-##Resource availability at each data point
+##Resource availability at each data point - All Resources
+
+How many flowers, of any species, were in bloom within 1 month of sampling event, within the elevation transect.
 
 ```{r}
 #merge with original data, easier to do as factors
 indatraw<-as.tbl(indatraw)
 indatraw$Time<-as.factor(indatraw$Time)
 
-#flower surveys are done twice a month, get the average
-flower.monthD<-flower.month %>% arrange(Month,Year,Transect_R) %>% group_by(Month,Year,Transect_R) %>% summarize(Flowers=mean(Flowers,na.rm=T),Availability=max(as.numeric(as.character(Availability))))
+for (x in 1:nrow(indatraw)){
+ event_date<-indatraw[x,"DateP"] 
+ event_transect<-indatraw[x,"Transect_R"]
+ 
+ #filter by elevation
+ byelev<-fltransects[fltransects$Transect_R %in% event_transect$Transect_R,]
+ 
+ bydate<-byelev[abs(as.Date(byelev$DateP) -as.Date(event_date$DateP))  < 14,]
+ #count number of flowers
+ 
+ indatraw$All_Flowers[x]<-as.numeric(bydate%>% summarize(n=sum(Total_Flowers,na.rm=T)) %>% .$n)
+}
+```
 
-#We lose some data here, needs to be cleaned.
-obs<-merge(indatraw,flower.monthD,by=c("Month","Year","Transect_R"))
+##Resource Availability at each data point - utilized resources.
+
+```{r}
+#Resource list for each species.
+slist<-int %>% group_by(Hummingbird,Iplant_Double) %>% distinct() %>% dplyr::select(Hummingbird,Iplant_Double) %>% arrange(Hummingbird)
+
+
+for (x in 1:nrow(indatraw)){
+ 
+#Date, elevation and species list  
+  event_date<-indatraw[x,"DateP"] 
+ event_transect<-indatraw[x,"Transect_R"]
+   sp_list<-slist[slist$Hummingbird %in% obs$Hummingbird[x],"Iplant_Double"]
+
+ #filter by species
+  byspecies<-fltransects[fltransects$Iplant_Double %in% sp_list$Iplant_Double,]
+  
+ #filter by elevation
+  byelev<-byspecies[byspecies$Transect_R %in% event_transect$Transect_R,]
+ 
+  #Filter by date
+ bydate<-byelev[abs(as.Date(byelev$DateP) -as.Date(event_date$DateP))  < 14,]
+ 
+ #count number of flowers
+indatraw$Used_Flowers[x]<-as.numeric(bydate%>% summarize(n=sum(Total_Flowers,na.rm=T)) %>% .$n)
+}
+```
+
+##Resource Availability at each data point - the abundance of the flower
+
+```{r}
+#Resource list for each species.
+  
+  for (x in 1:nrow(indatraw)) {
+  #Date, elevation and species list
+  event_date <- indatraw[x,"DateP"]
+  event_transect <- indatraw[x,"Transect_R"]
+  sp <-  indatraw[x,"Iplant_Double"]
+  
+  #filter by species
+  byspecies <-  fltransects[fltransects$Iplant_Double %in% sp$Iplant_Double,]
+  
+  #filter by elevation
+  byelev <-  byspecies[byspecies$Transect_R %in% event_transect$Transect_R,]
+  
+  #Filter by date
+  bydate <-  byelev[abs(as.Date(byelev$DateP) - as.Date(event_date$DateP))  < 14,]
+  
+  #count number of flowers
+  indatraw$FlowerA[x] <-  as.numeric(bydate %>% summarize(n = sum(Total_Flowers,na.rm = T)) %>% .$n)
+  }
+
+ggplot(indatraw,aes(y=FlowerA,x=All_Flowers)) + geom_point()
 ```
 
 ```{r}
@@ -442,8 +510,6 @@ Timelookup<-indatraw %>% dplyr::select(Time,DateP,Transect_R,Month,Year)%>% grou
 
 #Get time information
 indatmerge<-merge(indat,Timelookup[,!colnames(Timelookup) %in% c("Bird","Plant")],by=c("Time","Transect_R"),all.x=T)
-#Get flower information
-obsf<-merge(indatmerge,flower.monthD,by=c("Month","Year","Transect_R"))
 
 #Species names
 for (x in 1:nrow(obsf)){
@@ -465,6 +531,82 @@ for (x in 1:nrow(obsf)){
   d<-abs(elevP[elevP$Plant %in% p,"m"] - elevH[elevH$Bird %in% b,"m"])
   obsf[x,"ElevD"]<-d
 }
+```
+
+##Resource availability at each data point - All Resources
+
+How many flowers, of any species, were in bloom within 1 month of sampling event, within the elevation transect.
+
+```{r}
+#merge with original data, easier to do as factors
+obsf<-as.tbl(obsf)
+obsf$Time<-as.factor(obsf$Time)
+
+for (x in 1:nrow(obsf)){
+ event_date<-obsf[x,"DateP"] 
+ event_transect<-obsf[x,"Transect_R"]
+ 
+ #filter by elevation
+ byelev<-fltransects[fltransects$Transect_R %in% event_transect$Transect_R,]
+ 
+ bydate<-byelev[abs(as.Date(byelev$DateP) -as.Date(event_date$DateP))  < 14,]
+ #count number of flowers
+ 
+ obsf$All_Flowers[x]<-as.numeric(bydate%>% summarize(n=sum(Total_Flowers,na.rm=T)) %>% .$n)
+}
+```
+
+##Resource Availability at each data point - utilized resources.
+
+```{r}
+#Resource list for each species.
+slist<-int %>% group_by(Hummingbird,Iplant_Double) %>% distinct() %>% dplyr::select(Hummingbird,Iplant_Double) %>% arrange(Hummingbird)
+
+
+for (x in 1:nrow(obsf)){
+ 
+#Date, elevation and species list  
+  event_date<-obsf[x,"DateP"] 
+ event_transect<-obsf[x,"Transect_R"]
+   sp_list<-slist[slist$Hummingbird %in% obs$Hummingbird[x],"Iplant_Double"]
+
+ #filter by species
+  byspecies<-fltransects[fltransects$Iplant_Double %in% sp_list$Iplant_Double,]
+  
+ #filter by elevation
+  byelev<-byspecies[byspecies$Transect_R %in% event_transect$Transect_R,]
+ 
+  #Filter by date
+ bydate<-byelev[abs(as.Date(byelev$DateP) -as.Date(event_date$DateP))  < 14,]
+ 
+ #count number of flowers
+obsf$Used_Flowers[x]<-as.numeric(bydate%>% summarize(n=sum(Total_Flowers,na.rm=T)) %>% .$n)
+}
+```
+
+##Resource Availability at each data point - the abundance of the flower
+
+```{r}
+#Resource list for each species.
+  
+  for (x in 1:nrow(obsf)) {
+  #Date, elevation and species list
+  event_date <- obsf[x,"DateP"]
+  event_transect <- obsf[x,"Transect_R"]
+  sp <-  obsf[x,"Iplant_Double"]
+  
+  #filter by species
+  byspecies <-  fltransects[fltransects$Iplant_Double %in% sp$Iplant_Double,]
+  
+  #filter by elevation
+  byelev <-  byspecies[byspecies$Transect_R %in% event_transect$Transect_R,]
+  
+  #Filter by date
+  bydate <-  byelev[abs(as.Date(byelev$DateP) - as.Date(event_date$DateP))  < 14,]
+  
+  #count number of flowers
+  obsf$FlowerA[x] <-  as.numeric(bydate %>% summarize(n = sum(Total_Flowers,na.rm = T)) %>% .$n)
+  }
 ```
 
 ##Exploratory model fitting
