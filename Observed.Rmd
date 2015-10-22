@@ -59,7 +59,7 @@ source("Bayesian/BayesFunctions.R")
 
 ```{r,eval=F}
 #load data is needed
-#load("Observed.RData")
+load("Observed.RData")
 ```
 
 #Read in Data
@@ -670,15 +670,14 @@ psim3
 
 Trajectories under low and high resource availability
 ```{r}
-
 #Trajectories from posterior
-pred_low<-trajF(alpha=castdf$intercept,beta1=castdf$gamma1,x=Dat$traitmatch,resources=rep(0,length(Dat$resources)),beta2=castdf$gamma2,beta3=castdf$gamma3)
+pred_low<-trajF(alpha=castdf$intercept,beta1=castdf$gamma1,x=obsf[obsf$Availability==0,"Traitmatch"],resources=obsf[obsf$Availability==0,"Availability"],beta2=castdf$gamma2,beta3=castdf$gamma3)
 
-pred_high<-trajF(alpha=castdf$intercept,beta1=castdf$gamma1,x=Dat$traitmatch,resources=rep(1,length(Dat$resources)),beta2=castdf$gamma2,beta3=castdf$gamma3)
+pred_high<-trajF(alpha=castdf$intercept,beta1=castdf$gamma1,x=obsf[obsf$Availability==1,"Traitmatch"],resources=obsf[obsf$Availability==1,"Availability"],beta2=castdf$gamma2,beta3=castdf$gamma3)
 
 predA<-melt(list(Low=pred_low,High=pred_high),id.vars=colnames(pred_low))
 
-ggplot(data=predA,aes(x=x)) + geom_ribbon(aes(ymin=lower,ymax=upper,fill=L1),alpha=0.4)  + geom_line(aes(y=mean,col=L1),size=.8,linetype="dashed") + theme_bw() + ylab("Interactions") + xlab("Difference between Bill and Corolla Length") + geom_point(data=obsf,aes(x=Traitmatch,y=Yobs)) + labs(fill="Resource Availability")
+ggplot(data=predA,aes(x=x)) + geom_ribbon(aes(ymin=lower,ymax=upper,fill=L1),alpha=0.4)  + geom_line(aes(y=mean,col=L1),size=.8,linetype="dashed",show_guide=F) + theme_bw() + ylab("Interactions") + xlab("Difference between Bill and Corolla Length") + geom_point(data=obsf,aes(x=Traitmatch,y=Yobs)) + labs(fill="Resource Availability")
 
 ```
 
@@ -747,8 +746,8 @@ for(d in 1:length(species.split)){
   #get data for those species
   billd<-obsf[obsf$Bird %in% index,]
   
-  Low<-trajF(alpha=x$alpha,beta1=x$beta1,beta2=x$beta2,beta3=x$beta3,resources=rep(0,length(billd$Availability)),x=billd$Traitmatch)
-  High<-trajF(alpha=x$alpha,beta1=x$beta1,beta2=x$beta2,beta3=x$beta3,resources=rep(1,length(billd$Availability)),x=billd$Traitmatch)
+  Low<-trajF(alpha=x$alpha,beta1=x$beta1,beta2=x$beta2,beta3=x$beta3,resources=billd[billd$Availability==0,"Availability"],x=billd[billd$Availability==0,"Traitmatch"])
+  High<-trajF(alpha=x$alpha,beta1=x$beta1,beta2=x$beta2,beta3=x$beta3,resources=billd[billd$Availability==1,"Availability"],x=billd[billd$Availability==1,"Traitmatch"])
   r<-melt(list(Low=Low,High=High),id.vars=colnames(Low))
   colnames(r)[colnames(r) %in% "L1"]<-"R"
   species.traj[[d]]<-r
@@ -764,7 +763,7 @@ species.traj[,c("Index")]<-colsplit(species.traj$L1,"\\.",c("Index"))
 spe<-merge(species.traj,elevH,by.x="Index",by.y="Bird")
 
 #plot and compare to original data
-ggplot(data=spe,aes(x=x)) + geom_ribbon(aes(ymin=lower,ymax=upper,fill=R),alpha=0.1) + geom_line(aes(y=mean,col=R),size=1) + theme_bw() + ylab("Occurrence Probability")+ xlab("Difference between Bill and Corolla Length") + facet_wrap(~Hummingbird,scales="free",ncol=4) + geom_point(data=obsf,aes(x=Traitmatch,y=Yobs))
+ggplot(data=spe,aes(x=x)) + geom_ribbon(aes(ymin=lower,ymax=upper,fill=R),alpha=0.1) + geom_line(aes(y=mean,col=R),size=1,show_guide=F) + theme_bw() + ylab("Occurrence Probability")+ xlab("Difference between Bill and Corolla Length") + facet_wrap(~Hummingbird,scales="free",ncol=4) + geom_point(data=obsf,aes(x=Traitmatch,y=Yobs)) + labs("Resource Availability")
 ```
 
 ###Species Level Interaction
