@@ -275,109 +275,26 @@ indatraw[is.na(indatraw$Transect_R),"Transect_R"]<-cut(indatraw[is.na(indatraw$T
 ```
 
 ```{r}
-indatlong<-acast(indatraw,Bird~Plant~Time~Transect_R,value.var="Yobs")
-indatlong[is.na(indatlong)]<-0
-```
-
-##Resource availability at each data point - All Resources
-
-How many flowers, of any species, were in bloom within 1 month of sampling event, within the elevation transect.
-
-```{r}
-#merge with original data, easier to do as factors
-indatraw<-as.tbl(indatraw)
-indatraw$Time<-as.factor(indatraw$Time)
-
-for (x in 1:nrow(indatraw)){
- event_date<-indatraw[x,"DateP"] 
- event_transect<-indatraw[x,"Transect_R"]
- 
- #filter by elevation
- byelev<-fltransects[fltransects$Transect_R %in% event_transect$Transect_R,]
- 
- bydate<-byelev[abs(as.Date(byelev$DateP) -as.Date(event_date$DateP))  < 14,]
- #count number of flowers
- 
- indatraw$All_Flowers[x]<-as.numeric(bydate%>% summarize(n=sum(Total_Flowers,na.rm=T)) %>% .$n)
-}
-```
-
-##Resource Availability at each data point - utilized resources.
-
-```{r}
-#Resource list for each species.
-slist<-int %>% group_by(Hummingbird,Iplant_Double) %>% distinct() %>% dplyr::select(Hummingbird,Iplant_Double) %>% arrange(Hummingbird)
-
-
-for (x in 1:nrow(indatraw)){
- 
-#Date, elevation and species list  
-  event_date<-indatraw[x,"DateP"] 
- event_transect<-indatraw[x,"Transect_R"]
-   sp_list<-slist[slist$Hummingbird %in% obs$Hummingbird[x],"Iplant_Double"]
-
- #filter by species
-  byspecies<-fltransects[fltransects$Iplant_Double %in% sp_list$Iplant_Double,]
-  
- #filter by elevation
-  byelev<-byspecies[byspecies$Transect_R %in% event_transect$Transect_R,]
- 
-  #Filter by date
- bydate<-byelev[abs(as.Date(byelev$DateP) -as.Date(event_date$DateP))  < 14,]
- 
- #count number of flowers
-indatraw$Used_Flowers[x]<-as.numeric(bydate%>% summarize(n=sum(Total_Flowers,na.rm=T)) %>% .$n)
-}
-```
-
-##Resource Availability at each data point - the abundance of the flower
-
-```{r}
-#Resource list for each species.
-  
-  for (x in 1:nrow(indatraw)) {
-  #Date, elevation and species list
-  event_date <- indatraw[x,"DateP"]
-  event_transect <- indatraw[x,"Transect_R"]
-  sp <-  indatraw[x,"Iplant_Double"]
-  
-  #filter by species
-  byspecies <-  fltransects[fltransects$Iplant_Double %in% sp$Iplant_Double,]
-  
-  #filter by elevation
-  byelev <-  byspecies[byspecies$Transect_R %in% event_transect$Transect_R,]
-  
-  #Filter by date
-  bydate <-  byelev[abs(as.Date(byelev$DateP) - as.Date(event_date$DateP))  < 14,]
-  
-  #count number of flowers
-  indatraw$FlowerA[x] <-  as.numeric(bydate %>% summarize(n = sum(Total_Flowers,na.rm = T)) %>% .$n)
-  }
-
-ggplot(indatraw,aes(y=FlowerA,x=All_Flowers)) + geom_point()
-```
-
-```{r}
 #match the traits
 traitmelt<-melt(traitmatchT)
 colnames(traitmelt)<-c("Hummingbird","Iplant_Double","Traitmatch")
 
-obs<-merge(obs,traitmelt,by=c("Hummingbird","Iplant_Double"))
+indatraw<-merge(indatraw,traitmelt,by=c("Hummingbird","Iplant_Double"))
 ```
 
 ##Elevation ranges
 How much do the bird and plant elevation range match? Using the transect data we will take the absolute value of the difference in mean elevation for each species pair.
 
 ```{r}
-obs$ElevD<-NA
+indatraw$ElevD<-NA
 
 #Difference in mean elevations
 
-for (x in 1:nrow(obs)){
-  b<-obs[x,"Bird"]
-  p<-obs[x,"Plant"]
+for (x in 1:nrow(indatraw)){
+  b<-indatraw[x,"Bird"]
+  p<-indatraw[x,"Plant"]
   d<-abs(elevP[elevP$Plant %in% p,"m"] - elevH[elevH$Bird %in% b,"m"])
-  obs[x,"ElevD"]<-d
+  indatraw[x,"ElevD"]<-d
 }
 ```
 
@@ -395,7 +312,7 @@ The best fitting moment is in opaque red. The observed data is in black.
 ```{r,fig.width=5,fig.height=5}
 moment<-fitdistr(indatraw$Yobs,"poisson")
 est<-data.frame(Yobs=rpois(n=length(indatraw$Yobs),lambda=moment$estimate[[1]]))
-ggplot(indatraw,aes(x=Yobs)) + geom_histogram(fill="black") + geom_histogram(data=est,fill="red",alpha=.4) + theme_bw() + ggtitle("Intensity of interactions")
+ggplot(indatraw,aes(x=Yobs)) + geom_histogram(fill="black") + geom_histogram(data=est,fill="red",alpha=.4) + theme_bw() + ggtitle("Poisson intensity of interactions")
 ```
 
 What about negative binomial?
@@ -420,50 +337,14 @@ The best fitting moment is in opaque red. The observed data is in black.
 
 Ignoring non-detections for the moment.
 
-#Exploratory Model Fitting
-
-First thought on sampling, take the mean interaction for each bird, plant combination for high and low resource periods. Connect intensity with a line.
-
-##Intensity as a function of traits
-```{r}
-mobs<-obs[,] %>% group_by(Hummingbird,Iplant_Double,Availability) %>% summarize(Events=n(),d=mean(Yobs),Traitmatch=unique(Traitmatch))
-
-ggplot(mobs,aes(x=Traitmatch,y=d,col=as.factor(Availability))) + geom_point(aes(size=Events),alpha=.8) + theme_bw() + facet_wrap(~Hummingbird,scales="free") + geom_line(aes(group=Iplant_Double),col="black") + scale_size_continuous(range=c(3,7)) + labs(col="Flower Availability")
-```
-
-##Intensity as a function of resources
-
-```{r}
-mobs<-obs[,] %>% group_by(Hummingbird,Iplant_Double,Month,Transect_R) %>% summarize(Events=n(),d=mean(Yobs),Traitmatch=unique(Traitmatch),Flowers=mean(Flowers))
-
-ggplot(mobs,aes(x=Flowers,y=d,col=Traitmatch)) + geom_point(aes(size=Events),alpha=.8) + theme_bw() + facet_wrap(~Hummingbird,scales="free") + scale_color_continuous(low="blue",high="red") + geom_smooth(method="glm",family="poisson")
-```
-
-##Intensity as a function of elevation range
-
-```{r}
-mobs<-obs[,] %>% group_by(Hummingbird,Iplant_Double) %>% summarize(Events=n(),d=mean(Yobs),Traitmatch=unique(Traitmatch),ElevD=mean(ElevD))
-
-ggplot(mobs,aes(x=ElevD,y=d,col=Traitmatch)) + geom_point(aes(size=Events),alpha=.8) + theme_bw() + facet_wrap(~Hummingbird,scales="free") + scale_color_continuous(low="blue",high="red") + geom_smooth(method="glm",family="poisson") + geom_text(aes(label=Iplant_Double),size=3)
-```
-
-##Mixed Effect models
-
-First look at the importance of predictors on intensity of interaction. These data do NOT yet include 0's. 
-
-```{r}
-#Trait only
-traitonly<-glmer(data=obs,Yobs~Traitmatch + (1|Bird),family="poisson")
-trait_resource<-glmer(data=obs,Yobs~Traitmatch + Availability + (1|Bird) + (1|Plant),family="poisson")
-trait_resource<-glmer(data=obs,Yobs~Traitmatch + Availability + (1|Bird) + (1|Plant),family="poisson")
-
-tr_interaction<-glmer(data=obs,Yobs~Traitmatch * Availability + (1|Bird) + (1|Plant),family="poisson")
-
-mall<-glmer(data=obs,Yobs~scale(ElevD) + Traitmatch * Availability + (1|Bird) + (1|Plant),family="poisson")
-
-```
-
 #Absences - accounting for non-detection
+
+
+```{r}
+#expand out data
+indatlong<-acast(indatraw,Bird~Plant~Time,value.var="Yobs")
+indatlong[is.na(indatlong)]<-0
+```
 
 We have more information than just the presences, given species elevation ranges, we have absences as well. Absences are birds that occur at the elevation of the plant sample, but were not recorded feeding on the flower.
 
@@ -474,14 +355,12 @@ We have more information than just the presences, given species elevation ranges
 
 for(x in 1:dim(indatlong)[3]){
   #Remove non sampled plants 
-  a<-indatlong[,,x,]
+  a<-indatlong[,,x]
   
-  #for each elevation
-  for (j in 1:dim(a)[3]){
-    #No observations at that plant
-    toNA<-as.numeric(names(which(apply(a[,,j],2,sum)==0)))
-    pres<-as.numeric(names(which(!apply(a[,,j],2,sum)==0)))
-    indatlong[,colnames(a[,,j]) %in% toNA,x,j]<-NA
+  #No observations at that plant
+  toNA<-as.numeric(names(which(apply(a,2,sum)==0)))
+  pres<-as.numeric(names(which(!apply(a,2,sum)==0)))
+  indatlong[,colnames(a) %in% toNA,x]<-NA
   
   #match elevation if there were presences, slightly terse code.
   if(length(pres)>0){
@@ -491,7 +370,7 @@ for(x in 1:dim(indatlong)[3]){
       #if there is not enough elevation area, make NA
       if(is.na(pr)|!pr==3){
         helim<-elevH[!elevH$Elevation %in% c(pr,3),"Index"]
-        indatlong[helim,colnames(a) %in% pres[y],x,j]<-NA
+        indatlong[helim,colnames(a) %in% pres[y],x]<-NA
         }
       }  
     }
@@ -503,13 +382,17 @@ for(x in 1:dim(indatlong)[3]){
 indat<-melt(indatlong)
 indat<-indat[!is.na(indat$value),]
 
-colnames(indat)<-c("Bird","Plant","Time","Transect_R","Yobs")
+colnames(indat)<-c("Bird","Plant","Time","Yobs")
+```
 
+Remerge data with predictors
+
+```{r}
 #remerge the time period data
 Timelookup<-indatraw %>% dplyr::select(Time,DateP,Transect_R,Month,Year)%>% group_by(Time,DateP,Transect_R,Month,Year) %>% distinct() %>% arrange(Time)
 
 #Get time information
-indatmerge<-merge(indat,Timelookup[,!colnames(Timelookup) %in% c("Bird","Plant")],by=c("Time","Transect_R"),all.x=T)
+obsf<-merge(indat,Timelookup[,!colnames(Timelookup) %in% c("Bird","Plant")],by=c("Time"),all.x=T)
 
 #Species names
 for (x in 1:nrow(obsf)){
@@ -539,19 +422,22 @@ How many flowers, of any species, were in bloom within 1 month of sampling event
 
 ```{r}
 #merge with original data, easier to do as factors
-obsf<-as.tbl(obsf)
+obsf<-as.data.frame(obsf)
 obsf$Time<-as.factor(obsf$Time)
+
+#set column to NA
+obsf$All_Flowers<-NA
 
 for (x in 1:nrow(obsf)){
  event_date<-obsf[x,"DateP"] 
  event_transect<-obsf[x,"Transect_R"]
  
  #filter by elevation
- byelev<-fltransects[fltransects$Transect_R %in% event_transect$Transect_R,]
+ byelev<-fltransects[fltransects$Transect_R %in% event_transect,]
  
- bydate<-byelev[abs(as.Date(byelev$DateP) -as.Date(event_date$DateP))  < 14,]
+ bydate<-byelev[abs(as.Date(byelev$DateP) -as.Date(event_date))  < 14,]
+ 
  #count number of flowers
- 
  obsf$All_Flowers[x]<-as.numeric(bydate%>% summarize(n=sum(Total_Flowers,na.rm=T)) %>% .$n)
 }
 ```
@@ -567,8 +453,8 @@ for (x in 1:nrow(obsf)){
  
 #Date, elevation and species list  
   event_date<-obsf[x,"DateP"] 
- event_transect<-obsf[x,"Transect_R"]
-   sp_list<-slist[slist$Hummingbird %in% obs$Hummingbird[x],"Iplant_Double"]
+  event_transect<-obsf[x,"Transect_R"]
+  sp_list<-slist[slist$Hummingbird %in% indatraw$Hummingbird[x],"Iplant_Double"]
 
  #filter by species
   byspecies<-fltransects[fltransects$Iplant_Double %in% sp_list$Iplant_Double,]
@@ -577,10 +463,10 @@ for (x in 1:nrow(obsf)){
   byelev<-byspecies[byspecies$Transect_R %in% event_transect$Transect_R,]
  
   #Filter by date
- bydate<-byelev[abs(as.Date(byelev$DateP) -as.Date(event_date$DateP))  < 14,]
+  bydate<-byelev[abs(as.Date(byelev$DateP) -as.Date(event_date$DateP))  < 14,]
  
  #count number of flowers
-obsf$Used_Flowers[x]<-as.numeric(bydate%>% summarize(n=sum(Total_Flowers,na.rm=T)) %>% .$n)
+  obsf$Used_Flowers[x]<-as.numeric(bydate%>% summarize(n=sum(Total_Flowers,na.rm=T)) %>% .$n)
 }
 ```
 
@@ -615,16 +501,15 @@ Let's look at the same figures as above, with the addition of informed 0's for n
 
 ##Intensity as a function of traits
 ```{r}
-mobs<-obsf[,] %>% group_by(Hummingbird,Iplant_Double,Availability) %>% summarize(Events=n(),d=mean(Yobs),Traitmatch=unique(Traitmatch))
+mobs<-obsf[,] %>% group_by(Hummingbird,Iplant_Double,Used_Flowers) %>% summarize(Events=n(),d=mean(Yobs),Traitmatch=unique(Traitmatch))
 
-ggplot(mobs,aes(x=Traitmatch,y=d,col=as.factor(Availability))) + geom_point(aes(size=Events),alpha=.8) + theme_bw() + facet_wrap(~Hummingbird,scales="free") + geom_line(aes(group=Iplant_Double),col="black") + scale_size_continuous(range=c(2,6)) + labs(col="Flower Availability",y="Average Number of Visits") 
+ggplot(mobs,aes(x=Traitmatch,y=d,col=log(Used_Flowers))) + geom_point(aes(size=Events),alpha=.8) + theme_bw() + facet_wrap(~Hummingbird,scales="free") + geom_line(aes(group=Iplant_Double),col="black") + scale_size_continuous(range=c(2,6)) + labs(col="Flower Availability",y="Average Number of Visits") + scale_ 
 ```
 
 ##Intensity as a function of resources
 
 ```{r}
 mobs<-obsf[,] %>% group_by(Hummingbird,Iplant_Double,Month,Transect_R) %>% summarize(Events=n(),d=mean(Yobs),Traitmatch=unique(Traitmatch),Flowers=mean(Flowers))
-
 
 ggplot(mobs,aes(x=log(Flowers),y=d,col=Traitmatch)) + geom_point(aes(size=Events),alpha=.8) + theme_bw() + facet_wrap(~Hummingbird,scales="free") + scale_color_continuous(low="blue",high="red") + labs(y="Average Number of Visits")
 ```
