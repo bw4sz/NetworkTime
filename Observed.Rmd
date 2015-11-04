@@ -335,10 +335,7 @@ ggplot(indatraw,aes(x=Yobs)) + geom_histogram(fill="black") + geom_histogram(dat
 
 The best fitting moment is in opaque red. The observed data is in black.
 
-Ignoring non-detections for the moment.
-
 #Absences - accounting for non-detection
-
 
 ```{r}
 #expand out data
@@ -375,7 +372,7 @@ for(x in 1:dim(indatlong)[3]){
       }  
     }
   }
-}
+
 
 
 #melt and remove Na's
@@ -416,135 +413,120 @@ for (x in 1:nrow(obsf)){
 }
 ```
 
-##Resource availability at each data point - All Resources
+##Resource availability at each data point
 
-How many flowers, of any species, were in bloom within 1 month of sampling event, within the elevation transect.
+Three measures of resources.
+
+* All Resources within two weeks at that elevation transect (200m)
+* All resource used by the hummingbird species within two weeks at that elevation transect (200m)
+* The abundance of the particular flower species within two weeks at that elevation transect (200m)
 
 ```{r}
-#merge with original data, easier to do as factors
+tyyyc #merge with original data, easier to do as factors
 obsf<-as.data.frame(obsf)
 obsf$Time<-as.factor(obsf$Time)
 
+#Date class
+obsf$DateP<-as.Date(obsf$DateP)
+fltransects$DateP<-as.Date(fltransects$DateP)
 #set column to NA
 obsf$All_Flowers<-NA
+obsf$Used_Flowers<-NA
+obsf$FlowerA<-NA
+
+#Resource list for each species.
+slist<-int %>% group_by(Hummingbird,Iplant_Double) %>% distinct() %>% dplyr::select(Hummingbird,Iplant_Double) %>% arrange(Hummingbird)
 
 for (x in 1:nrow(obsf)){
  event_date<-obsf[x,"DateP"] 
  event_transect<-obsf[x,"Transect_R"]
  
+ #Flowers used by the species
+ sp_list<-slist[slist$Hummingbird %in% obsf$Hummingbird[x],"Iplant_Double"]
+  
+ #Species of flower
+ sp <-  obsf[x,"Iplant_Double"]
+
  #filter by elevation
- byelev<-fltransects[fltransects$Transect_R %in% event_transect,]
+ #get the above and below transect
+ tr<-as.numeric(as.factor(event_transect))
+ toselect<-levels(event_transect)[c(tr-1,tr,tr+1)]
+ #remove na's
+ toselect<-toselect[!is.na(toselect)]
+ byelev<-fltransects[fltransects$Transect_R %in% toselect,]
  
- bydate<-byelev[abs(as.Date(byelev$DateP) -as.Date(event_date))  < 14,]
+ #Filter by Date
+ bydate<-byelev[abs(byelev$DateP -event_date)  < 15,]
  
- #count number of flowers
+ #count number of all flowers
  obsf$All_Flowers[x]<-as.numeric(bydate%>% summarize(n=sum(Total_Flowers,na.rm=T)) %>% .$n)
-}
-```
-
-##Resource Availability at each data point - utilized resources.
-
-```{r}
-#Resource list for each species.
-slist<-int %>% group_by(Hummingbird,Iplant_Double) %>% distinct() %>% dplyr::select(Hummingbird,Iplant_Double) %>% arrange(Hummingbird)
-
-
-for (x in 1:nrow(obsf)){
  
-#Date, elevation and species list  
-  event_date<-obsf[x,"DateP"] 
-  event_transect<-obsf[x,"Transect_R"]
-  sp_list<-slist[slist$Hummingbird %in% indatraw$Hummingbird[x],"Iplant_Double"]
-
  #filter by species
-  byspecies<-fltransects[fltransects$Iplant_Double %in% sp_list$Iplant_Double,]
+  byspecies<-bydate[bydate$Iplant_Double %in% sp_list$Iplant_Double,]
+ 
+  obsf$Used_Flowers[x]<-as.numeric(byspecies%>% summarize(n=sum(Total_Flowers,na.rm=T)) %>% .$n)
   
- #filter by elevation
-  byelev<-byspecies[byspecies$Transect_R %in% event_transect$Transect_R,]
- 
-  #Filter by date
-  bydate<-byelev[abs(as.Date(byelev$DateP) -as.Date(event_date$DateP))  < 14,]
- 
- #count number of flowers
-  obsf$Used_Flowers[x]<-as.numeric(bydate%>% summarize(n=sum(Total_Flowers,na.rm=T)) %>% .$n)
+  #just the abundance of that species
+  bys <-  byspecies[byspecies$Iplant_Double %in% sp,]
+  obsf$FlowerA[x] <-  as.numeric(bys %>% summarize(n = sum(Total_Flowers,na.rm = T)) %>% .$n)
+
 }
 ```
 
-##Resource Availability at each data point - the abundance of the flower
+Relationship among resource measures
 
 ```{r}
-#Resource list for each species.
-  
-  for (x in 1:nrow(obsf)) {
-  #Date, elevation and species list
-  event_date <- obsf[x,"DateP"]
-  event_transect <- obsf[x,"Transect_R"]
-  sp <-  obsf[x,"Iplant_Double"]
-  
-  #filter by species
-  byspecies <-  fltransects[fltransects$Iplant_Double %in% sp$Iplant_Double,]
-  
-  #filter by elevation
-  byelev <-  byspecies[byspecies$Transect_R %in% event_transect$Transect_R,]
-  
-  #Filter by date
-  bydate <-  byelev[abs(as.Date(byelev$DateP) - as.Date(event_date$DateP))  < 14,]
-  
-  #count number of flowers
-  obsf$FlowerA[x] <-  as.numeric(bydate %>% summarize(n = sum(Total_Flowers,na.rm = T)) %>% .$n)
-  }
+ggplot(obsf,aes(x=All_Flowers,y=Used_Flowers,col=log(FlowerA))) + geom_point()
 ```
 
 ##Exploratory model fitting
 
 Let's look at the same figures as above, with the addition of informed 0's for non-detections.
 
-##Intensity as a function of traits
+##Mean Intensity as a function of traits
 ```{r}
-mobs<-obsf[,] %>% group_by(Hummingbird,Iplant_Double,Used_Flowers) %>% summarize(Events=n(),d=mean(Yobs),Traitmatch=unique(Traitmatch))
+mobs<-obsf[,] %>% group_by(Hummingbird,Iplant_Double,Month,Year) %>% summarize(Events=n(),d=mean(Yobs),Traitmatch=unique(Traitmatch),Used_Flowers=mean(Used_Flowers))
 
-ggplot(mobs,aes(x=Traitmatch,y=d,col=log(Used_Flowers))) + geom_point(aes(size=Events),alpha=.8) + theme_bw() + facet_wrap(~Hummingbird,scales="free") + geom_line(aes(group=Iplant_Double),col="black") + scale_size_continuous(range=c(2,6)) + labs(col="Flower Availability",y="Average Number of Visits") + scale_ 
+ggplot(mobs,aes(x=Traitmatch,y=d,col=log(Used_Flowers))) + geom_point(aes(size=Events),alpha=.8)  + scale_size_continuous(range=c(2,6)) + labs(col="Flower Availability",y="Average Number of Visits") + scale_color_continuous(low='blue',high='red')
 ```
 
-##Intensity as a function of resources
+##Mean Intensity as a function of resources
 
 ```{r}
-mobs<-obsf[,] %>% group_by(Hummingbird,Iplant_Double,Month,Transect_R) %>% summarize(Events=n(),d=mean(Yobs),Traitmatch=unique(Traitmatch),Flowers=mean(Flowers))
+mobs<-obsf[,] %>% group_by(Hummingbird,Iplant_Double,Month) %>% summarize(Events=n(),d=mean(Yobs),Traitmatch=unique(Traitmatch),Flowers=mean(Used_Flowers))
 
 ggplot(mobs,aes(x=log(Flowers),y=d,col=Traitmatch)) + geom_point(aes(size=Events),alpha=.8) + theme_bw() + facet_wrap(~Hummingbird,scales="free") + scale_color_continuous(low="blue",high="red") + labs(y="Average Number of Visits")
 ```
 
-##Intensity as a function of elevation range
+##Mean Intensity as a function of elevation range
 
 ```{r}
-ggplot(obsf,aes(x=ElevD,y=Yobs,col=Traitmatch)) + geom_point(alpha=.8) + theme_bw() + facet_wrap(~Bird,scales="free") + scale_color_continuous(low="blue",high="red")  + ylab("Number of Visits") + xlim(0,1000) + geom_smooth(method="glm",family="binomial")
+ggplot(obsf,aes(x=ElevD,y=Yobs,col=Traitmatch)) + geom_point(alpha=.8) + theme_bw() + facet_wrap(~Bird,scales="free") + scale_color_continuous(low="blue",high="red")  + ylab("Number of Visits") + xlim(0,1000) + geom_smooth(method="glm",family="poisson")
 ```
 
-##Mixed Effect models with non-detections
+##Mixed Effect models
+
+For initial inference, let's look at some reasonable mixed effect models. There is no zero inflation here, so we treat these data with some caution.
+
 ```{r}
 #Trait only
 traitonly<-glmer(data=obsf,Yobs~Traitmatch + (1|Bird),family="poisson")
+summary(traitonly)
 
 #Traits and resources
-trait_resource<-glmer(data=obsf,Yobs~Traitmatch + scale(Flowers) + (1|Bird) + (1|Plant),family="poisson")
+trait_resource<-glmer(data=obsf,Yobs~Traitmatch + scale(Used_Flowers) + (1|Bird),family="poisson")
 
-#Interaction of trait and resources
-tr_interactionF<-glmer(data=obsf,Yobs~Traitmatch * scale(Flowers) + (1|Bird) + (1|Plant),family="poisson")
+#Interaction of trait and resources 
+tr_interactionA<-glmer(data=obsf,Yobs~Traitmatch * scale(All_Flowers) + (1|Bird),family="poisson")
 
-#Interaction of trait and resources as a binary variable
-tr_interactionA<-glmer(data=obsf,Yobs~Traitmatch * Availability + (1|Bird),family="poisson")
+tr_interactionU<-glmer(data=obsf,Yobs~Traitmatch * scale(Used_Flowers) + (1|Bird),family="poisson")
 
-#Interaction of trait and resources as a binary variable
-tr_interactionA<-glmer(data=obsf,Yobs~Traitmatch * Availability + (1|Bird) ,family="poisson")
+tr_interactionF<-glmer(data=obsf,Yobs~Traitmatch * scale(FlowerA) + (1|Bird),family="poisson")
 
-#Full model
-full<-glmer(data=obsf,Yobs~scale(ElevD) + Traitmatch * scale(Flowers) + (1|Bird) + (1|Plant),family="poisson")
-
-summary(full)
+summary(tr_interactioF)
 ```
 
 ##Hierarchical Bayesian Model
-
 
 ### Model Fitting
 
@@ -606,7 +588,7 @@ Dat <- list(
   
   #Length of variables
   Birds=max(obsf$Bird),
-  resources=obsf$Availability,
+  resources=obsf$All_Flowers,
   traitmatch=obsf$Traitmatch)
 
 #Inits
@@ -620,8 +602,8 @@ ParsStage <- c("alpha","beta1","beta2","beta3","intercept","sigma_int","sigma_sl
 
 #MCMC options
 
-ni <- 50000  # number of draws from the posterior
-nt <- 20  #thinning rate
+ni <- 100  # number of draws from the posterior
+nt <- 2  #thinning rate
 nb <- ni*.8 # number to discard for burn-in
 nc <- 2  # number of chains
 
