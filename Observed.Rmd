@@ -128,8 +128,8 @@ dath<-dath[!dath$Pierce %in% c("y","Y"),]
 ##Match Species to Morphology
 
 ```{r}
-#remove species with less than  10 observations
-keep<-names(which(table(dath$Hummingbird) > 10))
+#remove species with less than  20 observations
+keep<-names(which(table(dath$Hummingbird) > 20))
 
 dath<-droplevels(dath[dath$Hummingbird %in% keep,])
 
@@ -370,7 +370,7 @@ for(x in 1:dim(indatlong)[3]){
       pr<-elevP[elevP$Plant %in% pres[y],"Elevation"]
       #if there is not enough elevation area, make NA
       if(is.na(pr)|!pr==3){
-        helim<-elevH[!elevH$Elevation %in% c(pr,3),"Index"]
+        helim<-elevH[!elevH$Elevation %in% c(pr,3),"Bird"]
         indatlong[helim,colnames(a) %in% pres[y],x]<-NA
         }
       }  
@@ -606,9 +606,9 @@ ParsStage <- c("alpha","beta1","beta2","beta3","intercept","sigma_int","sigma_sl
 
 #MCMC options
 
-ni <- 50000  # number of draws from the posterior
-nt <- 20  #thinning rate
-nb <- ni*.95 # number to discard for burn-in
+ni <- 100000  # number of draws from the posterior
+nt <- 25  #thinning rate
+nb <- ni*.96 # number to discard for burn-in
 nc <- 2  # number of chains
 
 #Jags
@@ -743,7 +743,7 @@ ggplot(data=spe,aes(x=x)) + geom_ribbon(aes(ymin=lower,ymax=upper),alpha=0.1) + 
 
 ###Predicted at high and low resource densities
 
-```{r.eval=F}
+```{r,eval=F}
 castdf<-dcast(pars[pars$par %in% c("beta1","beta2","beta3","alpha"),], species +Chain +Draw ~par ,value.var="estimate")
 
 #Turn to 
@@ -799,9 +799,10 @@ for(d in 1:length(species.split)){
   
   #get data for those species
   billd<-obsf[obsf$Bird %in% index,]
+  billd$All_Flowers<-as.numeric(scale(billd$All_Flowers))
   
   #Calculate interaction effect
-  species.traj[[d]]<-intF(alpha=dat$alpha,beta1=dat$beta1,x=billd$Traitmatch,resources=billd$Availability,beta2=dat$beta2,beta3=dat$beta3)
+  species.traj[[d]]<-intF(alpha=dat$alpha,beta1=dat$beta1,x=billd$Traitmatch,resources=billd$All_Flowers,beta2=dat$beta2,beta3=dat$beta3)
   
   }
 
