@@ -77,6 +77,10 @@ hum.morph<-read.csv(paste(droppath,"Thesis/Maquipucuna_SantaLucia/Results/Hummin
 #Bring in Interaction Matrix
 int<-read.csv(paste(droppath,"Thesis/Maquipucuna_SantaLucia/Results/Network/HummingbirdInteractions.csv",sep=""),row.names=1)
 
+#Some reasonable level of presences, 20 points
+#keep<-names(which(table(int$Hummingbird) > 20))
+#int<-int[int$Hummingbird %in% keep, ]
+
 #Correct known taxonomic errors
 int[int$Iplant_Double=="Alloplectus purpureus","Iplant_Double"]<-"Glossoloma purpureum"
 int[int$Iplant_Double=="Capanea affinis","Iplant_Double"]<-"Kohleria affinis"
@@ -422,7 +426,7 @@ Three measures of resources.
 * The abundance of the particular flower species within two weeks at that elevation transect (200m)
 
 ```{r}
-tyyyc #merge with original data, easier to do as factors
+#merge with original data, easier to do as factors
 obsf<-as.data.frame(obsf)
 obsf$Time<-as.factor(obsf$Time)
 
@@ -523,7 +527,7 @@ tr_interactionU<-glmer(data=obsf,Yobs~Traitmatch * scale(Used_Flowers) + (1|Bird
 
 tr_interactionF<-glmer(data=obsf,Yobs~Traitmatch * scale(FlowerA) + (1|Bird),family="poisson")
 
-summary(tr_interactioF)
+summary(tr_interactionA)
 ```
 
 ##Hierarchical Bayesian Model
@@ -588,23 +592,23 @@ Dat <- list(
   
   #Length of variables
   Birds=max(obsf$Bird),
-  resources=obsf$All_Flowers,
+  resources=as.numeric(scale(obsf$All_Flowers)),
   traitmatch=obsf$Traitmatch)
 
 #Inits
 initB<-rep(.5,Dat$Birds)
-Ninit<-rep(max(obsf$Yobs),Dat$Nobs)
+Ninit<-rep(max(Dat$Yobs)+1,Dat$Nobs)
 
 InitStage <- function(){list(beta1=initB,beta2=initB,detect=initB,beta3=initB,alpha=initB,intercept=0,tau_alpha=0.1,tau_beta1=0.1,tau_beta2=0.1,tau_beta3=0.1,gamma1=0,gamma2=0,gamma3=0,N=Ninit)}
 
 #Parameters to track
-ParsStage <- c("alpha","beta1","beta2","beta3","intercept","sigma_int","sigma_slope1","sigma_slope2","sigma_slope3","sigma_slope4","gamma1","gamma2","gamma3","detect","fit","fitnew","E")
+ParsStage <- c("alpha","beta1","beta2","beta3","intercept","sigma_int","sigma_slope1","sigma_slope2","sigma_slope3","gamma1","gamma2","gamma3","detect","fit","fitnew","E")
 
 #MCMC options
 
-ni <- 100  # number of draws from the posterior
-nt <- 2  #thinning rate
-nb <- ni*.8 # number to discard for burn-in
+ni <- 50000  # number of draws from the posterior
+nt <- 20  #thinning rate
+nb <- ni*.95 # number to discard for burn-in
 nc <- 2  # number of chains
 
 #Jags
@@ -631,7 +635,7 @@ pars<-extract_par(m1)
 ###Assess Convergence
 
 ```{r,cache=FALSE,eval=TRUE,fig.height=5}
-#Intercept
+#Detect
 chainplot(pars,"detect","Detection Probabily")
 ```
 
@@ -678,7 +682,7 @@ psim3
 ```
 
 Trajectories under low and high resource availability
-```{r}
+```{r,eval=F}
 #Trajectories from posterior
 pred_low<-trajF(alpha=castdf$intercept,beta1=castdf$gamma1,x=obsf[obsf$Availability==0,"Traitmatch"],resources=obsf[obsf$Availability==0,"Availability"],beta2=castdf$gamma2,beta3=castdf$gamma3)
 
@@ -687,7 +691,6 @@ pred_high<-trajF(alpha=castdf$intercept,beta1=castdf$gamma1,x=obsf[obsf$Availabi
 predA<-melt(list(Low=pred_low,High=pred_high),id.vars=colnames(pred_low))
 
 ggplot(data=predA,aes(x=x)) + geom_ribbon(aes(ymin=lower,ymax=upper,fill=L1),alpha=0.4)  + geom_line(aes(y=mean,col=L1),size=.8,linetype="dashed",show_guide=F) + theme_bw() + ylab("Interactions") + xlab("Difference between Bill and Corolla Length") + geom_point(data=obsf,aes(x=Traitmatch,y=Yobs)) + labs(fill="Resource Availability")
-
 ```
 
 ###Visualize interactions
@@ -719,8 +722,10 @@ for(d in 1:length(species.split)){
   
   #get data for those species
   billd<-obsf[obsf$Bird %in% index,]
+  #scale resources
+  billd$All_Flowers<-as.numeric(scale(billd$All_Flowers))
   
-  species.traj[[d]]<-trajF(alpha=x$alpha,beta1=x$beta1,beta2=x$beta2,beta3=x$beta3,resources=billd$Availability,x=billd$Traitmatch)
+  species.traj[[d]]<-trajF(alpha=x$alpha,beta1=x$beta1,beta2=x$beta2,beta3=x$beta3,resources=billd$All_Flowers,x=billd$Traitmatch)
   }
 
 names(species.traj)<-names(species.split)
@@ -738,7 +743,7 @@ ggplot(data=spe,aes(x=x)) + geom_ribbon(aes(ymin=lower,ymax=upper),alpha=0.1) + 
 
 ###Predicted at high and low resource densities
 
-```{r}
+```{r.eval=F}
 castdf<-dcast(pars[pars$par %in% c("beta1","beta2","beta3","alpha"),], species +Chain +Draw ~par ,value.var="estimate")
 
 #Turn to 
@@ -843,11 +848,11 @@ pp$Index<-as.numeric(str_match(pp$parameter,pattern="\\[(\\d+)]")[,2])
 obsf$chisq<-pp$chisq
 ```
 
-Order predictions from worst to best
+Order predictions from worst to best.
 
 ```{r}
 chiorder<-obsf %>% arrange(desc(chisq),Bird)
-head(chiorder[,c("Hummingbird","Iplant_Double","chisq","Yobs","Flowers","ElevD","Traitmatch")],50)
+head(chiorder[,c("Hummingbird","Iplant_Double","chisq","Yobs","All_Flowers","ElevD","Traitmatch")],10)
 
 #order `by highest average discrepancy
 chi<-obsf
@@ -857,9 +862,8 @@ chi$Species<-factor(chi$Hummingbird,levels=ord$Hummingbird)
 ord<-chi %>% dplyr::group_by(Iplant_Double) %>% summarize(m=mean(chisq)) %>% arrange(desc(m)) %>% dplyr::select(Iplant_Double) 
 chi$Iplant_Double<-factor(chi$Iplant_Double,levels=ord$Iplant_Double)
 
-ggplot(chi,aes(x=Hummingbird,y=Iplant_Double,fill=log(chisq))) + geom_tile() + theme_bw() + labs(fill="Chi-squared discrepancy") + theme(axis.text.x = element_text(angle = 90, hjust = 1)) + scale_fill_gradientn(limits=c(-10,10),colours=c("white","blue","red"))
+ggplot(chi,aes(x=Hummingbird,y=Iplant_Double,fill=chisq)) + geom_tile() + theme_bw() + labs(fill="Chi-squared discrepancy") + theme(axis.text.x = element_text(angle = 90, hjust = 1)) + scale_fill_gradientn(na.value="white",limits=c(0,500),colours=c("white","blue","red"))
 ```
-
 
 ```{r}
 save.image("Observed.RData")
