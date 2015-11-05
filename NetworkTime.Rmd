@@ -22,7 +22,8 @@ require(igraph)
 require(bipartite)
 library(chron)
 library(gridExtra)
-
+library(doSNOW)
+library(foreach)
 #Set Dropbox Location
 #setwd to dropbox
 droppath<-"C:/Users/Ben/Dropbox/"
@@ -49,17 +50,6 @@ source("Bayesian/BayesFunctions.R")
 **Figure 1. Conceptual figure showing patterns of interactions between birds and flowers for high and low niche overlap, connectance and clustering. The bottom panel shows two hypothezied relationship between available resources, specialization, and trait matching.**
 
 ![ConceptualFigure](C:\Users\Ben\Documents\NetworkTime\Figures\ConceptualFigure.png)
-
-************
-#Deliniate high and low resource availability periods.
-
-* A resource transect is one that is in the top quartile
-
-```{r}
-#Sum floral resources for each transect
-
-#Label each
-```
 
 **Figure 2. Flower abundance per month for each transect. **
 
@@ -117,7 +107,7 @@ nullC<-function(x){
   month.inter<-t(table(x$Hummingbird,x$Iplant_Double))
   #month.interB<-(month.inter>0)*1
 
-metricskeep<-c("connectance","cluster coefficient","niche overlap","togetherness","linkage density","partner diversity","mean number of shared partners","nestedness","number of compartments","weighted connectance")
+metricskeep<-c("connectance","niche overlap","togetherness","linkage density","partner diversity","mean number of shared partners","nestedness","number of compartments","weighted connectance")
 
 true_stat<-networklevel(month.inter)
   
@@ -126,7 +116,7 @@ true_stat<-melt(true_stat)
 true_stat$variable<-rownames(true_stat)
 
 # Create 199 random matrixes
-r.int<-permatfull(month.inter,times=50,fixedmar="columns")
+r.int<-permatfull(month.inter,times=200,fixedmar="columns")
 
 #Compute nestendness seperately.
 nested.test<-nestedness(month.inter)
@@ -157,7 +147,12 @@ out$N<-N
 return(out)}
 
 #apply function to each month
-dat<-rbind_all(lapply(int.M,nullC))
+cl<-makeCluster(2,"SOCK")
+registerDoSNOW(cl)
+runs<-foreach(x=1:length(int.M),.packages=c("bipartite","reshape2","dplyr")) %dopar% {nullC(int.M[[x]])}
+stopCluster(cl)
+
+dat<-rbind_all(runs)
 
 #format date
 dat$Date<-as.Date(paste(1,round(dat$Month),dat$Year,sep="/"),format="%d/%m/%Y")
@@ -166,9 +161,9 @@ dat$Date<-as.Date(paste(1,round(dat$Month),dat$Year,sep="/"),format="%d/%m/%Y")
 datHL<-dat[!str_detect(dat$Metric,".LL"),]
 
 #plot distribution of  values
-p<-ggplot(datHL,aes(x=Date,fill=Metric)) + facet_wrap(~Metric,scales='free') + geom_ribbon(aes(ymin=Lower,ymax=Upper))
+p<-ggplot(datHL,aes(x=Date,fill=Metric)) + facet_wrap(~Metric,scales='free',ncol=4) + geom_ribbon(aes(ymin=Lower,ymax=Upper))
 p<-p+ geom_point(aes(size=N,y=True)) + geom_line(aes(y=True)) 
-p<-p+scale_fill_discrete(guide="none") + scale_x_date(breaks="3 months",label=date_format("%m/%y")) + scale_size_continuous(range=c(2.5,5),"Observations") + labs(y="") + theme_bw()
+p<-p+scale_fill_discrete(guide="none") + scale_x_date(breaks="3 months",label=date_format("%m")) + scale_size_continuous(range=c(2.5,5),"Observations") + labs(y="") + theme_bw()
 print(p) 
 
 ggsave("Figures/NullNetwork.jpg",dpi=600,quality=100,pointsize=14,height=10,width=12)
