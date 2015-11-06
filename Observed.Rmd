@@ -77,17 +77,17 @@ hum.morph<-read.csv(paste(droppath,"Thesis/Maquipucuna_SantaLucia/Results/Hummin
 #Bring in Interaction Matrix
 int<-read.csv(paste(droppath,"Thesis/Maquipucuna_SantaLucia/Results/Network/HummingbirdInteractions.csv",sep=""),row.names=1)
 
-#Some reasonable level of presences, 20 points
-#keep<-names(which(table(int$Hummingbird) > 20))
-#int<-int[int$Hummingbird %in% keep, ]
-
 #Correct known taxonomic errors
 int[int$Iplant_Double=="Alloplectus purpureus","Iplant_Double"]<-"Glossoloma purpureum"
 int[int$Iplant_Double=="Capanea affinis","Iplant_Double"]<-"Kohleria affinis"
 int[int$Iplant_Double=="Columnea cinerea","Iplant_Double"]<-"Columnea mastersonii"
 int[int$Iplant_Double=="Alloplectus teuscheri","Iplant_Double"]<-"Drymonia teuscheri"
 
-int$Hummingbird[int$Hummingbird %in% "Green-crowned Woodnymph"]<-"Crowned Woodnymph"
+#remove species with less than  20 observations
+keep<-names(which(table(int$Hummingbird) > 20))
+
+int<-droplevels(int[int$Hummingbird %in% keep,])
+
 m.dat<-droplevels(int[colnames(int) %in% c("ID","Video","Time","Hummingbird","Sex","TransectID","Transect_R","Iplant_Double","Pierce","DateP","Month","ele","Type")])
 
 #Does the data come from camera or transect?
@@ -128,11 +128,6 @@ dath<-dath[!dath$Pierce %in% c("y","Y"),]
 ##Match Species to Morphology
 
 ```{r}
-#remove species with less than  20 observations
-keep<-names(which(table(dath$Hummingbird) > 20))
-
-dath<-droplevels(dath[dath$Hummingbird %in% keep,])
-
 #observed traitmatching
 traitmatchF<-abs(t(sapply(hum.morph$Bill,function(x){x-fl.morph$TotalCorolla})))
 
@@ -371,13 +366,14 @@ for(x in 1:dim(indatlong)[3]){
       #if there is not enough elevation area, make NA
       if(is.na(pr)|!pr==3){
         helim<-elevH[!elevH$Elevation %in% c(pr,3),"Bird"]
-        indatlong[helim,colnames(a) %in% pres[y],x]<-NA
+        #sanity check, make sure rows don't have values
+        sums<-indatlong[rownames(a) %in% helim,colnames(a) %in% pres[y],x]
+        #set to NA if they are outside of elevation and are blank
+        indatlong[rownames(a) %in% helim & sums==0 ,colnames(a) %in% pres[y],x]<-NA
         }
       }  
     }
   }
-
-
 
 #melt and remove Na's
 indat<-melt(indatlong)
@@ -462,17 +458,19 @@ for (x in 1:nrow(obsf)){
  #Filter by Date
  bydate<-byelev[abs(byelev$DateP -event_date)  < 15,]
  
+ #average number of flowers at each elevation within that time frame.
+ 
  #count number of all flowers
- obsf$All_Flowers[x]<-as.numeric(bydate%>% summarize(n=sum(Total_Flowers,na.rm=T)) %>% .$n)
+ obsf$All_Flowers[x]<- bydate%>% group_by(DateP,Transect_R) %>% summarize(n=sum(Total_Flowers,na.rm=T)) %>% group_by(Transect_R) %>% summarize(mn=mean(n)) %>% summarize(F=sum(mn)) %>% .$F
  
  #filter by species
   byspecies<-bydate[bydate$Iplant_Double %in% sp_list$Iplant_Double,]
  
-  obsf$Used_Flowers[x]<-as.numeric(byspecies%>% summarize(n=sum(Total_Flowers,na.rm=T)) %>% .$n)
+  obsf$Used_Flowers[x]<-byspecies%>% group_by(DateP,Transect_R) %>% summarize(n=sum(Total_Flowers,na.rm=T)) %>% group_by(Transect_R) %>% summarize(mn=mean(n)) %>% summarize(F=sum(mn)) %>% .$F
   
   #just the abundance of that species
   bys <-  byspecies[byspecies$Iplant_Double %in% sp,]
-  obsf$FlowerA[x] <-  as.numeric(bys %>% summarize(n = sum(Total_Flowers,na.rm = T)) %>% .$n)
+  obsf$FlowerA[x] <-  bys %>% group_by(DateP,Transect_R) %>% summarize(n=sum(Total_Flowers,na.rm=T)) %>% group_by(Transect_R) %>% summarize(mn=mean(n)) %>% summarize(F=sum(mn)) %>% .$F
 
 }
 ```
@@ -491,7 +489,7 @@ Let's look at the same figures as above, with the addition of informed 0's for n
 ```{r}
 mobs<-obsf[,] %>% group_by(Hummingbird,Iplant_Double,Month,Year) %>% summarize(Events=n(),d=mean(Yobs),Traitmatch=unique(Traitmatch),Used_Flowers=mean(Used_Flowers))
 
-ggplot(mobs,aes(x=Traitmatch,y=d,col=log(Used_Flowers))) + geom_point(aes(size=Events),alpha=.8)  + scale_size_continuous(range=c(2,6)) + labs(col="Flower Availability",y="Average Number of Visits") + scale_color_continuous(low='blue',high='red')
+ggplot(mobs,aes(x=Traitmatch,y=d,col=log(Used_Flowers))) + geom_point(aes(size=Events),alpha=.8)  + scale_size_continuous(range=c(2,6)) + labs(col="Flower Availability",y="Average Number of Visits") + scale_color_continuous(low='blue',high='red') + facet_wrap(~Hummingbird,ncol=2) + theme_bw()
 ```
 
 ##Mean Intensity as a function of resources
@@ -571,6 +569,21 @@ $$\sigma_{slope1} = \frac{1}{\tau_{\beta_1}}^2$$
 $$\sigma_{slope2} = \frac{1}{\tau_{\beta_2}}^2$$
 $$\sigma_{slope3} = \frac{1}{\tau_{\beta_3}}^2$$
 
+Reformat index for jags.
+Jags needs a vector of input species 1:n with no breaks.
+
+```{r}
+
+obsf$Hummingbird<-as.factor(obsf$Hummingbird)
+obsf$Iplant_Double<-as.factor(obsf$Iplant_Double)
+obsf$jBird<-as.numeric(obsf$Hummingbird)
+obsf$jPlant<-as.numeric(obsf$Iplant_Double)
+
+jagsIndexBird<-data.frame(Hummingbird=levels(obsf$Hummingbird),jBird=1:length(levels(obsf$Hummingbird)))
+ 
+jagsIndexPlants<-data.frame(Iplant_Double=levels(obsf$Iplant_Double),jPlant=1:length(levels(obsf$Iplant_Double)))
+```
+
 ```{r,eval=T,strip.white=T}
 
 #Source model
@@ -586,12 +599,12 @@ Dat <- list(
   Nobs=nrow(obsf),
   
   #indices
-  Bird=obsf$Bird,
-  Plant=obsf$Plant,
+  Bird=obsf$jBird,
+  Plant=obsf$jPlant,
   Time=1:nrow(obsf),
   
   #Length of variables
-  Birds=max(obsf$Bird),
+  Birds=max(obsf$jBird),
   resources=as.numeric(scale(obsf$All_Flowers)),
   traitmatch=obsf$Traitmatch)
 
@@ -607,8 +620,8 @@ ParsStage <- c("alpha","beta1","beta2","beta3","intercept","sigma_int","sigma_sl
 #MCMC options
 
 ni <- 100000  # number of draws from the posterior
-nt <- 25  #thinning rate
-nb <- ni*.96 # number to discard for burn-in
+nt <- 10  #thinning rate
+nb <- ni*.9 # number to discard for burn-in
 nc <- 2  # number of chains
 
 #Jags
@@ -672,25 +685,24 @@ tracegplot(pars,c("gamma1","gamma2","gamma3","sigma_int","sigma_slope1","sigma_s
 castdf<-dcast(pars[pars$par %in% c("gamma1","gamma2","gamma3","intercept"),], Chain + Draw~par,value.var="estimate")
 ```
 
+Mean trajectories.
 ```{r,fig.width=9,fig.height=7}
 #Trajectories from posterior
-predy<-trajF(alpha=castdf$intercept,beta1=castdf$gamma1,x=Dat$traitmatch,resources=Dat$resources,beta2=castdf$gamma2,beta3=castdf$gamma3)
+predy<-trajF(alpha=castdf$intercept,beta1=castdf$gamma1,x=Dat$traitmatch,resources=Dat$resources,beta2=castdf$gamma2,beta3=mean(castdf$gamma3))
 
-psim3<-ggplot(data=predy,aes(x=x)) + geom_ribbon(aes(ymin=lower,ymax=upper),alpha=0.1,fill="red")  + geom_line(aes(y=mean),size=.8,col="red",linetype="dashed") + theme_bw() + ylab("Interactions") + xlab("Difference between Bill and Corolla Length") + geom_point(data=obsf,aes(x=Traitmatch,y=Yobs))
+psim3<-ggplot(data=predy,aes(x=x)) + geom_ribbon(aes(ymin=lower,ymax=upper),alpha=0.1,fill="red")  + geom_line(aes(y=mean),size=.5,col="red",linetype="dashed") + theme_bw() + ylab("Interactions") + xlab("Difference between Bill and Corolla Length") + geom_point(data=obsf,aes(x=Traitmatch,y=Yobs))
 psim3
 
 ```
 
-Trajectories under low and high resource availability
-```{r,eval=F}
+
+```{r,fig.width=9,fig.height=7}
 #Trajectories from posterior
-pred_low<-trajF(alpha=castdf$intercept,beta1=castdf$gamma1,x=obsf[obsf$Availability==0,"Traitmatch"],resources=obsf[obsf$Availability==0,"Availability"],beta2=castdf$gamma2,beta3=castdf$gamma3)
+predy<-trajF(alpha=castdf$intercept,beta1=castdf$gamma1,x=Dat$traitmatch,resources=obsf$All_Flowers,beta2=castdf$gamma2,beta3=castdf$gamma3)
 
-pred_high<-trajF(alpha=castdf$intercept,beta1=castdf$gamma1,x=obsf[obsf$Availability==1,"Traitmatch"],resources=obsf[obsf$Availability==1,"Availability"],beta2=castdf$gamma2,beta3=castdf$gamma3)
+psim3<-ggplot(data=predy,aes(x=x)) + geom_ribbon(aes(ymin=lower,ymax=upper),alpha=0.1,fill="red")  + geom_line(aes(y=mean),size=.8,col="red",linetype="dashed") + theme_bw() + ylab("Interactions") + xlab("Difference between Bill and Corolla Length") + geom_point(data=obsf,aes(x=Traitmatch,y=Yobs))
+psim3
 
-predA<-melt(list(Low=pred_low,High=pred_high),id.vars=colnames(pred_low))
-
-ggplot(data=predA,aes(x=x)) + geom_ribbon(aes(ymin=lower,ymax=upper,fill=L1),alpha=0.4)  + geom_line(aes(y=mean,col=L1),size=.8,linetype="dashed",show_guide=F) + theme_bw() + ylab("Interactions") + xlab("Difference between Bill and Corolla Length") + geom_point(data=obsf,aes(x=Traitmatch,y=Yobs)) + labs(fill="Resource Availability")
 ```
 
 ###Visualize interactions
@@ -735,49 +747,10 @@ species.traj<-melt(species.traj,id.var=colnames(species.traj[[1]]))
 #split out names and model
 species.traj[,c("Index")]<-colsplit(species.traj$L1,"\\.",c("Index"))
 
-spe<-merge(species.traj,elevH,by.x="Index",by.y="Bird")
+spe<-merge(species.traj,jagsIndexBird,by.x="Index",by.y="jBird")
 
 #plot and compare to original data
 ggplot(data=spe,aes(x=x)) + geom_ribbon(aes(ymin=lower,ymax=upper),alpha=0.1) + geom_line(aes(y=mean),size=1) + theme_bw() + ylab("Occurrence Probability")+ xlab("Difference between Bill and Corolla Length") + facet_wrap(~Hummingbird,scales="free",ncol=3) + geom_point(data=obsf,aes(x=Traitmatch,y=Yobs))
-```
-
-###Predicted at high and low resource densities
-
-```{r,eval=F}
-castdf<-dcast(pars[pars$par %in% c("beta1","beta2","beta3","alpha"),], species +Chain +Draw ~par ,value.var="estimate")
-
-#Turn to 
-castdf$species<-factor(castdf$species,levels=1:max(as.numeric(castdf$species)))
-
-species.split<-split(castdf,list(castdf$species),drop = T)
-
-species.traj<-list()
-
-for(d in 1:length(species.split)){
-  x<-species.split[[d]]
-  index<-unique(x$species)
-  
-  #get data for those species
-  billd<-obsf[obsf$Bird %in% index,]
-  
-  Low<-trajF(alpha=x$alpha,beta1=x$beta1,beta2=x$beta2,beta3=x$beta3,resources=billd[billd$Availability==0,"Availability"],x=billd[billd$Availability==0,"Traitmatch"])
-  High<-trajF(alpha=x$alpha,beta1=x$beta1,beta2=x$beta2,beta3=x$beta3,resources=billd[billd$Availability==1,"Availability"],x=billd[billd$Availability==1,"Traitmatch"])
-  r<-melt(list(Low=Low,High=High),id.vars=colnames(Low))
-  colnames(r)[colnames(r) %in% "L1"]<-"R"
-  species.traj[[d]]<-r
-  }
-
-names(species.traj)<-names(species.split)
-
-species.traj<-melt(species.traj,id.var=colnames(species.traj[[1]]))
-
-#split out names and model
-species.traj[,c("Index")]<-colsplit(species.traj$L1,"\\.",c("Index"))
-
-spe<-merge(species.traj,elevH,by.x="Index",by.y="Bird")
-
-#plot and compare to original data
-ggplot(data=spe,aes(x=x)) + geom_ribbon(aes(ymin=lower,ymax=upper,fill=R),alpha=0.1) + geom_line(aes(y=mean,col=R),size=1,show_guide=F) + theme_bw() + ylab("Occurrence Probability")+ xlab("Difference between Bill and Corolla Length") + facet_wrap(~Hummingbird,scales="free",ncol=4) + geom_point(data=obsf,aes(x=Traitmatch,y=Yobs)) + labs("Resource Availability")
 ```
 
 ###Species Level Interaction
@@ -812,7 +785,7 @@ species.traj<-melt(species.traj,id.var=colnames(species.traj[[1]]))
 #split out names and model
 species.traj[,c("Index")]<-colsplit(species.traj$L1,"\\.",c("Index"))
 
-spe<-merge(species.traj,elevH,by.x="Index",by.y="Bird")
+spe<-merge(species.traj,jagsIndexBird,by.x="Index",by.y="jBird")
 
 #match colnames
 
