@@ -5,6 +5,8 @@ extract_par<-function(x){
 parsO<-melt(x$BUGSoutput$sims.array)
 colnames(parsO)<-c("Draw","Chain","parameter","estimate")
 
+parsO<-parsO[!parsO$Draw %in% 1:(max(parsO$Draw)-(2000/x$BUGSoutput$n.chains)),]
+
 #label species and plants
 l<-levels(parsO$parameter)
 

@@ -7,7 +7,6 @@ html_document:
   keep_md:true
 ---
 
-
 ```{r,warning=FALSE,message=FALSE,echo=FALSE,cache=FALSE}
 library(reshape2)
 library(chron)
@@ -31,7 +30,7 @@ source("Bayesian/BayesFunctions.R")
 
 #Simulation   
 
-I first create data with constant detection for each hummingbird speices, and the interaction frequency is a function of a species hierarcichal model and corolla similarity * resource availability. There is uneven sampling among species.
+I first create data with constant detection for each hummingbird species, and the interaction frequency is a function of a species hierarchical model and corolla similarity * resource availability. There is uneven sampling among species.
 
 ### Parameters
 
@@ -39,9 +38,9 @@ I first create data with constant detection for each hummingbird speices, and th
 * Range of hummingbird bill sizes (mm) ~ Pois(2)
 * Twenty plants
 * Range of corolla sizes (mm) ~ Pois(2)
-* Mean frequeny ($\lambda$) for each hummingbird is drawn from U(0,10)  
+* Mean frequent ($\lambda$) for each hummingbird is drawn from U(0,10)  
 * Trait matching (minimizing Bill-Corolla difference) is drawn from a 
-hierarcichal distribution
+hierarchical distribution
 
 $$log(\lambda_{i,j,k})<-\alpha_i + \beta_i * abs(Bill_i - Corolla_j) * \beta_2 * Resources_k + \beta_3 * Resources_k * abs(Bill_i - Corolla_j) $$
 
@@ -144,7 +143,7 @@ mdat<-sim(-.5,0,0)
 ggplot(mdat,aes(col=resources,y=y,x=traitmatch)) + geom_point() + geom_smooth(aes(group=1),method="glm",family="poisson",formula=y~x) + theme_bw() + labs(x="Bill-Corolla Difference",y="Occurrences","Hummingbird") + ggtitle("Simulated data for each species") + labs(col="Available Resources") + scale_color_continuous(low="blue",high="red",breaks=c(-1.5,0,1.5),labels=c("Resource Poor","","Resource Rich")) + facet_wrap(~Var1,nrow=2)
 ```
 
-2. Species interactions are based on similiarity in morphology and abundance of resources, without an interaction. As resources increase, species interact more with all resources. Red on top, blue on the bottom.
+2. Species interactions are based on similarity in morphology and abundance of resources, without an interaction. As resources increase, species interact more with all resources. Red on top, blue on the bottom.
 
 ```{r}
 mdat<-sim(-1,-.5,0)
@@ -152,24 +151,24 @@ ggplot(mdat,aes(col=resources,y=y,x=traitmatch)) + geom_point() + geom_smooth(ae
 ```
 
 
-3. Species interactions are based on similiarity in morphology and abundance of resources, without an interaction. As resources decrease, species interact more with all resources. Blue on top, red on the bottom.
+3. Species interactions are based on similarity in morphology and abundance of resources, without an interaction. As resources decrease, species interact more with all resources. Blue on top, red on the bottom.
 
 ```{r}
 mdat<-sim(-1,-.5,0)
 ggplot(mdat,aes(col=resources,y=y,x=traitmatch)) + geom_point() + geom_smooth(aes(group=1),method="glm",family="poisson",formula=y~x) + theme_bw() + labs(x="Bill-Corolla Difference",y="Occurrences","Hummingbird") + ggtitle("Simulated data for each species") + labs(col="Available Resources") + scale_color_continuous(low="blue",high="red",breaks=c(-1.5,0,1.5),labels=c("Resource Poor","","Resource Rich")) + facet_wrap(~Var1,nrow=2)
 ```
 
-4. Species interactions are based on similiarity in morphology and abundance of resources, with an interaction. As resources decrease, hummingbirds interact more with plant that match their bill length. The position of red
+4. Species interactions are based on similarity in morphology and abundance of resources, with an interaction. As resources decrease, hummingbirds interact **more** with plant that match their bill length.
 
 ```{r}
-mdat<-sim(-1,0,.5)
+mdat<-sim(-.5,0,.5)
 ggplot(mdat,aes(col=resources,y=y,x=traitmatch)) + geom_point() + geom_smooth(aes(group=1),method="glm",family="poisson",formula=y~x) + theme_bw() + labs(x="Bill-Corolla Difference",y="Occurrences","Hummingbird") + ggtitle("Simulated data for each species") + labs(col="Available Resources") + scale_color_continuous(low="blue",high="red",breaks=c(-1.5,0,1.5),labels=c("Resource Poor","","Resource Rich")) + facet_wrap(~Var1,nrow=2)
 ```
 
-5. Species interactions are based on similiarity in morphology and abundance of resources, with an interaction. As resources decrease, hummingbirds interact more with plant that match their bill length. The position of red
+5. Species interactions are based on similarity in morphology and abundance of resources, with an interaction. As resources decrease, hummingbirds interact **less** with plant that match their bill length. 
 
 ```{r}
-mdat<-sim(-.5,0,-.5)
+mdat<-sim(-.1,0,-1)
 ggplot(mdat,aes(col=resources,y=y,x=traitmatch)) + geom_point() + geom_smooth(aes(group=1),method="glm",family="poisson",formula=y~x) + theme_bw() + labs(x="Bill-Corolla Difference",y="Occurrences","Hummingbird") + ggtitle("Correlation in Simulated Data") + labs(col="Available Resources") + scale_color_continuous(low="blue",high="red",breaks=c(-1.5,0,1.5),labels=c("Resource Poor","","Resource Rich")) + facet_wrap(~Var1,nrow=2)
 ```
 
@@ -199,12 +198,12 @@ ggplot(modlist,aes(x=traitmatch,y=R_effect,col=as.factor(model))) + geom_line() 
 * Model 1: Increased resources has no effect on trait-matching
 * Model 2: Increased resources has no effect on trait-matching
 * Model 3: Increased resources has no effect on trait-matching
-* Model 4: As there are more available resources, birds choose resources more different from their bill lengths
-* Model 5: As there are more available resources, birds choose resources more similiar to their bill lengths
+* Model 4: As there are more available resources, birds choose resources less similiar from their bill lengths
+* Model 5: As there are more available resources, birds choose resources more similar to their bill lengths
 
-#Simulate Model 4
+#Simulate Model 5
 
-Add in incomplete sampling - some flowers are onlyin bloom 3/4 of the samples
+Add in incomplete sampling - some flowers are only in bloom 3/4 of the samples
 
 ```{r,fig.width=11,fig.height=4}
 ##Simulate Interactions
@@ -273,8 +272,7 @@ true_interactions<-array(data=sapply(lambda,function(x){rpois(1,x)}),dim=c(h_spe
 #combine and melt into a single datafFrame
 mdat<-dcast(melt(list(y=true_interactions,traitmatch=traitarray,resources=resources)),Var1+Var2+Var3~L1)
 
-ggplot(mdat,aes(col=resources,y=y,x=traitmatch)) + geom_point() + geom_smooth(aes(group=1),method="glm",family="poisson",formula=y~x) + theme_bw() + labs(x="Bill-Corolla Difference",y="Occurrences","Hummingbird") + ggtitle("Correlation in Simulated Data") + labs(col="Available Resources") + scale_color_continuous(low="blue",high="red",breaks=c(-1.5,0,1.5),labels=c("Resource Poor","","Resource Rich"))
-
+ggplot(mdat,aes(col=resources,y=y,x=traitmatch)) + geom_point() + geom_smooth(aes(group=1),method="glm",family="poisson",formula=y~x) + theme_bw() + labs(x="Bill-Corolla Difference",y="Occurrences","Hummingbird") + ggtitle("Correlation in Simulated Data") + labs(col="Available Resources") + scale_color_continuous(low="blue",high="red")
 ```
 
 # Create biased detection rates
@@ -329,7 +327,6 @@ $$\alpha_i \sim N(intercept,\tau_{\alpha})$$
 $$\beta_{1,i} \sim N(\gamma_1i,\tau_{\beta_1})$$
 $$\beta_{2,i} \sim N(\gamma_2i,\tau_{\beta_2})$$
 $$\beta_{3,i} \sim N(\gamma_3i,\tau_{\beta_3})$$
-
 
 **Hyperpriors**
 
@@ -523,51 +520,5 @@ origint<-intF(alpha=rnorm(2000,intercept,sigma_intercept),beta1=rnorm(2000,gamma
 psim4<-ggplot(data=predyint,aes(x=x)) + geom_ribbon(aes(ymin=lower,ymax=upper),alpha=0.3,fill="red") + theme_bw() + ylab("Interactions") + geom_line(data=origint,aes(x=x,y=mean),col='black',size=1) + geom_line(aes(y=mean),size=.8,col="red",linetype="dashed") + xlab("Difference between Bill and Corolla Length") 
 
 psim4
-```
-
-###Predicted Frequency
-
-Determining model fit.
-
-```{r,eval=T}
-#this needs to be fixed, the regular expression doesn't quite match
-#any given state
-pars[pars$par %in% "Y","Month"]<-str_match(pars[pars$par %in% "Y","parameter"],pattern="\\[(\\d+),(\\d+),(\\d+)]")[,3]
-
-
-predState<-group_by(pars,par) %>% filter(par=="Y") %>% group_by(par,species,plant,Month) %>% summarize(State=as.numeric(names(which.max(table(estimate)))))
-
-predState$species<-as.factor(predState$species)
-predState$plant<-factor(predState$plant,levels=1:plant_species)
-
-predplot<-ggplot(predState,aes(x=species,y=plant,fill=State)) + geom_tile() + scale_fill_continuous(na.value="white",low="white",high="red",limits=c(0,max(obs.state$Detection))) + labs(x="Hummingbird",y="Plant",fill="Predicted State") + ggtitle("Predicted") + facet_wrap(~Model)
-
-#compare true and pred states
-tr<-melt(true_interactions)
-colnames(tr)<-c("Hummingbird","Plant","Month","True_State")
-
-mdat<-merge(predState,tr,by.x=c("species","plant","Month"),by.y=c("Hummingbird","Plant","Month"))
-
-ggplot(mdat,aes(y=State,x=True_State)) + geom_point(size=3) + geom_abline(linetype="dashed") + theme_bw() + xlab("True State") + ylab("Predicted State") + coord_equal()
-```
-
-###Posterior Check
-
-Since I have simualted the data, it should fit as well as any random dataset drawn from the estimated parameters. An ideal fit would be posterior values sitting along the 1:1 line.
-
-```{r,fig.height=4,fig.width=8,eval=F}
-
-fitstat<-droplevels(pars[pars$par %in% c("fit","fitnew"),])
-fitstat<-dcast(fitstat,Draw+Chain~par,value.var="estimate")
-
-#add 1:1 line
-
-ymin<-round(min(c(fitstat$fit,fitstat$fitnew)))
-ymax<-round(max(c(fitstat$fit,fitstat$fitnew)))
-ab<-data.frame(x=ymin:ymax,y=ymin:ymax)
-p<-ggplot(fitstat,aes(x=fit,y=fitnew)) + geom_point() + theme_bw() + coord_equal()
-psim5<-p  + labs(x="Discrepancy of observed data",y="Discrepancy of replicated data",col="Model") + geom_line(data=ab,aes(x=x,y=y)) + ggtitle("Simulated Data")
-
-psim5
 ```
 
