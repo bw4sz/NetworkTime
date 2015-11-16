@@ -39,13 +39,6 @@ opts_chunk$set(message=FALSE,warning=FALSE,fig.height=9,fig.width=13,echo=FALSE,
 source("Bayesian/BayesFunctions.R")
 ```
 
-#Exploratory Network Analysis
-
-```{r}
-#Exploratory analysis
-#source("Network.R")
-```
-
 ************
 **Figure 1. Conceptual figure showing patterns of interactions between birds and flowers for high and low niche overlap, connectance and clustering. The bottom panel shows two hypothezied relationship between available resources, specialization, and trait matching.**
 
@@ -53,7 +46,7 @@ source("Bayesian/BayesFunctions.R")
 
 **Figure 2. Flower abundance per month for each transect. **
 
-```{r}
+```{r,fig.height=7,fig.width=8}
 #Get flower transect data
 full.fl<-read.csv("C:/Users/Ben/Dropbox/Thesis/Maquipucuna_SantaLucia/Results/FlowerTransects/FlowerTransectClean.csv")[,-1]
 
@@ -70,7 +63,7 @@ flower.month$Month.a<-factor(month.abb[flower.month$Month],month.abb[c(1:12)])
 flower.month$Year<-as.factor(flower.month$Year)
 
 #get quantile for each transect
-thresh<-melt(group_by(flower.month,Transect_R) %>% summarize(Threshold=quantile(log(Flowers),0.666)) )
+thresh<-melt(group_by(flower.month,Transect_R) %>% summarize(Threshold=quantile(log(Flowers),0.75)) )
 flower.month<-merge(flower.month,thresh)
 flower.month$High<-log(flower.month$Flowers)>flower.month$value
 #plot
@@ -116,7 +109,7 @@ true_stat<-melt(true_stat)
 true_stat$variable<-rownames(true_stat)
 
 # Create 199 random matrixes
-r.int<-permatfull(month.inter,times=200,fixedmar="columns")
+r.int<-permatfull(month.inter,times=200)
 
 #Compute nestendness seperately.
 nested.test<-nestedness(month.inter)
@@ -147,7 +140,7 @@ out$N<-N
 return(out)}
 
 #apply function to each month
-cl<-makeCluster(2,"SOCK")
+cl<-makeCluster(20,"SOCK")
 registerDoSNOW(cl)
 runs<-foreach(x=1:length(int.M),.packages=c("bipartite","reshape2","dplyr")) %dopar% {nullC(int.M[[x]])}
 stopCluster(cl)
@@ -250,7 +243,7 @@ m.datH<-merge(m.datH,fl.morph, by.x="Iplant_Double",by.y="X")
 m.datH<-m.datH[!m.datH$Pierce %in% c("y","Y"),]
 ```
 
-###Potential Figure
+###Correlation
 
 The correlation coefficient among bill and corolla lengths decreases as a function of available resources. The gray ribbon is a null randomization of the correlation structure for each month.
 
@@ -347,7 +340,7 @@ finaldat<-merge(finaldat,sizeall)
 p<-ggplot(data=finaldat,aes(x=log(Flowers),fill=variable))
 p<-p+geom_ribbon(aes(ymin=Lower,ymax=Upper),fill="grey20",alpha=.15)
 p<-p 
-p<-p+ theme_bw()  + labs(y="Correlaton between Bill and Corolla Length",x="Log Available Resources",shape="Year",y="")
+p<-p+ theme_bw() + labs(y="Correlaton between Bill and Corolla Length",x="Log Available Resources",shape="Year",y="")
 
 p<-p + scale_y_continuous(breaks=c(-.3,0,.2,.4,.6,.8)) + scale_size_continuous(range=c(2.5,5)) + scale_fill_discrete(guide="none") + geom_smooth(aes(y=value),method="lm",fill="grey60",alpha=.8)  + labs(size="Observations") + geom_point(aes(y=value,shape=as.factor(Year),size=N)) + geom_text(aes(y=value,label=month.abb[Month]),size=3.5,vjust=-.5)
 print(p)
@@ -448,7 +441,7 @@ hum<-levels(m.datH$Hummingbird)
 hum<-hum[hum %in% keep]
 flowerh<-lapply(hum,function(h){
   #Find plant species
-  plants<-m.datH %>% filter(Hummingbird==h) %>% select(Iplant_Double) %>% distinct()
+  plants<-m.datH %>% filter(Hummingbird==h) %>% dplyr::select(Iplant_Double) %>% distinct()
   
   #Query the transect for availability of these plants
   full.fl %>% filter(Iplant_Double %in% levels(factor(plants$Iplant_Double))) %>% group_by(Month,Year,Transect_R,Date_F) %>% dplyr::summarise(Flowers=sum(Total_Flowers,na.rm=TRUE))  %>% filter(Flowers>2) %>% mutate(Hummingbird=h) %>% group_by(Month,Year,Transect_R,Hummingbird) %>% summarize(TFlowers=mean(Flowers,na.rm=T)) %>% filter(TFlowers>10)
@@ -478,10 +471,21 @@ p<-p + scale_x_discrete("Available Resources",labels=c("Low","High")) + scale_fi
 p + labs(y="Difference between bill and corolla Length")
 ggsave("Figures/BillLength_Resources.jpg",height=7,width=10,units="in",dpi=600)
 ggsave("Figures/BillLength_Resources.svg",height=7,width=10)
+```
 
+Look at density plots
+```{r}
+p<-ggplot(idflower,aes(y=abs(Total_Culmen-TotalCorolla),x=HL,fill=Total_Culmen>30)) + geom_boxplot()
+p<-p + theme_bw() + facet_wrap(~Hummingbird,scales="free")
+p<-p + scale_x_discrete("Available Resources",labels=c("Low","High")) + scale_fill_discrete("Bill Length",labels=c("Short","Long")) 
+p
+```
+
+```{r}
+ggplot(idflower,aes(x=abs(Total_Culmen-TotalCorolla),fill=HL),alpha=.6) + geom_density(alpha=.5) + facet_wrap(~Hummingbird,scales='free') + theme_bw() + scale_fill_discrete("Available Resources",labels=c("Low","High"))
 ```
 
 
 ```{r}
-save.image("Observed.RData")
+save.image("NetworkTime.RData")
 ```

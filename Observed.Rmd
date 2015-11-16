@@ -41,7 +41,7 @@ library(chron)
 library(gridExtra)
 library(MASS)
 library(boot)
-
+library(BEST)
 #Set Dropbox Location
 #setwd to dropbox
 droppath<-"C:/Users/Ben/Dropbox/"
@@ -584,7 +584,7 @@ Dat <- list(
   
   #Length of variables
   Birds=max(obsf$jBird),
-  resources=obsf$Used_Flowers,
+  resources=obsf$FlowerA,
   traitmatch=obsf$Traitmatch)
 
 #Inits
@@ -599,7 +599,7 @@ ParsStage <- c("alpha","beta1","beta2","beta3","intercept","sigma_int","sigma_sl
 #MCMC options
 
 ni <- 1000000  # number of draws from the posterior
-nt <- 20  #thinning rate
+nt <- 10  #thinning rate
 nb <- ni*.96 # number to discard for burn-in
 nc <- 2  # number of chains
 
@@ -625,9 +625,9 @@ m1 = jags(inits=InitStage,
 Re-update if needed to extend
 
 ```{r,eval=F}
-#rjags::load.module('dic')
-#recompile(m1)
-#m1<-update(m1,n.iter=100000)
+rjags::load.module('dic')
+recompile(m1)
+m1<-update(m1,n.iter=400000)
 ```
 
 ```{r,eval=T}
@@ -658,9 +658,9 @@ chainplot(pars,c("gamma1","gamma2","gamma3","sigma_int","sigma_slope1","sigma_sl
 tracegplot(pars,"detect","Detection Parameters") + xlim(0,1) + facet_wrap(~species,scales='free',ncol=2)
 ```
 
-```{r,fig.height=9}
+```{r,fig.height=12}
 ###Slope Posterior Distributions
-tracegplot(pars,c("alpha","beta1","beta2","beta3"),"Species Level Parameters") + facet_grid(species~par)
+tracegplot(pars,c("alpha","beta1","beta2","beta3"),"Species Level Parameters") + facet_grid(species~par,scale='free')
 ```
 
 ```{r,fig.height=5}
@@ -679,7 +679,7 @@ Hold resources at 0, what does trait-matching look like?
 
 ```{r,fig.width=9,fig.height=7}
 #Trajectories from posterior
-predy<-trajF(alpha=castdf$intercept,beta1=castdf$gamma1,x=Dat$traitmatch,resources=Dat$resources,beta2=castdf$gamma2,beta3=0)
+predy<-trajF(alpha=castdf$intercept,beta1=castdf$gamma1,x=Dat$traitmatch,resources=Dat$resources,beta2=castdf$gamma2,beta3=0,type='hdi')
 
 psim3<-ggplot(data=predy,aes(x=x)) + geom_ribbon(aes(ymin=lower,ymax=upper),alpha=0.1,fill="red")  + geom_line(aes(y=mean),size=.5,col="red",linetype="dashed") + theme_bw() + ylab("Interactions") + xlab("Difference between Bill and Corolla Length") + geom_point(data=obsf,aes(x=Traitmatch,y=Yobs))
 psim3
@@ -687,7 +687,7 @@ psim3
 
 ```{r,fig.width=9,fig.height=7}
 #Trajectories from posterior
-predy<-trajF(alpha=castdf$intercept,beta1=castdf$gamma1,x=Dat$traitmatch,resources=Dat$resources,beta2=castdf$gamma2,beta3=castdf$gamma3)
+predy<-trajF(alpha=castdf$intercept,beta1=castdf$gamma1,x=Dat$traitmatch,resources=Dat$resources,beta2=castdf$gamma2,beta3=castdf$gamma3,type='hdi')
 
 psim3<-ggplot(data=predy,aes(x=x)) + geom_ribbon(aes(ymin=lower,ymax=upper),alpha=0.1,fill="red")  + geom_line(aes(y=mean),size=.8,col="red",linetype="dashed") + theme_bw() + ylab("Interactions") + xlab("Difference between Bill and Corolla Length") + geom_point(data=obsf,aes(x=Traitmatch,y=Yobs))
 psim3
@@ -696,7 +696,7 @@ psim3
 ###Visualize interactions
 
 ```{r}
-predyint<-intF(alpha=castdf$intercept,beta1=castdf$gamma1,x=Dat$traitmatch,resources=Dat$resources,beta2=castdf$gamma2,beta3=castdf$gamma3)
+predyint<-intF(alpha=castdf$intercept,beta1=castdf$gamma1,x=Dat$traitmatch,resources=Dat$resources,beta2=castdf$gamma2,beta3=castdf$gamma3,type='hdi')
 
 psim4<-ggplot(data=predyint,aes(x=x)) + geom_ribbon(aes(ymin=lower,ymax=upper),alpha=0.3,fill="black") + theme_bw() + ylab("Effect of Resources on Trait Matching") + geom_line(aes(y=mean),size=.8,col="black",linetype="dashed") + xlab("Difference between Bill and Corolla Length") 
 
@@ -724,7 +724,7 @@ for(d in 1:length(species.split)){
   billd<-obsf[obsf$jBird %in% index,]
 
   #scale resources
-  species.traj[[d]]<-trajF(alpha=x$alpha,beta1=x$beta1,beta2=x$beta2,beta3=x$beta3,resources=billd$Used_Flowers,x=billd$Traitmatch)
+  species.traj[[d]]<-trajF(alpha=x$alpha,beta1=x$beta1,beta2=x$beta2,beta3=x$beta3,resources=billd$FlowerA,x=billd$Traitmatch,type='hdi')
   }
 
 names(species.traj)<-names(species.split)
@@ -761,7 +761,7 @@ for(d in 1:length(species.split)){
   billd<-obsf[obsf$jBird %in% index,]
 
   #Calculate interaction effect
-  species.traj[[d]]<-intF(alpha=dat$alpha,beta1=dat$beta1,x=billd$Traitmatch,resources=billd$Used_Flowers,beta2=dat$beta2,beta3=dat$beta3)
+  species.traj[[d]]<-intF(alpha=dat$alpha,beta1=dat$beta1,x=billd$Traitmatch,resources=billd$FlowerA,beta2=dat$beta2,beta3=dat$beta3,type='hdi')
   
   }
 
@@ -779,6 +779,13 @@ spe<-merge(species.traj,jagsIndexBird,by.x="Index",by.y="jBird")
 ggplot(data=spe,aes(x=x)) + geom_ribbon(aes(ymin=lower,ymax=upper,fill=Hummingbird),alpha=0.3) + geom_line(aes(y=mean,col=Hummingbird),size=1) + theme_bw() + xlab("Difference between Bill and Corolla Length")  + ylab("Effect of Resources on Trait Matching") + facet_wrap(~Hummingbird,scales="free")
 ```
 
+#Interaction density functions
+Let's take a closer look at distribution of interaction effect posteriors values for each species.
+
+```{r}
+post<-pars %>% filter(par %in% "beta3") %>% group_by(species) %>% summarize(mean=mean(estimate),median=median(estimate),lower=quantile(probs=0.025,estimate),upper=quantile(probs=0.975,estimate),hdi_l=hdi(estimate)[[1]],hdi_u=hdi(estimate)[[2]]) %>% melt(id.vars='species')
+ggplot(pars[pars$par %in% "beta3",],aes(x=estimate)) + geom_histogram() + facet_wrap(~species,scales='free',ncol=3) + geom_vline(data=post,aes(xintercept=value,col=variable))
+```
 #Detection Probability
 ```{r}
 ggplot(pars[pars$par %in% c("detect"),],aes(x=as.factor(species),y=estimate)) + geom_violin() + ggtitle("Estimate of parameters") + theme_bw() + ggtitle("Detection Probability") 
@@ -829,7 +836,7 @@ Order predictions from worst to best.
 
 ```{r}
 chiorder<-obsf %>% arrange(desc(chisq),Bird)
-head(chiorder[,c("Hummingbird","Iplant_Double","chisq","Yobs","Used_Flowers","ElevD","Traitmatch")],10)
+head(chiorder[,c("Hummingbird","Iplant_Double","chisq","Yobs","FlowerA","Traitmatch")],10)
 
 #order `by highest average discrepancy
 chi<-obsf

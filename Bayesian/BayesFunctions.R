@@ -55,7 +55,8 @@ trajState<-function(alpha,beta,x,observed){
   return(unlist(sampletraj))
 }
 
-trajF<-function(alpha,beta1,beta2,beta3,x,resources){
+#sample trajectory for a given posterior using quantile or hdi interval
+trajF<-function(alpha,beta1,beta2,beta3,x,resources,type='quantile'){
   indat<-data.frame(alpha,beta1,beta2,beta3)
   
   #fit regression for each input estimate
@@ -70,7 +71,13 @@ trajF<-function(alpha,beta1,beta2,beta3,x,resources){
   sample_all<-rbind_all(sampletraj)
   
   #Compute CI intervals
-  predy<-group_by(sample_all,x) %>% summarise(lower=quantile(y,0.025,na.rm=T),upper=quantile(y,0.975,na.rm=T),mean=mean(y,na.rm=T))
+  if(type=='quantile'){
+    predy<-group_by(sample_all,x) %>% summarise(lower=quantile(y,0.025,na.rm=T),upper=quantile(y,0.975,na.rm=T),mean=mean(y,na.rm=T))
+  }
+  if(type=='hdi'){
+    predy<-group_by(sample_all,x) %>% summarise(lower=hdi(y)[[1]],upper=hdi(y)[[2]],mean=mean(y,na.rm=T))
+  }
+  return(predy)
 }
 
 #predicted y for logistic
@@ -94,7 +101,7 @@ trajLogistic<-function(alpha,beta1,beta2,beta3,x,resources){
 
 #calculate poisson interactions
 
-intF<-function(alpha,beta1,beta2,beta3,x,resources){
+intF<-function(alpha,beta1,beta2,beta3,x,resources,type='quantile'){
   indat<-data.frame(alpha,beta1,beta2,beta3)
   
   #fit regression for each input estimate
@@ -108,7 +115,13 @@ intF<-function(alpha,beta1,beta2,beta3,x,resources){
   sample_all<-rbind_all(sampletraj)
   
   #Compute CI intervals
-  predy<-group_by(sample_all,x) %>% summarise(lower=quantile(y,0.025,na.rm=T),upper=quantile(y,0.975,na.rm=T),mean=mean(y,na.rm=T))
+  if(type=='quantile'){
+    predy<-group_by(sample_all,x) %>% summarise(lower=quantile(y,0.025,na.rm=T),upper=quantile(y,0.975,na.rm=T),mean=mean(y,na.rm=T))
+  }
+  if(type=='hdi'){
+    predy<-group_by(sample_all,x) %>% summarise(lower=hdi(y)[[1]],upper=hdi(y)[[2]],mean=mean(y,na.rm=T))
+  }
+  return(predy)
 }
 
 #plots
