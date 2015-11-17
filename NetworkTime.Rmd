@@ -69,8 +69,8 @@ flower.month$High<-log(flower.month$Flowers)>flower.month$value
 #plot
 ggplot(flower.month,aes(x=Month.a,log(Flowers),shape=as.factor(Year),col=High)) + geom_point(size=3) + theme_bw()  + geom_smooth(aes(group=1)) + ylab("Flowers") + xlab("Month") + facet_wrap(~Transect_R,scales="free_y") + labs(shape="Year", y= "Log Available Flowers") + scale_x_discrete(breaks=month.abb[seq(1,12,2)]) + scale_color_manual(labels=c("Low","High"),values=c("black","red")) + labs(col="Resource Availability")
 
-ggsave("Figures/AvailableFlowers.jpg",dpi=600,units="in",width=11,height=10)
-ggsave("Figures/AvailableFlowers.svg",units="in",width=11,height=10)
+ggsave("Figures/AvailableFlowers.jpg",dpi=600,units="in",width=7,height=6)
+ggsave("Figures/AvailableFlowers.svg",units="in",width=7,height=6)
 
 ```
 
@@ -499,13 +499,21 @@ ggsave("Figures/CorollaAvailability.jpg",dpi=300,height=5,width=6)
 Corolla Selection compared to available lengths
 ```{r}
 
-
-fm<-full.morph %>% dplyr::select(TotalCorolla,Month,Year,Iplant_Double) %>% mutate(Type="Background")
-
 bm<-m.datH %>% dplyr::select(TotalCorolla,Month,Year,Iplant_Double,Hummingbird) %>% mutate(Type='Bird')
 
-ggplot() + geom_boxplot(data=full.morph,aes(x=as.factor(Month),y=TotalCorolla),fill='black',alpha=.1) + labs(fill="Year",y="Corolla Length (mm)",x="Month") + stat_smooth(data=full.morph,aes(group=1,x=as.factor(Month),y=TotalCorolla),col='black') + geom_boxplot(data=bm,aes(x=as.factor(Month),y=TotalCorolla,fill='red')) + facet_wrap(~Hummingbird) + theme_bw() + stat_smooth(data=bm,aes(group=1,x=as.factor(Month),y=TotalCorolla),col='red')
-       
+#need to remove background points that don't have species occurrences.
+
+tm<-merge(bm,full.morph,by=c("Month","Year"))
+
+#make sure
+tm$Month<-factor(tm$Month,levels=1:12)
+bm$Month<-factor(bm$Month,levels=1:12)
+
+#replace with month names
+levels(tm$Month)<-month.abb
+levels(bm$Month)<-month.abb
+
+ggplot() + geom_boxplot(data=bm,aes(x=Month,y=TotalCorolla),col='red',fill='red',alpha=.6) + stat_smooth(data=bm,aes(x=Month,group=1,y=TotalCorolla),fill='red',col='red')+ facet_wrap(~Hummingbird,nrow=4) + theme_bw()+ geom_boxplot(data=tm,aes(x=as.factor(Month),y=TotalCorolla.y),fill='black',alpha=.1)+ labs(fill="Year",y="Corolla Length (mm)",x="Month")+stat_smooth(data=tm,aes(group=1,x=Month,y=TotalCorolla.y),col='black',size=1) 
 ```
 
 ```{r}

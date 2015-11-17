@@ -601,7 +601,7 @@ Dat <- list(
   
   #Length of variables
   Birds=max(obsf$jBird),
-  resources=obsf$BFlowerA,
+  resources=obsf$FlowerA,
   traitmatch=obsf$Traitmatch)
 
 #Inits
@@ -615,8 +615,8 @@ ParsStage <- c("alpha","beta1","beta2","beta3","intercept","sigma_int","sigma_sl
 
 #MCMC options
 
-ni <- 2500000  # number of draws from the posterior
-nt <- 20  #thinning rate
+ni <- 200000  # number of draws from the posterior
+nt <- 10  #thinning rate
 nb <- ni*.96 # number to discard for burn-in
 nc <- 2  # number of chains
 
@@ -716,9 +716,9 @@ Trait-matching at High and Low Resource Density
 
 ```{r}
 #Trajectories from posterior
-predH<-trajF(alpha=castdf$intercept,beta1=castdf$gamma1,x=Dat$traitmatch,resources=Dat$resources,beta2=castdf$gamma2,beta3=1,type='hdi')
+predH<-trajF(alpha=castdf$intercept,beta1=castdf$gamma1,x=obsf[obsf$BFlowerA==1,"Traitmatch"],resources=obsf[obsf$BFlowerA==1,"BFlowerA"],beta2=castdf$gamma2,beta3=castdf$gamma3,type='hdi')
 
-predL<-trajF(alpha=castdf$intercept,beta1=castdf$gamma1,x=Dat$traitmatch,resources=Dat$resources,beta2=castdf$gamma2,beta3=0,type='hdi')
+predL<-trajF(alpha=castdf$intercept,beta1=castdf$gamma1,x=obsf[obsf$BFlowerA==0,"Traitmatch"],resources=obsf[obsf$BFlowerA==0,"BFlowerA"],beta2=castdf$gamma2,beta3=castdf$gamma3,type='hdi')
 
 predhl<-melt(list(High=predH,Low=predL),id.vars=colnames(predH))
 
@@ -757,7 +757,7 @@ for(d in 1:length(species.split)){
   billd<-obsf[obsf$jBird %in% index,]
 
   #scale resources
-  species.traj[[d]]<-trajF(alpha=x$alpha,beta1=x$beta1,beta2=x$beta2,beta3=x$beta3,resources=billd$BFlowerA,x=billd$Traitmatch,type='hdi')
+  species.traj[[d]]<-trajF(alpha=x$alpha,beta1=x$beta1,beta2=x$beta2,beta3=x$beta3,resources=billd$FlowerA,x=billd$Traitmatch,type='hdi')
   }
 
 names(species.traj)<-names(species.split)
@@ -794,7 +794,7 @@ for(d in 1:length(species.split)){
   billd<-obsf[obsf$jBird %in% index,]
 
   #Calculate interaction effect
-  species.traj[[d]]<-intF(alpha=dat$alpha,beta1=dat$beta1,x=billd$Traitmatch,resources=billd$BFlowerA,beta2=dat$beta2,beta3=dat$beta3,type='hdi')
+  species.traj[[d]]<-intF(alpha=dat$alpha,beta1=dat$beta1,x=billd$Traitmatch,resources=billd$FlowerA,beta2=dat$beta2,beta3=dat$beta3,type='hdi')
   
   }
 
@@ -896,7 +896,7 @@ Order predictions from worst to best.
 
 ```{r}
 chiorder<-obsf %>% arrange(desc(chisq),Bird)
-head(chiorder[,c("Hummingbird","Iplant_Double","chisq","Yobs","BFlowerA","Traitmatch")],10)
+head(chiorder[,c("Hummingbird","Iplant_Double","chisq","Yobs","FlowerA","Traitmatch")],10)
 
 #order `by highest average discrepancy
 chi<-obsf
