@@ -212,7 +212,7 @@ flower.month$Month.a<-factor(month.abb[flower.month$Month],month.abb[c(1:12)])
 flower.month$Year<-as.factor(flower.month$Year)
 
 #get quantile for each transect
-thresh<-melt(group_by(flower.month,Transect_R) %>% summarize(Threshold=quantile(log(Flowers),0.75)) )
+thresh<-melt(group_by(flower.month,Transect_R) %>% summarize(Threshold=quantile(log(Flowers),0.5)) )
 flower.month<-merge(flower.month,thresh)
 flower.month$Availability<-as.factor((log(flower.month$Flowers)>flower.month$value) * 1)
 
@@ -459,6 +459,21 @@ obsf$Used_Flowers<-as.numeric(scale((obsf$Used_Flowers)))
 obsf$FlowerA<-as.numeric(scale((obsf$FlowerA)))
 ```
 
+Give binary versions of these resources as well - what matters is if its high or low for that resource measure. This helps account for the enormously long tail of resource pulses and minimizes the noise associated with such a widely ranging variable. The points on the huge blooms are going to have large leverage.
+
+View quantile thresholds (0.5,.75,.9) as vertical lines.
+
+```{r}
+mf<-melt(obsf,measure.vars=c("All_Flowers","Used_Flowers","FlowerA"))
+ggplot(mf,aes(x=value,fill=variable)) + geom_density() + facet_wrap(~variable,scales='free',ncol=1) + geom_vline(aes(xintercept=quantile(value,c(0.5,.75,.9))),size=1,alpha=.3)
+```
+
+```{r}
+obsf$BAll_Flowers<-(obsf$All_Flowers > quantile(obsf$All_Flowers,0.75))*1
+obsf$BUsed_Flowers<-(obsf$Used_Flowers > quantile(obsf$Used_Flowers,0.75))*1
+obsf$BFlowerA<-(obsf$FlowerA > quantile(obsf$FlowerA,0.75))*1
+```
+
 Relationship among resource measures
 
 ```{r}
@@ -494,18 +509,20 @@ traitonly<-glmer(data=obsf,Yobs~Traitmatch + (1|Bird),family="poisson")
 summary(traitonly)
 
 #Traits and resources
-trait_resource<-glmer(data=obsf,Yobs~Traitmatch + Used_Flowers + (1|Bird),family="poisson")
+trait_resource<-glmer(data=obsf,Yobs~Traitmatch + BUsed_Flowers + (1|Bird),family="poisson")
 
 #Interaction of trait and resources 
-tr_interactionA<-glmer(data=obsf,Yobs~Traitmatch * All_Flowers + (1|Bird),family="poisson")
+tr_interactionA<-glmer(data=obsf,Yobs~Traitmatch * BAll_Flowers + (1|Bird),family="poisson")
 
-tr_interactionU<-glmer(data=obsf,Yobs~Traitmatch * Used_Flowers + (1|Bird),family="poisson")
+tr_interactionU<-glmer(data=obsf,Yobs~Traitmatch * BUsed_Flowers + (1|Bird),family="poisson")
 
-tr_interactionF<-glmer(data=obsf,Yobs~Traitmatch * FlowerA + (1|Bird),family="poisson")
+tr_interactionF<-glmer(data=obsf,Yobs~Traitmatch * BFlowerA + (1|Bird),family="poisson")
 
 summary(tr_interactionA)
 summary(tr_interactionU)
 summary(tr_interactionF)
+anova(tr_interactionA,tr_interactionU,tr_interactionF)
+#Binary models
 ```
 
 ##Hierarchical Bayesian Model
@@ -584,7 +601,7 @@ Dat <- list(
   
   #Length of variables
   Birds=max(obsf$jBird),
-  resources=obsf$FlowerA,
+  resources=obsf$BFlowerA,
   traitmatch=obsf$Traitmatch)
 
 #Inits
@@ -598,8 +615,8 @@ ParsStage <- c("alpha","beta1","beta2","beta3","intercept","sigma_int","sigma_sl
 
 #MCMC options
 
-ni <- 1000000  # number of draws from the posterior
-nt <- 10  #thinning rate
+ni <- 2500000  # number of draws from the posterior
+nt <- 20  #thinning rate
 nb <- ni*.96 # number to discard for burn-in
 nc <- 2  # number of chains
 
@@ -679,11 +696,13 @@ Hold resources at 0, what does trait-matching look like?
 
 ```{r,fig.width=9,fig.height=7}
 #Trajectories from posterior
-predy<-trajF(alpha=castdf$intercept,beta1=castdf$gamma1,x=Dat$traitmatch,resources=Dat$resources,beta2=castdf$gamma2,beta3=0,type='hdi')
+predy<-trajF(alpha=castdf$intercept,beta1=castdf$gamma1,x=Dat$traitmatch,resources=Dat$resources,beta2=0,beta3=0,type='hdi')
 
 psim3<-ggplot(data=predy,aes(x=x)) + geom_ribbon(aes(ymin=lower,ymax=upper),alpha=0.1,fill="red")  + geom_line(aes(y=mean),size=.5,col="red",linetype="dashed") + theme_bw() + ylab("Interactions") + xlab("Difference between Bill and Corolla Length") + geom_point(data=obsf,aes(x=Traitmatch,y=Yobs))
 psim3
 ```
+
+Full posterior prediction
 
 ```{r,fig.width=9,fig.height=7}
 #Trajectories from posterior
@@ -691,6 +710,20 @@ predy<-trajF(alpha=castdf$intercept,beta1=castdf$gamma1,x=Dat$traitmatch,resourc
 
 psim3<-ggplot(data=predy,aes(x=x)) + geom_ribbon(aes(ymin=lower,ymax=upper),alpha=0.1,fill="red")  + geom_line(aes(y=mean),size=.8,col="red",linetype="dashed") + theme_bw() + ylab("Interactions") + xlab("Difference between Bill and Corolla Length") + geom_point(data=obsf,aes(x=Traitmatch,y=Yobs))
 psim3
+```
+
+Trait-matching at High and Low Resource Density
+
+```{r}
+#Trajectories from posterior
+predH<-trajF(alpha=castdf$intercept,beta1=castdf$gamma1,x=Dat$traitmatch,resources=Dat$resources,beta2=castdf$gamma2,beta3=1,type='hdi')
+
+predL<-trajF(alpha=castdf$intercept,beta1=castdf$gamma1,x=Dat$traitmatch,resources=Dat$resources,beta2=castdf$gamma2,beta3=0,type='hdi')
+
+predhl<-melt(list(High=predH,Low=predL),id.vars=colnames(predH))
+
+
+ggplot(data=predhl,aes(x=x)) + geom_ribbon(aes(ymin=lower,ymax=upper,fill=L1),alpha=0.2)  + geom_line(aes(y=mean,col=L1),size=.8) + theme_bw() + ylab("Interactions") + xlab("Difference between Bill and Corolla Length") + geom_point(data=obsf,aes(x=Traitmatch,y=Yobs))+ labs(fill="Resource Availability",col="Resource Availability")
 ```
 
 ###Visualize interactions
@@ -724,7 +757,7 @@ for(d in 1:length(species.split)){
   billd<-obsf[obsf$jBird %in% index,]
 
   #scale resources
-  species.traj[[d]]<-trajF(alpha=x$alpha,beta1=x$beta1,beta2=x$beta2,beta3=x$beta3,resources=billd$FlowerA,x=billd$Traitmatch,type='hdi')
+  species.traj[[d]]<-trajF(alpha=x$alpha,beta1=x$beta1,beta2=x$beta2,beta3=x$beta3,resources=billd$BFlowerA,x=billd$Traitmatch,type='hdi')
   }
 
 names(species.traj)<-names(species.split)
@@ -761,7 +794,7 @@ for(d in 1:length(species.split)){
   billd<-obsf[obsf$jBird %in% index,]
 
   #Calculate interaction effect
-  species.traj[[d]]<-intF(alpha=dat$alpha,beta1=dat$beta1,x=billd$Traitmatch,resources=billd$FlowerA,beta2=dat$beta2,beta3=dat$beta3,type='hdi')
+  species.traj[[d]]<-intF(alpha=dat$alpha,beta1=dat$beta1,x=billd$Traitmatch,resources=billd$BFlowerA,beta2=dat$beta2,beta3=dat$beta3,type='hdi')
   
   }
 
@@ -786,9 +819,36 @@ Let's take a closer look at distribution of interaction effect posteriors values
 post<-pars %>% filter(par %in% "beta3") %>% group_by(species) %>% summarize(mean=mean(estimate),median=median(estimate),lower=quantile(probs=0.025,estimate),upper=quantile(probs=0.975,estimate),hdi_l=hdi(estimate)[[1]],hdi_u=hdi(estimate)[[2]]) %>% melt(id.vars='species')
 ggplot(pars[pars$par %in% "beta3",],aes(x=estimate)) + geom_histogram() + facet_wrap(~species,scales='free',ncol=3) + geom_vline(data=post,aes(xintercept=value,col=variable))
 ```
+
+###Interaction and Bill Length
+```{r}
+
+#species names
+b<-pars[pars$par %in% "beta3",]
+b<-merge(b,jagsIndexBird,by.x="species",by.y="jBird")
+
+#traits
+b<-merge(b,hum.morph,by.x="Hummingbird",by.y="English")
+#get order of mean posterior
+ord<-post %>% filter(variable=="mean") %>% arrange(value) %>% .$Hummingbird
+
+b$species<-factor(b$species,levels=ord)
+ggplot(b,aes(y=estimate,x=Hummingbird,fill=Total_Culmen)) + geom_violin() + coord_flip() + scale_fill_continuous(low='blue',high='red') + ggtitle("Interaction Effect and Bill Length") + theme_bw()
+
+```
+
 #Detection Probability
 ```{r}
-ggplot(pars[pars$par %in% c("detect"),],aes(x=as.factor(species),y=estimate)) + geom_violin() + ggtitle("Estimate of parameters") + theme_bw() + ggtitle("Detection Probability") 
+b<-pars[pars$par %in% "detect",]
+b<-merge(b,jagsIndexBird,by.x="species",by.y="jBird")
+
+#traits
+b<-merge(b,hum.morph,by.x="Hummingbird",by.y="English")
+#get order of mean posterior
+ord<-post %>% filter(variable=="mean") %>% arrange(value) %>% .$Hummingbird
+
+b$species<-factor(b$species,levels=ord)
+ggplot(b,aes(y=estimate,x=Hummingbird)) + geom_violin(fill='black') + coord_flip()  + ggtitle("Detection Probability") + theme_bw()
 ```
 
 ```{r}
@@ -836,7 +896,7 @@ Order predictions from worst to best.
 
 ```{r}
 chiorder<-obsf %>% arrange(desc(chisq),Bird)
-head(chiorder[,c("Hummingbird","Iplant_Double","chisq","Yobs","FlowerA","Traitmatch")],10)
+head(chiorder[,c("Hummingbird","Iplant_Double","chisq","Yobs","BFlowerA","Traitmatch")],10)
 
 #order `by highest average discrepancy
 chi<-obsf

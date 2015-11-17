@@ -158,17 +158,17 @@ mdat<-sim(-1,-.5,0)
 ggplot(mdat,aes(col=resources,y=y,x=traitmatch)) + geom_point() + geom_smooth(aes(group=1),method="glm",family="poisson",formula=y~x) + theme_bw() + labs(x="Bill-Corolla Difference",y="Occurrences","Hummingbird") + ggtitle("Simulated data for each species") + labs(col="Available Resources") + scale_color_continuous(low="blue",high="red",breaks=c(-1.5,0,1.5),labels=c("Resource Poor","","Resource Rich")) + facet_wrap(~Var1,nrow=2)
 ```
 
-4. Species interactions are based on similarity in morphology and abundance of resources, with an interaction. As resources decrease, hummingbirds interact **more** with plant that match their bill length.
+4. Species interactions are based on similarity in morphology and abundance of resources, with an interaction. As resources increase, hummingbirds interact **more** with plants that match their bill length.
 
 ```{r}
 mdat<-sim(-.5,0,.5)
 ggplot(mdat,aes(col=resources,y=y,x=traitmatch)) + geom_point() + geom_smooth(aes(group=1),method="glm",family="poisson",formula=y~x) + theme_bw() + labs(x="Bill-Corolla Difference",y="Occurrences","Hummingbird") + ggtitle("Simulated data for each species") + labs(col="Available Resources") + scale_color_continuous(low="blue",high="red",breaks=c(-1.5,0,1.5),labels=c("Resource Poor","","Resource Rich")) + facet_wrap(~Var1,nrow=2)
 ```
 
-5. Species interactions are based on similarity in morphology and abundance of resources, with an interaction. As resources decrease, hummingbirds interact **less** with plant that match their bill length. 
+5. Species interactions are based on similarity in morphology and abundance of resources, with an interaction.As resources increase, hummingbirds interact **less** with plants that match their bill length.
 
 ```{r}
-mdat<-sim(-.1,0,-1)
+mdat<-sim(-.1,0,-.5)
 ggplot(mdat,aes(col=resources,y=y,x=traitmatch)) + geom_point() + geom_smooth(aes(group=1),method="glm",family="poisson",formula=y~x) + theme_bw() + labs(x="Bill-Corolla Difference",y="Occurrences","Hummingbird") + ggtitle("Correlation in Simulated Data") + labs(col="Available Resources") + scale_color_continuous(low="blue",high="red",breaks=c(-1.5,0,1.5),labels=c("Resource Poor","","Resource Rich")) + facet_wrap(~Var1,nrow=2)
 ```
 
@@ -198,19 +198,19 @@ ggplot(modlist,aes(x=traitmatch,y=R_effect,col=as.factor(model))) + geom_line() 
 * Model 1: Increased resources has no effect on trait-matching
 * Model 2: Increased resources has no effect on trait-matching
 * Model 3: Increased resources has no effect on trait-matching
-* Model 4: As there are more available resources, birds choose resources less similiar from their bill lengths
-* Model 5: As there are more available resources, birds choose resources more similar to their bill lengths
+* Model 4: As resources increase, hummingbirds interact **more** with plants that match their bill length. 
+* Model 5: As resources increase, hummingbirds interact **less** with plants that match their bill length. 
 
-#Simulate Model 5
 
-Add in incomplete sampling - some flowers are only in bloom 3/4 of the samples
+#Simulate Model 4
+
 
 ```{r,fig.width=11,fig.height=4}
 ##Simulate Interactions
 h_species=10
 plant_species=20
 months=24
-phenology=.75
+phenology=1
 
 #Bill sizes
 Bill<-rpois(h_species,10)
@@ -250,11 +250,11 @@ sigma_slope1<- 0.01
 sigma_intercept<- 0.01
 
 #resources
-gamma2=.5
+gamma2=0
 sigma_slope2<- 0.01
 
 #resources * traitmatch
-gamma3=-.5
+gamma3=.5
 sigma_slope3<- 0.01
 
 #draw values from hierarcichal distributions
