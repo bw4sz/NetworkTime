@@ -42,6 +42,7 @@ library(gridExtra)
 library(MASS)
 library(boot)
 library(BEST)
+library(GGally)
 #Set Dropbox Location
 #setwd to dropbox
 droppath<-"C:/Users/Ben/Dropbox/"
@@ -432,7 +433,7 @@ for (x in 1:nrow(obsf)){
  byelev<-fltransects[fltransects$Transect_R %in% toselect,]
  
  #Filter by Date
- bydate<-byelev[abs(byelev$DateP -event_date)  < 15,]
+ bydate<-byelev[abs(byelev$DateP -event_date)  < 30,]
  
  #average number of flowers at each elevation within that time frame.
  
@@ -451,14 +452,6 @@ for (x in 1:nrow(obsf)){
 }
 ```
 
-Given that these resource values are very large, scale by dividing by sd and subtracting the mean. Mean =0, sd=1
-
-```{r}
-obsf$All_Flowers<-as.numeric(scale(obsf$All_Flowers))
-obsf$Used_Flowers<-as.numeric(scale((obsf$Used_Flowers)))
-obsf$FlowerA<-as.numeric(scale((obsf$FlowerA)))
-```
-
 Give binary versions of these resources as well - what matters is if its high or low for that resource measure. This helps account for the enormously long tail of resource pulses and minimizes the noise associated with such a widely ranging variable. The points on the huge blooms are going to have large leverage.
 
 View quantile thresholds (0.5,.75,.9) as vertical lines.
@@ -470,9 +463,38 @@ ggplot(mf,aes(x=value,fill=variable)) + geom_density() + facet_wrap(~variable,sc
 
 ```{r}
 obsf$BAll_Flowers<-(obsf$All_Flowers > quantile(obsf$All_Flowers,0.75))*1
-obsf$BUsed_Flowers<-(obsf$Used_Flowers > quantile(obsf$Used_Flowers,0.75))*1
-obsf$BFlowerA<-(obsf$FlowerA > quantile(obsf$FlowerA,0.75))*1
 ```
+
+```{r}
+sob<-split(obsf,obsf$Hummingbird)
+for(x in 1:length(sob)){
+  sob[[x]]$BUsed_Flowers<-( sob[[x]]$Used_Flowers > quantile( sob[[x]]$Used_Flowers,0.75))*1
+}
+obsf<-rbind_all(sob)
+
+#visualize
+ggplot(obsf[obsf$BUsed_Flowers==0,],aes(x=Used_Flowers,fill=Hummingbird)) + geom_density() + facet_wrap(~Hummingbird,scales='free')
+```
+
+```{r}
+sob<-split(obsf,obsf$Hummingbird)
+for(x in 1:length(sob)){
+  sob[[x]]$BFlowerA<-( sob[[x]]$FlowerA > quantile( sob[[x]]$FlowerA,0.75))*1
+}
+obsf<-as.data.frame(rbind_all(sob))
+
+#visualize
+ggplot(obsf[obsf$BFlowerA==0,],aes(x=FlowerA,fill=Hummingbird)) + geom_density() + facet_wrap(~Hummingbird,scales='free')
+```
+
+Given that these resource values are very large, scale by dividing by sd and subtracting the mean. Mean =0, sd=1. For used resources, this needs to be scaled per species
+
+```{r}
+obsf$All_Flowers<-as.numeric(scale(obsf$All_Flowers))
+
+obsf$FlowerA<-as.numeric(scale((obsf$FlowerA)))
+```
+
 
 Relationship among resource measures
 
@@ -525,6 +547,12 @@ anova(tr_interactionA,tr_interactionU,tr_interactionF)
 #Binary models
 ```
 
+### Log tranformed presence only records
+```{r}
+tr_interactionFL<-lmer(data=obsf[obsf$Yobs>0,],log(Yobs)~Traitmatch * FlowerA + (1|Bird))
+summary(tr_interactionF)
+```
+
 ##Hierarchical Bayesian Model
 
 ### Model Fitting
@@ -547,17 +575,17 @@ $$\beta_{3,i} \sim N(\gamma_3i,\tau_{\beta_3})$$
 
 Group Level Means
 
-$$\gamma_{1,i} \sim N(0.001,0.001)$$
-$$\gamma_{2,i} \sim N(0.001,0.001)$$
-$$\gamma_{3,i} \sim N(0.001,0.001)$$
-$$ intercept \sim N(0.001,0.001)$$
+$$\gamma_{1,i} \sim N(0,0.0001)$$
+$$\gamma_{2,i} \sim N(0,0.0001)$$
+$$\gamma_{3,i} \sim N(0,0.0001)$$
+$$ intercept \sim N(0,0.0001)$$
 
 Group Level Variance
 
-$$\tau_{\alpha} \sim Gamma(0.001,0.001)$$
-$$\tau_\beta1 \sim Gamma(0.001,0.001)$$
-$$\tau_\beta2 \sim Gamma(0.001,0.001)$$
-$$\tau_\beta3 \sim Gamma(0.001,0.001)$$
+$$\tau_{\alpha} \sim Gamma(0.0001,0.0001)$$
+$$\tau_\beta1 \sim Gamma(0.0001,0.0001)$$
+$$\tau_\beta2 \sim Gamma(0.0001,0.0001)$$
+$$\tau_\beta3 \sim Gamma(0.0001,0.0001)$$
 
 **Derived quantities**
 
@@ -601,7 +629,7 @@ Dat <- list(
   
   #Length of variables
   Birds=max(obsf$jBird),
-  resources=obsf$FlowerA,
+  resources=obsf$BFlowerA,
   traitmatch=obsf$Traitmatch)
 
 #Inits
@@ -615,7 +643,7 @@ ParsStage <- c("alpha","beta1","beta2","beta3","intercept","sigma_int","sigma_sl
 
 #MCMC options
 
-ni <- 200000  # number of draws from the posterior
+ni <- 1000000  # number of draws from the posterior
 nt <- 10  #thinning rate
 nb <- ni*.96 # number to discard for burn-in
 nc <- 2  # number of chains
@@ -692,14 +720,13 @@ tracegplot(pars,c("gamma1","gamma2","gamma3","sigma_int","sigma_slope1","sigma_s
 castdf<-dcast(pars[pars$par %in% c("gamma1","gamma2","gamma3","intercept"),], Chain + Draw~par,value.var="estimate")
 ```
 
-Hold resources at 0, what does trait-matching look like?
+Hold resource relationship at 0, what does trait-matching look like?
 
 ```{r,fig.width=9,fig.height=7}
 #Trajectories from posterior
 predy<-trajF(alpha=castdf$intercept,beta1=castdf$gamma1,x=Dat$traitmatch,resources=Dat$resources,beta2=0,beta3=0,type='hdi')
 
-psim3<-ggplot(data=predy,aes(x=x)) + geom_ribbon(aes(ymin=lower,ymax=upper),alpha=0.1,fill="red")  + geom_line(aes(y=mean),size=.5,col="red",linetype="dashed") + theme_bw() + ylab("Interactions") + xlab("Difference between Bill and Corolla Length") + geom_point(data=obsf,aes(x=Traitmatch,y=Yobs))
-psim3
+ggplot(data=predy,aes(x=x)) + geom_ribbon(aes(ymin=lower,ymax=upper),alpha=0.1,fill="red")  + geom_line(aes(y=mean),size=.5,col="red",linetype="dashed") + theme_bw() + ylab("Interactions") + xlab("Difference between Bill and Corolla Length") + geom_point(data=obsf,aes(x=Traitmatch,y=Yobs))
 ```
 
 Full posterior prediction
@@ -708,8 +735,7 @@ Full posterior prediction
 #Trajectories from posterior
 predy<-trajF(alpha=castdf$intercept,beta1=castdf$gamma1,x=Dat$traitmatch,resources=Dat$resources,beta2=castdf$gamma2,beta3=castdf$gamma3,type='hdi')
 
-psim3<-ggplot(data=predy,aes(x=x)) + geom_ribbon(aes(ymin=lower,ymax=upper),alpha=0.1,fill="red")  + geom_line(aes(y=mean),size=.8,col="red",linetype="dashed") + theme_bw() + ylab("Interactions") + xlab("Difference between Bill and Corolla Length") + geom_point(data=obsf,aes(x=Traitmatch,y=Yobs))
-psim3
+ggplot(data=predy,aes(x=x)) + geom_ribbon(aes(ymin=lower,ymax=upper),alpha=0.2,fill="red")  +  theme_bw() + ylab("Interactions") + xlab("Difference between Bill and Corolla Length") + geom_point(data=obsf,aes(x=Traitmatch,y=Yobs)) + geom_line(aes(y=mean))
 ```
 
 Trait-matching at High and Low Resource Density
@@ -722,8 +748,7 @@ predL<-trajF(alpha=castdf$intercept,beta1=castdf$gamma1,x=obsf[obsf$BFlowerA==0,
 
 predhl<-melt(list(High=predH,Low=predL),id.vars=colnames(predH))
 
-
-ggplot(data=predhl,aes(x=x)) + geom_ribbon(aes(ymin=lower,ymax=upper,fill=L1),alpha=0.2)  + geom_line(aes(y=mean,col=L1),size=.8) + theme_bw() + ylab("Interactions") + xlab("Difference between Bill and Corolla Length") + geom_point(data=obsf,aes(x=Traitmatch,y=Yobs))+ labs(fill="Resource Availability",col="Resource Availability")
+ggplot(data=predhl,aes(x=x)) + geom_ribbon(aes(ymin=lower,ymax=upper,fill=L1),alpha=0.2)  + geom_line(aes(y=mean,col=L1),size=.8) + theme_bw() + ylab("Interactions") + xlab("Difference between Bill and Corolla Length") + geom_point(data=obsf,aes(x=Traitmatch,y=Yobs))+ labs(fill="Resource Availability",col="Resource Availability") + facet_wrap(~L1,scales='free')
 ```
 
 ###Visualize interactions
@@ -757,7 +782,7 @@ for(d in 1:length(species.split)){
   billd<-obsf[obsf$jBird %in% index,]
 
   #scale resources
-  species.traj[[d]]<-trajF(alpha=x$alpha,beta1=x$beta1,beta2=x$beta2,beta3=x$beta3,resources=billd$FlowerA,x=billd$Traitmatch,type='hdi')
+  species.traj[[d]]<-trajF(alpha=x$alpha,beta1=x$beta1,beta2=x$beta2,beta3=x$beta3,resources=billd$BFlowerA,x=billd$Traitmatch,type='hdi')
   }
 
 names(species.traj)<-names(species.split)
@@ -794,7 +819,7 @@ for(d in 1:length(species.split)){
   billd<-obsf[obsf$jBird %in% index,]
 
   #Calculate interaction effect
-  species.traj[[d]]<-intF(alpha=dat$alpha,beta1=dat$beta1,x=billd$Traitmatch,resources=billd$FlowerA,beta2=dat$beta2,beta3=dat$beta3,type='hdi')
+  species.traj[[d]]<-intF(alpha=dat$alpha,beta1=dat$beta1,x=billd$Traitmatch,resources=billd$BFlowerA,beta2=dat$beta2,beta3=dat$beta3,type='hdi')
   
   }
 
@@ -821,8 +846,8 @@ ggplot(pars[pars$par %in% "beta3",],aes(x=estimate)) + geom_histogram() + facet_
 ```
 
 ###Interaction and Bill Length
-```{r}
 
+```{r}
 #species names
 b<-pars[pars$par %in% "beta3",]
 b<-merge(b,jagsIndexBird,by.x="species",by.y="jBird")
@@ -862,6 +887,19 @@ write.csv(tab[,c(4,1,2,3)],"Figures/Table1.csv")
 ```
 
 #Model Evaluation
+
+Correlation coefficient among posteriors
+
+```{r}
+castdf<-dcast(pars[pars$par %in% c("gamma1","gamma2","gamma3","intercept"),], Chain + Draw~par,value.var="estimate")
+
+ggpairs(castdf[,c("gamma1","gamma2","gamma3","intercept")])
+
+castdf<-dcast(pars[pars$par %in% c("alpha","beta1","beta2","beta3","detect"),], Chain + Draw+species~par,value.var="estimate")
+
+ggpairs(castdf[,c("alpha","beta1","beta2","beta3","detect")])
+
+```
 
 ##Posterior Check
 

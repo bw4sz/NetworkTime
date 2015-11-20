@@ -35,12 +35,12 @@ cat("
     
     #Hyperpriors
     #Slope grouping
-    gamma1~dnorm(0.001,0.001)
-    gamma2~dnorm(0.001,0.001)
-    gamma3~dnorm(0.001,0.001)
+    gamma1~dnorm(0,0.0001)
+    gamma2~dnorm(0,0.0001)
+    gamma3~dnorm(0,0.0001)
     
     #Intercept grouping
-    intercept~dnorm(0.001,0.001)
+    intercept~dnorm(0,0.01)
     
     # Group variance
     tau_alpha ~ dgamma(0.0001,0.0001)
