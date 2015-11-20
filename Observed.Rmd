@@ -6,10 +6,15 @@ date: "Tuesday, October 14, 2014"
 output:
   html_document:
     toc: true
+    number_sections: true
     theme: spacelab
   word_document: default
   keep_md: true
 ---
+
+```{r}
+paste("Run Completed at",Sys.time())
+```
 
 #Aim
 Which birds use which plants? What are the mechanisms that determine niche overlap in this assemblage.
@@ -60,7 +65,7 @@ source("Bayesian/BayesFunctions.R")
 
 ```{r,eval=T}
 #load data is needed
-#load("Observed.RData")
+load("Observed.RData")
 ```
 
 #Read in Data
@@ -589,10 +594,10 @@ $$\tau_\beta3 \sim Gamma(0.0001,0.0001)$$
 
 **Derived quantities**
 
-$$\sigma_{int} = \frac{1}{\tau_{\alpha}}^2$$
-$$\sigma_{slope1} = \frac{1}{\tau_{\beta_1}}^2$$
-$$\sigma_{slope2} = \frac{1}{\tau_{\beta_2}}^2$$
-$$\sigma_{slope3} = \frac{1}{\tau_{\beta_3}}^2$$
+$$\sigma_{int} = \sqrt[2]{\frac{1}{\tau_\alpha}}$$
+$$\sigma_{slope1} = \sqrt[2]{\frac{1}{\tau_\beta_1}}$$
+$$\sigma_{slope2} = \sqrt[2]{\frac{1}{\tau_\beta_2}}$$
+$$\sigma_{slope3} = \sqrt[2]{\frac{1}{\tau_\beta_3}}$$
 
 Reformat index for jags.
 Jags needs a vector of input species 1:n with no breaks.
@@ -650,7 +655,7 @@ nc <- 2  # number of chains
 
 ```
 
-```{r,eval=T}
+```{r,eval=F}
 #Jags
 #if running the model for the first time
 m1 = jags(inits=InitStage,
@@ -729,7 +734,7 @@ predy<-trajF(alpha=castdf$intercept,beta1=castdf$gamma1,x=Dat$traitmatch,resourc
 ggplot(data=predy,aes(x=x)) + geom_ribbon(aes(ymin=lower,ymax=upper),alpha=0.1,fill="red")  + geom_line(aes(y=mean),size=.5,col="red",linetype="dashed") + theme_bw() + ylab("Interactions") + xlab("Difference between Bill and Corolla Length") + geom_point(data=obsf,aes(x=Traitmatch,y=Yobs))
 ```
 
-Full posterior prediction
+###Full posterior prediction
 
 ```{r,fig.width=9,fig.height=7}
 #Trajectories from posterior
@@ -738,7 +743,7 @@ predy<-trajF(alpha=castdf$intercept,beta1=castdf$gamma1,x=Dat$traitmatch,resourc
 ggplot(data=predy,aes(x=x)) + geom_ribbon(aes(ymin=lower,ymax=upper),alpha=0.2,fill="red")  +  theme_bw() + ylab("Interactions") + xlab("Difference between Bill and Corolla Length") + geom_point(data=obsf,aes(x=Traitmatch,y=Yobs)) + geom_line(aes(y=mean))
 ```
 
-Trait-matching at High and Low Resource Density
+###Trait-matching at High and Low Resource Density
 
 ```{r}
 #Trajectories from posterior
@@ -837,7 +842,7 @@ spe<-merge(species.traj,jagsIndexBird,by.x="Index",by.y="jBird")
 ggplot(data=spe,aes(x=x)) + geom_ribbon(aes(ymin=lower,ymax=upper,fill=Hummingbird),alpha=0.3) + geom_line(aes(y=mean,col=Hummingbird),size=1) + theme_bw() + xlab("Difference between Bill and Corolla Length")  + ylab("Effect of Resources on Trait Matching") + facet_wrap(~Hummingbird,scales="free")
 ```
 
-#Interaction density functions
+##Interaction density functions
 Let's take a closer look at distribution of interaction effect posteriors values for each species.
 
 ```{r}
@@ -888,7 +893,7 @@ write.csv(tab[,c(4,1,2,3)],"Figures/Table1.csv")
 
 #Model Evaluation
 
-Correlation coefficient among posteriors
+##Correlation coefficient among posteriors
 
 ```{r}
 castdf<-dcast(pars[pars$par %in% c("gamma1","gamma2","gamma3","intercept"),], Chain + Draw~par,value.var="estimate")
