@@ -12,7 +12,7 @@ output:
   keep_md: true
 ---
 
-```{r}
+```{r,echo=F}
 paste("Run Completed at",Sys.time())
 ```
 
