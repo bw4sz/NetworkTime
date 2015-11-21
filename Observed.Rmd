@@ -65,7 +65,7 @@ source("Bayesian/BayesFunctions.R")
 
 ```{r,eval=T}
 #load data is needed
-load("Observed.RData")
+#load("Observed.RData")
 ```
 
 #Read in Data
@@ -650,14 +650,14 @@ ParsStage <- c("alpha","beta1","beta2","beta3","intercept","sigma_int","sigma_sl
 
 #MCMC options
 
-ni <- 1000000  # number of draws from the posterior
-nt <- 10  #thinning rate
-nb <- ni*.96 # number to discard for burn-in
+ni <- 3000000  # number of draws from the posterior
+nt <- 25  #thinning rate
+nb <- ni*.95 # number to discard for burn-in
 nc <- 2  # number of chains
 
 ```
 
-```{r,eval=F}
+```{r,eval=T}
 #Jags
 #if running the model for the first time
 m1 = jags(inits=InitStage,
@@ -682,7 +682,7 @@ recompile(m1)
 m1<-update(m1,n.iter=400000)
 ```
 
-```{r,eval=F}
+```{r,eval=T}
 #format params
 pars<-extract_par(m1)
 ```
