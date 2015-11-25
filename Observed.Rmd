@@ -90,7 +90,10 @@ int[int$Iplant_Double=="Columnea cinerea","Iplant_Double"]<-"Columnea mastersoni
 int[int$Iplant_Double=="Alloplectus teuscheri","Iplant_Double"]<-"Drymonia teuscheri"
 
 #remove species with less than  20 observations
-keep<-names(which(table(int$Hummingbird) > 30))
+keep<-names(which(table(int$Hummingbird) > 20))
+
+#Sparkling Violeteat violates closed system?
+#keep<-keep[!keep %in% "Sparkling Violetear"]
 
 int<-droplevels(int[int$Hummingbird %in% keep,])
 
@@ -225,7 +228,7 @@ flower.month$Availability<-as.factor((log(flower.month$Flowers)>flower.month$val
 #plot
 ggplot(flower.month,aes(x=Month.a,log(Flowers),shape=as.factor(Year),col=Availability)) + geom_point(size=3) + theme_bw()  + geom_smooth(aes(group=1)) + ylab("Flowers") + xlab("Month") + facet_wrap(~Transect_R,scales="free_y") + labs(shape="Year", y= "Log Available Flowers") + scale_x_discrete(breaks=month.abb[seq(1,12,2)]) + scale_color_manual(labels=c("Low","High"),values=c("black","red")) + labs(col="Resource Availability")
 
-#turn min and max eelvation into seperate columns for the range
+#turn min and max elvation into seperate columns for the range
 flower.month$minElev<-as.numeric(str_extract(flower.month$Transect_R,"(\\d+)"))
 flower.month$maxElev<-as.numeric(str_match(flower.month$Transect_R,"(\\d+)_(\\d+)")[,3])
 ```
@@ -455,6 +458,9 @@ for (x in 1:nrow(obsf)){
   obsf$FlowerA[x] <-  bys %>% group_by(DateP,Transect_R) %>% summarize(n=sum(Total_Flowers,na.rm=T)) %>% group_by(Transect_R) %>% summarize(mn=mean(n)) %>% summarize(F=sum(mn)) %>% .$F
 
 }
+
+#if there were 0 resources, set to 1, for the flower sampled
+a<-obsf[obsf$All_Flowers==0,]
 ```
 
 Give binary versions of these resources as well - what matters is if its high or low for that resource measure. This helps account for the enormously long tail of resource pulses and minimizes the noise associated with such a widely ranging variable. The points on the huge blooms are going to have large leverage.
@@ -467,13 +473,13 @@ ggplot(mf,aes(x=value,fill=variable)) + geom_density() + facet_wrap(~variable,sc
 ```
 
 ```{r}
-obsf$BAll_Flowers<-(obsf$All_Flowers > quantile(obsf$All_Flowers,0.75))*1
+obsf$BAll_Flowers<-(obsf$All_Flowers >quantile(log(obsf$All_Flowers),0.75))*1
 ```
 
 ```{r}
 sob<-split(obsf,obsf$Hummingbird)
 for(x in 1:length(sob)){
-  sob[[x]]$BUsed_Flowers<-( sob[[x]]$Used_Flowers > quantile( sob[[x]]$Used_Flowers,0.75))*1
+  sob[[x]]$BUsed_Flowers<-(sob[[x]]$Used_Flowers) >         quantile(sob[[x]]$Used_Flowers,0.75)*1
 }
 obsf<-rbind_all(sob)
 
@@ -484,8 +490,8 @@ ggplot(obsf[obsf$BUsed_Flowers==0,],aes(x=Used_Flowers,fill=Hummingbird)) + geom
 ```{r}
 sob<-split(obsf,obsf$Hummingbird)
 for(x in 1:length(sob)){
-  sob[[x]]$BFlowerA<-( sob[[x]]$FlowerA > quantile( sob[[x]]$FlowerA,0.75))*1
-}
+  sob[[x]]$BFlowerA<-( log(sob[[x]]$FlowerA) > quantile( log(sob[[x]]$FlowerA),0.75))*1}
+
 obsf<-as.data.frame(rbind_all(sob))
 
 #visualize
@@ -505,6 +511,13 @@ Relationship among resource measures
 
 ```{r,fig.height=5,fig.width=6}
 ggplot(obsf,aes(x=All_Flowers,y=Used_Flowers,col=log(FlowerA))) + geom_point()
+```
+
+How many data points for each species for each resource level?
+
+```{r}
+counts<-obsf %>% group_by(Hummingbird,BFlowerA,Visited=Yobs>0) %>% summarize(n=length(Yobs)) 
+ggplot(data=counts,aes(x=BFlowerA==1,y=n,fill=Visited))+ facet_wrap(~Hummingbird) + geom_bar(data=counts,stat = "identity",position = position_dodge()) + scale_x_discrete("Resource Availability",labels=c("Low","High")) + geom_text(aes(label=n),size=8,position = position_dodge(width=0.9,vjust=-.25))
 ```
 
 #Exploratory Analysis
@@ -600,7 +613,6 @@ $$\sigma_{slope2} = \sqrt[2]{\frac{1}{\tau_\beta2}}$$
 $$\sigma_{slope3} = \sqrt[2]{\frac{1}{\tau_\beta3}}$$
 
 
-
 ```{r}
 #Reformat index for jags.
 #Jags needs a vector of input species 1:n with no breaks.
@@ -613,6 +625,11 @@ obsf$jPlant<-as.numeric(obsf$Iplant_Double)
 jagsIndexBird<-data.frame(Hummingbird=levels(obsf$Hummingbird),jBird=1:length(levels(obsf$Hummingbird)))
  
 jagsIndexPlants<-data.frame(Iplant_Double=levels(obsf$Iplant_Double),jPlant=1:length(levels(obsf$Iplant_Double)))
+```
+
+```{r}
+#Write formatted data to file
+write.csv(obsf,"InputData/FinalObs.csv")
 ```
 
 ```{r,eval=T,strip.white=T,eval=T}
@@ -650,10 +667,10 @@ ParsStage <- c("alpha","beta1","beta2","beta3","intercept","sigma_int","sigma_sl
 
 #MCMC options
 
-ni <- 3000000  # number of draws from the posterior
-nt <- 25  #thinning rate
+ni <- 200000  # number of draws from the posterior
+nt <- 5  #thinning rate
 nb <- ni*.95 # number to discard for burn-in
-nc <- 2  # number of chains
+nc <- 1  # number of chains
 
 ```
 
@@ -1004,5 +1021,5 @@ ggplot(chi,aes(x=Hummingbird,y=Iplant_Double,fill=chisq)) + geom_tile() + theme_
 ```
 
 ```{r}
-save.image("Observed.RData")
+#save.image("Observed.RData")
 ```

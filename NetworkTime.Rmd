@@ -8,6 +8,9 @@ output:
     theme: spacelab
   word_document: default
 ---
+```{r,echo=F}
+paste("Run Completed at",Sys.time())
+```
 
 ```{r,echo=FALSE,warning=FALSE,message=FALSE}
 require(knitr)
@@ -40,13 +43,8 @@ source("Bayesian/BayesFunctions.R")
 ```
 
 ************
-**Figure 1. Conceptual figure showing patterns of interactions between birds and flowers for high and low niche overlap, connectance and clustering. The bottom panel shows two hypothezied relationship between available resources, specialization, and trait matching.**
 
-![ConceptualFigure](C:\Users\Ben\Documents\NetworkTime\Figures\ConceptualFigure.png)
-
-**Figure 2. Flower abundance per month for each transect. **
-
-```{r,fig.height=7,fig.width=8}
+```{r,fig.height=4,fig.width=8}
 #Get flower transect data
 full.fl<-read.csv("C:/Users/Ben/Dropbox/Thesis/Maquipucuna_SantaLucia/Results/FlowerTransects/FlowerTransectClean.csv")[,-1]
 
@@ -78,7 +76,7 @@ ggsave("Figures/AvailableFlowers.svg",units="in",width=7,height=6)
 
 **Figure 3. Measures of hummingbird plant interactions through time (points) as compared to a null model maintaining the number of observations (shaded region).The size of the point is proportional to the number of interactions measured for each month.**
 
-```{r,fig.width=14}
+```{r,fig.height=20,fig.width=13}
 #Goal to create randomized networks for each month and redo the entire analysis
 
 int<-read.csv(paste(droppath,"Thesis/Maquipucuna_SantaLucia/Results/Network/HummingbirdInteractions.csv",sep=""),row.names=1)
@@ -168,7 +166,7 @@ ggsave("Figures/NullNetwork.svg",height=10,width=12)
 
 **Figure 4. Connectance, clustering and niche overlap as a function of available resources. Point size is proportional to number of interactions observed that month.**
 
-```{r,fig.height=20,fig.width=15}
+```{r,fig.height=30,fig.width=15}
     
 flowerMean<-group_by(flower.month,Month,Year,Transect_R) %>% summarize(mFlowers=mean(Flowers,na.rm=TRUE)) %>% group_by(Month,Year) %>% summarize(Flowers=sum(mFlowers,na.rm=TRUE))
   
@@ -181,6 +179,9 @@ flowerMean<-group_by(flower.month,Month,Year,Transect_R) %>% summarize(mFlowers=
 ggsave("Figures/Network_Resources.jpg",height=15,width=15,dpi=300,units="in")
 ggsave("Figures/Network_Resources.svg",height=10,width=10)
 
+```
+
+```{r}
 #just a subset
 p<-ggplot(network.fl[network.fl$Metric %in% c("mean.number.of.shared.partners.HL","H2","weighted NODF","connectance"),],aes(log(Flowers),y=True,shape=as.factor(Year))) + geom_point(aes(size=N)) + facet_wrap(~Metric,scale="free")  + geom_smooth(aes(group=1),method="lm") + theme_bw() + labs(col="Month",shape="Year",size="Interactions") + geom_text(aes(label=month.abb[Month]),hjust=-0.25,size=3) + scale_size_continuous(range=c(2.5,5),"Observations") + labs(x="Log Available Resources") + ylab("Score")
   print(p) 
@@ -190,8 +191,6 @@ ggsave("Figures/Network_ResourcesSubset.svg",height=5,width=10)
 ```
 
 ## Figure 5. Trait matching
-
-I'm not sure which of the following figures best show what i believe is happenning. The essential idea is:
 
 * Hummingbirds in general match the corolla resources based on their bill length.
 
@@ -293,7 +292,7 @@ ggsave("Figures/CorrelationTime.svg",height=5,width=8)
 setwd(gitpath)
 ```
 
-```{r,fig.height=10}
+```{r,fig.height=7}
 
 #Randomization of correlation
 
@@ -349,140 +348,13 @@ ggsave("Figures/TraitMatching_Resource.svg",height=6,width=8)
 
 ```
 
-* The working hypothesis is that long billed species tend to feed more on mismatched corolla values during periods of high resource abundance. 
-
-```{r,eval=T}
-specmonth<-function(x){
-
-  monthdata<-droplevels(x)
-
-#make interaction matrix
-month.interB<-table(monthdata$Hummingbird,monthdata$Iplant_Double)
-
-#What flowers are present
-fl.present<-levels(monthdata$Iplant_Double)
-
-sp_total<-dplyr::group_by(full.fl,Iplant_Double,Month,year) %>% filter(Iplant_Double %in% fl.present, Month %in% monthdata$Month & year %in% monthdata$Year)%>% summarize(N_Flowers=sum(Total_Flowers,na.rm=T)) %>% select(N_Flowers)
-
-if(nrow(sp_total)==0){return(NA)}
-
-missp<-colnames(month.interB)[!colnames(month.interB) %in% sp_total$Iplant_Double]
-
-#get average of the month before and after if missing (pretty rare)
-if(length(missp)>0){
-print(paste("Abundance missing for species:",missp))
-sp_missing<-dplyr::group_by(full.fl,Iplant_Double,Month,year) %>% filter(Iplant_Double %in% fl.present, Month %in% c(monthdata$Month+2,monthdata$Month-2,monthdata$Month+1,monthdata$Month,monthdata$Month-1) & year %in% monthdata$Year) %>% filter(Iplant_Double %in% missp)%>% summarize(N_Flowers=sum(Total_Flowers,na.rm=T)) %>% group_by(Iplant_Double) %>% summarize(N_Flowers=mean(N_Flowers)) %>% mutate(Month=unique(monthdata$Month))
-sp_total<-rbind_all(list(sp_total,sp_missing))
-}
-
-N_Flowers<-sp_total$N_Flowers
-names(N_Flowers)<-sp_total$Iplant_Double
-
-#order 
-out<-vector()
-for (g in 1:length(N_Flowers)){
-  ord<-match(names(N_Flowers)[g],colnames(month.interB))
-  out[ord]<-N_Flowers[g]
-  names(out)[ord]<-names(N_Flowers)[g]
-}
-spec<-H2fun(month.interB,abuns=sample(N_Flowers))
-toreturn<-data.frame(Species=names(spec$dprime),Dprime=spec$dprime,Month=unique(monthdata$Month),Year=unique(monthdata$Year))
-return(toreturn)
-}
-```
-
-```{r,eval=F}
-hlist<-list()
-for(d in 1:length(sdat)){
-  try(hlist[[d]]<-specmonth(sdat[[d]]))
-  }
-
-names(hlist)<-names(sdat)
-#remove NA rows for today
-hlist<-hlist[sapply(hlist,length)==4]
-mlist<-melt(hlist,id.vars=c("Month","Year","Species"))
-
-```
-
-```{r,fig.height=9,eval=F}
-#just keep species with atleast six months of data
-spkeep<-names(which(table(mlist$Species)>=5))
-mlist<-mlist[mlist$Species %in% spkeep,]
-#merge with traits
-mlistt<-merge(mlist,hum.morph[,colnames(hum.morph) %in% c("Mass","Total_Culmen","English")],by.x="Species",by.y="English")
-
-mlistt$BillT<-cut(mlistt$Total_Culmen,c(0,30,70),c("Short","Long"))
-```
-
-Corolla matching versus all available resources.
-
-```{r,fig.height=9,eval=FALSE}
-#match the trait and bill data with available flowers
-h2flowers<-merge(mlistt,flowerMean)
-
-h2match<-merge(m.datH,h2flowers,by.y=c("Month","Year","Species"),by.x=c("Month","Year","Hummingbird"))
-
-#merge with original network measures
-nm<-dcast(network.fl,Month+Year~Metric,value.var="True")
-h2final<-merge(h2match,nm)
-
-p<-ggplot(h2final[!h2final$Iplant_Double %in% "Fuchsia macrostigma",],aes(x=Flowers,y=value)) + geom_smooth(method="lm") + geom_point() + geom_text(aes(label=paste(Species,Iplant_Double)),size=2)
-p<-p + theme_bw()
-p
-```
-
-Corolla matching versus species specific available resources. Why should species care if there are a ton of gasternathus flowers in bloom if they never use that resource? Resource scarcity may be different for each species, not synchronized.
-
-```{r,fig.height=10}
-#for each species get the list of resources.
-keep<-names(which(table(m.datH$Hummingbird) > 30))
-
-hum<-levels(m.datH$Hummingbird)
-hum<-hum[hum %in% keep]
-flowerh<-lapply(hum,function(h){
-  #Find plant species
-  plants<-m.datH %>% filter(Hummingbird==h) %>% dplyr::select(Iplant_Double) %>% distinct()
-  
-  #Query the transect for availability of these plants
-  full.fl %>% filter(Iplant_Double %in% levels(factor(plants$Iplant_Double))) %>% group_by(Month,Year,Transect_R,Date_F) %>% dplyr::summarise(Flowers=sum(Total_Flowers,na.rm=TRUE))  %>% filter(Flowers>2) %>% mutate(Hummingbird=h) %>% group_by(Month,Year,Transect_R,Hummingbird) %>% summarize(TFlowers=mean(Flowers,na.rm=T)) %>% filter(TFlowers>10)
-  })
-flowerh<-droplevels(rbind_all(flowerh))
-
-#sum by transects
-flowerh<-flowerh %>% group_by(Month,Year,Transect_R,Hummingbird) %>% summarize(TF=mean(TFlowers)) %>% group_by(Month,Year,Hummingbird) %>% summarize(Flowers=sum(TF))
-
-ggplot(flowerh,aes(y=log(Flowers),x=Month,shape=as.factor(Year),fill=Hummingbird),alpha=.1) + geom_smooth(aes(group=Hummingbird)) + geom_point(size=2) + theme_bw() + scale_x_continuous(breaks=1:12,labels=month.abb) + ylab("Available Resources")
-
-idflower<-merge(m.datH,flowerh,by=c("Month","Year","Hummingbird"))
-
-#Get the 75% quantile for each species
-th<-idflower %>% group_by(Hummingbird) %>% summarize(Threshold=quantile(log(Flowers),0.5))
-
-idflower<-merge(idflower,th)
-idflower$HL<-log(idflower$Flowers) > idflower$Threshold
-
-#reorder species levels
-ord<-idflower %>% group_by(Hummingbird) %>% summarize(BL=unique(Total_Culmen)) %>% arrange(BL)
-idflower$Hummingbird <- factor(idflower$Hummingbird,levels=ord$Hummingbird)
-
-p<-ggplot(idflower,aes(y=Total_Culmen-TotalCorolla,x=HL,fill=Total_Culmen>30)) + geom_boxplot()
-p<-p + theme_bw() + facet_wrap(~Hummingbird,scales="free")
-p<-p + scale_x_discrete("Available Resources",labels=c("Low","High")) + scale_fill_discrete("Bill Length",labels=c("Short","Long")) 
-p + labs(y="Difference between bill and corolla Length")
-ggsave("Figures/BillLength_Resources.jpg",height=7,width=10,units="in",dpi=600)
-ggsave("Figures/BillLength_Resources.svg",height=7,width=10)
-```
-
-Look at density plots
-```{r}
-p<-ggplot(idflower,aes(y=abs(Total_Culmen-TotalCorolla),x=HL,fill=Total_Culmen>30)) + geom_boxplot()
-p<-p + theme_bw() + facet_wrap(~Hummingbird,scales="free")
-p<-p + scale_x_discrete("Available Resources",labels=c("Low","High")) + scale_fill_discrete("Bill Length",labels=c("Short","Long")) 
-p
-```
 
 ```{r}
-ggplot(idflower,aes(x=abs(Total_Culmen-TotalCorolla),fill=HL),alpha=.6) + geom_density(alpha=.5) + facet_wrap(~Hummingbird,scales='free') + theme_bw() + scale_fill_discrete("Available Resources",labels=c("Low","High"))
+#Read in data from Observed.Rmd
+obsf<-read.csv("InputData/FinalObs.csv",row.names=1)
+
+ggplot(obsf,aes(x=BFlowerA==1,y=Traitmatch,fill=Yobs > 0)) + geom_boxplot() + facet_wrap(~Hummingbird,nrow=3) + labs(x="Resource Availability",fill="Visited") + scale_x_discrete(labels=c("Low","High"))
+
 ```
 
 #Distribtuion of corolla lengths over time
@@ -513,7 +385,7 @@ bm$Month<-factor(bm$Month,levels=1:12)
 levels(tm$Month)<-month.abb
 levels(bm$Month)<-month.abb
 
-ggplot() + geom_boxplot(data=bm,aes(x=Month,y=TotalCorolla),col='red',fill='red',alpha=.6) + stat_smooth(data=bm,aes(x=Month,group=1,y=TotalCorolla),fill='red',col='red')+ facet_wrap(~Hummingbird,nrow=4) + theme_bw()+ geom_boxplot(data=tm,aes(x=as.factor(Month),y=TotalCorolla.y),fill='black',alpha=.1)+ labs(fill="Year",y="Corolla Length (mm)",x="Month")+stat_smooth(data=tm,aes(group=1,x=Month,y=TotalCorolla.y),col='black',size=1) 
+ggplot() + geom_boxplot(data=bm,aes(x=Month,y=TotalCorolla),col='red',fill='red',alpha=.6) + stat_smooth(data=bm,aes(x=Month,group=1,y=TotalCorolla),fill='red',col='red')+ facet_wrap(~Hummingbird,ncol=4) + theme_bw()+ geom_boxplot(data=tm,aes(x=as.factor(Month),y=TotalCorolla.y),fill='black',alpha=.1)+ labs(fill="Year",y="Corolla Length (mm)",x="Month")+stat_smooth(data=tm,aes(group=1,x=Month,y=TotalCorolla.y),col='black',size=1) 
 ```
 
 ```{r}

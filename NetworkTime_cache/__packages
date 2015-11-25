@@ -19,3 +19,8 @@ sna
 bipartite
 chron
 gridExtra
+foreach
+iterators
+snow
+doSNOW
+mgcv
