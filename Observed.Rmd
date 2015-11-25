@@ -517,7 +517,7 @@ How many data points for each species for each resource level?
 
 ```{r}
 counts<-obsf %>% group_by(Hummingbird,BFlowerA,Visited=Yobs>0) %>% summarize(n=length(Yobs)) 
-ggplot(data=counts,aes(x=BFlowerA==1,y=n,fill=Visited))+ facet_wrap(~Hummingbird) + geom_bar(data=counts,stat = "identity",position = position_dodge()) + scale_x_discrete("Resource Availability",labels=c("Low","High")) + geom_text(aes(label=n),size=8,position = position_dodge(width=0.9,vjust=-.25))
+ggplot(data=counts,aes(x=BFlowerA==1,y=n,fill=Visited))+ facet_wrap(~Hummingbird) + geom_bar(data=counts,stat = "identity",position = position_dodge()) + scale_x_discrete("Resource Availability",labels=c("Low","High")) + geom_text(aes(label=n),size=8,position = position_dodge(width=0.9,height=-.25))
 ```
 
 #Exploratory Analysis
