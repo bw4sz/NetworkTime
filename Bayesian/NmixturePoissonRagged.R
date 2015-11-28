@@ -40,7 +40,7 @@ cat("
     gamma3~dnorm(0,0.0001)
     
     #Intercept grouping
-    intercept~dnorm(0,0.01)
+    intercept~dnorm(0,0.0001)
     
     # Group variance
     tau_alpha ~ dgamma(0.0001,0.0001)
