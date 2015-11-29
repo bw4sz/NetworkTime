@@ -314,7 +314,7 @@ The best fitting moment is in opaque red. The observed data is in black.
 
 ```{r,fig.width=6,fig.height=5}
 moment<-fitdistr(indatraw$Yobs,"negative binomial")
-est<-data.frame(Yobs=rpois(n=length(indatraw$Yobs),lambda=moment$estimate[[1]]))
+est<-data.frame(Yobs=rnbinom(n=length(indatraw$Yobs),size=moment$estimate[[1]],mu=moment$estimate[[2]]))
 ggplot(indatraw,aes(x=Yobs)) + geom_histogram(fill="black") + geom_histogram(data=est,fill="red",alpha=.4) + theme_bw()
 ```
 
@@ -517,7 +517,7 @@ How many data points for each species for each resource level?
 
 ```{r}
 counts<-obsf %>% group_by(Hummingbird,BFlowerA,Visited=Yobs>0) %>% summarize(n=length(Yobs)) 
-ggplot(data=counts,aes(x=BFlowerA==1,y=n,fill=Visited))+ facet_wrap(~Hummingbird) + geom_bar(data=counts,stat = "identity",position = position_dodge()) + scale_x_discrete("Resource Availability",labels=c("Low","High")) + geom_text(aes(label=n),size=8,position = position_dodge(width=0.9,height=-.25))
+ggplot(data=counts,aes(x=BFlowerA==1,y=n,fill=Visited))+ facet_wrap(~Hummingbird) + geom_bar(data=counts,stat = "identity",position = position_dodge()) + scale_x_discrete("Resource Availability",labels=c("Low","High")) + geom_text(aes(label=n),size=6,position = position_dodge(width=0.9,height=-.25))
 ```
 
 #Exploratory Analysis
@@ -667,7 +667,7 @@ ParsStage <- c("alpha","beta1","beta2","beta3","intercept","sigma_int","sigma_sl
 
 #MCMC options
 
-ni <- 200000  # number of draws from the posterior
+ni <- 500000  # number of draws from the posterior
 nt <- 5  #thinning rate
 nb <- ni*.95 # number to discard for burn-in
 nc <- 1  # number of chains
@@ -765,6 +765,7 @@ ggplot(data=predy,aes(x=x)) + geom_ribbon(aes(ymin=lower,ymax=upper),alpha=0.2,f
 ##Trait-matching at High and Low Resource Density
 
 ```{r,fig.height=6,fig.width=10}
+
 #Trajectories from posterior
 predH<-trajF(alpha=castdf$intercept,beta1=castdf$gamma1,x=obsf[obsf$BFlowerA==1,"Traitmatch"],resources=obsf[obsf$BFlowerA==1,"BFlowerA"],beta2=castdf$gamma2,beta3=castdf$gamma3,type='hdi')
 
@@ -774,6 +775,21 @@ predhl<-melt(list(High=predH,Low=predL),id.vars=colnames(predH))
 
 ggplot(data=predhl,aes(x=x)) + geom_ribbon(aes(ymin=lower,ymax=upper,fill=L1),alpha=0.2)  + geom_line(aes(y=mean,col=L1),size=.8) + theme_bw() + ylab("Interactions") + xlab("Difference between Bill and Corolla Length") + geom_point(data=obsf,aes(x=Traitmatch,y=Yobs))+ labs(fill="Resource Availability",col="Resource Availability") + facet_wrap(~L1,scales='free')
 ```
+
+That looks pretty crazy, the posterior is very broad, what about holding at mean value for all coefficients
+
+```{r,fig.height=6,fig.width=10}
+
+#Trajectories from posterior
+predH<-trajF(alpha=mean(castdf$intercept),beta1=mean(castdf$gamma1),x=obsf[obsf$BFlowerA==1,"Traitmatch"],resources=obsf[obsf$BFlowerA==1,"BFlowerA"],beta2=mean(castdf$gamma2),beta3=mean(castdf$gamma3),type='hdi')
+
+predL<-trajF(alpha=mean(castdf$intercept),beta1=mean(castdf$gamma1),x=obsf[obsf$BFlowerA==0,"Traitmatch"],resources=obsf[obsf$BFlowerA==0,"BFlowerA"],beta2=mean(castdf$gamma2),beta3=mean(castdf$gamma3),type='hdi')
+
+predhl<-melt(list(High=predH,Low=predL),id.vars=colnames(predH))
+
+ggplot(data=predhl,aes(x=x)) + geom_ribbon(aes(ymin=lower,ymax=upper,fill=L1),alpha=0.2)  + geom_line(aes(y=mean,col=L1),size=.8) + theme_bw() + ylab("Interactions") + xlab("Difference between Bill and Corolla Length") + geom_point(data=obsf,aes(x=Traitmatch,y=Yobs))+ labs(fill="Resource Availability",col="Resource Availability") + facet_wrap(~L1,scales='free')
+```
+Much cleaner, more iteractions needed?
 
 ##Visualize interactions
 
