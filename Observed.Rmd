@@ -93,7 +93,7 @@ int[int$Iplant_Double=="Alloplectus teuscheri","Iplant_Double"]<-"Drymonia teusc
 keep<-names(which(table(int$Hummingbird) > 20))
 
 #Sparkling Violeteat violates closed system?
-#keep<-keep[!keep %in% "Sparkling Violetear"]
+keep<-keep[!keep %in% "Sparkling Violetear"]
 
 int<-droplevels(int[int$Hummingbird %in% keep,])
 
@@ -226,7 +226,7 @@ flower.month<-merge(flower.month,thresh)
 flower.month$Availability<-as.factor((log(flower.month$Flowers)>flower.month$value) * 1)
 
 #plot
-ggplot(flower.month,aes(x=Month.a,log(Flowers),shape=as.factor(Year),col=Availability)) + geom_point(size=3) + theme_bw()  + geom_smooth(aes(group=1)) + ylab("Flowers") + xlab("Month") + facet_wrap(~Transect_R,scales="free_y") + labs(shape="Year", y= "Log Available Flowers") + scale_x_discrete(breaks=month.abb[seq(1,12,2)]) + scale_color_manual(labels=c("Low","High"),values=c("black","red")) + labs(col="Resource Availability")
+ggplot(flower.month,aes(x=Month.a,log(Flowers),shape=as.factor(Year))) + geom_point(size=3) + theme_bw()  + geom_smooth(aes(group=1)) + ylab("Flowers") + xlab("Month") + facet_wrap(~Transect_R,scales="free_y") + labs(shape="Year", y= "Log Available Flowers") + scale_x_discrete(breaks=month.abb[seq(1,12,2)]) + scale_color_manual(labels=c("Low","High"),values=c("black","red")) 
 
 #turn min and max elvation into seperate columns for the range
 flower.month$minElev<-as.numeric(str_extract(flower.month$Transect_R,"(\\d+)"))
@@ -490,7 +490,7 @@ ggplot(obsf[obsf$BUsed_Flowers==0,],aes(x=Used_Flowers,fill=Hummingbird)) + geom
 ```{r}
 sob<-split(obsf,obsf$Hummingbird)
 for(x in 1:length(sob)){
-  sob[[x]]$BFlowerA<-( log(sob[[x]]$FlowerA) > quantile( log(sob[[x]]$FlowerA),0.75))*1}
+  sob[[x]]$BFlowerA<-( sob[[x]]$FlowerA > quantile( sob[[x]]$FlowerA,0.5))*1}
 
 obsf<-as.data.frame(rbind_all(sob))
 
@@ -534,9 +534,9 @@ ggplot(mobs,aes(x=Traitmatch,y=d,col=Used_Flowers)) + geom_point(aes(size=Events
 ##Mean Intensity as a function of resources
 
 ```{r}
-mobs<-obsf[,] %>% group_by(Hummingbird,Iplant_Double,Month) %>% summarize(Events=n(),d=mean(Yobs),Traitmatch=unique(Traitmatch),Flowers=mean(Used_Flowers))
+mobs<-obsf[,] %>% group_by(Hummingbird,Iplant_Double,Month,BFlowerA) %>% summarize(Events=n(),d=mean(Yobs),Traitmatch=unique(Traitmatch),Flowers=mean(Used_Flowers))
 
-ggplot(mobs,aes(x=log(Flowers),y=d,col=Traitmatch)) + geom_point(aes(size=Events),alpha=.8) + theme_bw() + facet_wrap(~Hummingbird,scales="free") + scale_color_continuous(low="blue",high="red") + labs(y="Average Number of Visits")
+ggplot(mobs,aes(x=log(Flowers),y=d,col=as.factor(BFlowerA))) + geom_point(aes(size=Events),alpha=.8) + theme_bw() + facet_wrap(~Hummingbird,scales="free") + labs(y="Average Number of Visits",col="Resource Availability")
 ```
 
 ##Mixed Effect models
@@ -565,10 +565,23 @@ anova(tr_interactionA,tr_interactionU,tr_interactionF)
 #Binary models
 ```
 
+What does the mixed effect model look like?
+
+```{r}
+fc<-fixed.effects(tr_interactionF)
+
+predy<-trajF(alpha=fc[[1]],beta1=fc[[2]],beta2=fc[[3]],beta3=fc[[4]],x=obsf$Traitmatch,resources = obsf$BFlowerA)
+
+ggplot(data=predy,aes(x=x)) + geom_ribbon(aes(ymin=lower,ymax=upper),alpha=0.2,fill="red")  +  theme_bw() + ylab("Interactions") + xlab("Difference between Bill and Corolla Length") + geom_point(data=obsf,aes(x=Traitmatch,y=Yobs,col=BFlowerA)) + geom_line(aes(y=mean))
+```
+
 ### Log tranformed presence only records
 ```{r}
 tr_interactionFL<-lmer(data=obsf[obsf$Yobs>0,],log(Yobs)~Traitmatch * FlowerA + (1|Bird))
-summary(tr_interactionF)
+summary(tr_interactionFL)
+obsflmer<-obsf[obsf$Yobs>0,]
+obsflmer$pred<-predict(tr_interactionFL)
+ggplot(obsflmer,aes(x=Traitmatch,y=pred,col=as.factor(BFlowerA))) + geom_point() + geom_point(aes(y=log(Yobs)),col='black')
 ```
 
 #Hierarchical Bayesian Model
@@ -660,15 +673,15 @@ Dat <- list(
 initB<-rep(.5,Dat$Birds)
 Ninit<-rep(max(Dat$Yobs)+1,Dat$Nobs)
 
-InitStage <- function(){list(beta1=initB,beta2=initB,detect=initB,beta3=initB,alpha=initB,intercept=0,tau_alpha=0.1,tau_beta1=0.1,tau_beta2=0.1,tau_beta3=0.1,gamma1=0,gamma2=0,gamma3=0,N=Ninit)}
+InitStage <- function(){list(beta1=initB,beta2=initB,detect=.1,beta3=initB,alpha=initB,intercept=0,tau_alpha=0.1,tau_beta1=0.1,tau_beta2=0.1,tau_beta3=0.1,gamma1=0,gamma2=0,gamma3=0,N=Ninit)}
 
 #Parameters to track
 ParsStage <- c("alpha","beta1","beta2","beta3","intercept","sigma_int","sigma_slope1","sigma_slope2","sigma_slope3","gamma1","gamma2","gamma3","detect","fit","fitnew","E")
 
 #MCMC options
 
-ni <- 1000000  # number of draws from the posterior
-nt <- 5  #thinning rate
+ni <- 20000  # number of draws from the posterior
+nt <- 1  #thinning rate
 nb <- ni*.95 # number to discard for burn-in
 nc <- 2  # number of chains
 
@@ -798,7 +811,8 @@ levels(obsf$BFlowerL)<-c("Low","High")
 
 ggplot(data=predhl,aes(x=x)) + geom_ribbon(aes(ymin=lower,ymax=upper,fill=BFlowerL),alpha=0.2)  + geom_line(aes(y=mean,col=BFlowerL),size=.8) + theme_bw() + ylab("Interactions") + xlab("Difference between Bill and Corolla Length") + geom_point(data=obsf,aes(x=Traitmatch,y=Yobs))+ labs(fill="Resource Availability",col="Resource Availability") + facet_wrap(~BFlowerL,scales='free')
 ```
-Much cleaner, more iteractions needed?
+
+Much cleaner, more iterations needed?
 
 ##Visualize interactions
 
@@ -995,9 +1009,9 @@ ggpairs(castdf[,c("gamma1","gamma2","gamma3","intercept")])
 Species level posteriors
 
 ```{r}
-castdf<-dcast(pars[pars$par %in% c("alpha","beta1","beta2","beta3","detect"),], Chain + Draw+species~par,value.var="estimate")
+castdf<-dcast(pars[pars$par %in% c("alpha","beta1","beta2","beta3"),], Chain + Draw+species~par,value.var="estimate")
 
-ggpairs(castdf[,c("alpha","beta1","beta2","beta3","detect")])
+ggpairs(castdf[,c("alpha","beta1","beta2","beta3")])
 ```
 
 ##Posterior Check
