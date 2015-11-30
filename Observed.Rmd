@@ -667,10 +667,10 @@ ParsStage <- c("alpha","beta1","beta2","beta3","intercept","sigma_int","sigma_sl
 
 #MCMC options
 
-ni <- 500000  # number of draws from the posterior
+ni <- 1000000  # number of draws from the posterior
 nt <- 5  #thinning rate
 nb <- ni*.95 # number to discard for burn-in
-nc <- 1  # number of chains
+nc <- 2  # number of chains
 
 ```
 
@@ -773,7 +773,12 @@ predL<-trajF(alpha=castdf$intercept,beta1=castdf$gamma1,x=obsf[obsf$BFlowerA==0,
 
 predhl<-melt(list(High=predH,Low=predL),id.vars=colnames(predH))
 
-ggplot(data=predhl,aes(x=x)) + geom_ribbon(aes(ymin=lower,ymax=upper,fill=L1),alpha=0.2)  + geom_line(aes(y=mean,col=L1),size=.8) + theme_bw() + ylab("Interactions") + xlab("Difference between Bill and Corolla Length") + geom_point(data=obsf,aes(x=Traitmatch,y=Yobs))+ labs(fill="Resource Availability",col="Resource Availability") + facet_wrap(~L1,scales='free')
+colnames(predhl)[5]<-"BFlowerL"
+
+obsf$BFlowerL<-factor(as.character(obsf$BFlowerA))
+levels(obsf$BFlowerL)<-c("Low","High")
+
+ggplot(data=predhl,aes(x=x)) + geom_ribbon(aes(ymin=lower,ymax=upper,fill=BFlowerL),alpha=0.2)  + geom_line(aes(y=mean,col=BFlowerL),size=.8) + theme_bw() + ylab("Interactions") + xlab("Difference between Bill and Corolla Length") + geom_point(data=obsf,aes(x=Traitmatch,y=Yobs))+ labs(fill="Resource Availability",col="Resource Availability") + facet_wrap(~BFlowerL,scales='free')
 ```
 
 That looks pretty crazy, the posterior is very broad, what about holding at mean value for all coefficients
@@ -786,8 +791,12 @@ predH<-trajF(alpha=mean(castdf$intercept),beta1=mean(castdf$gamma1),x=obsf[obsf$
 predL<-trajF(alpha=mean(castdf$intercept),beta1=mean(castdf$gamma1),x=obsf[obsf$BFlowerA==0,"Traitmatch"],resources=obsf[obsf$BFlowerA==0,"BFlowerA"],beta2=mean(castdf$gamma2),beta3=mean(castdf$gamma3),type='hdi')
 
 predhl<-melt(list(High=predH,Low=predL),id.vars=colnames(predH))
+colnames(predhl)[5]<-"BFlowerL"
 
-ggplot(data=predhl,aes(x=x)) + geom_ribbon(aes(ymin=lower,ymax=upper,fill=L1),alpha=0.2)  + geom_line(aes(y=mean,col=L1),size=.8) + theme_bw() + ylab("Interactions") + xlab("Difference between Bill and Corolla Length") + geom_point(data=obsf,aes(x=Traitmatch,y=Yobs))+ labs(fill="Resource Availability",col="Resource Availability") + facet_wrap(~L1,scales='free')
+obsf$BFlowerL<-factor(as.character(obsf$BFlowerA))
+levels(obsf$BFlowerL)<-c("Low","High")
+
+ggplot(data=predhl,aes(x=x)) + geom_ribbon(aes(ymin=lower,ymax=upper,fill=BFlowerL),alpha=0.2)  + geom_line(aes(y=mean,col=BFlowerL),size=.8) + theme_bw() + ylab("Interactions") + xlab("Difference between Bill and Corolla Length") + geom_point(data=obsf,aes(x=Traitmatch,y=Yobs))+ labs(fill="Resource Availability",col="Resource Availability") + facet_wrap(~BFlowerL,scales='free')
 ```
 Much cleaner, more iteractions needed?
 
