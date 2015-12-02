@@ -88,7 +88,7 @@ int[int$Iplant_Double=="Alloplectus purpureus","Iplant_Double"]<-"Glossoloma pur
 int[int$Iplant_Double=="Capanea affinis","Iplant_Double"]<-"Kohleria affinis"
 int[int$Iplant_Double=="Columnea cinerea","Iplant_Double"]<-"Columnea mastersonii"
 int[int$Iplant_Double=="Alloplectus teuscheri","Iplant_Double"]<-"Drymonia teuscheri"
-
+levels(int$Hummingbird)[levels(int$Hummingbird) %in% "Crowned Woodnymph"]<-"Green-crowned Woodnymph"
 #remove species with less than  20 observations
 keep<-names(which(table(int$Hummingbird) > 20))
 
@@ -479,7 +479,7 @@ obsf$BAll_Flowers<-(obsf$All_Flowers >quantile(log(obsf$All_Flowers),0.75))*1
 ```{r}
 sob<-split(obsf,obsf$Hummingbird)
 for(x in 1:length(sob)){
-  sob[[x]]$BUsed_Flowers<-(sob[[x]]$Used_Flowers) >         quantile(sob[[x]]$Used_Flowers,0.75)*1
+  sob[[x]]$BUsed_Flowers<-(sob[[x]]$Used_Flowers) >         quantile(sob[[x]]$Used_Flowers,0.5)*1
 }
 obsf<-rbind_all(sob)
 
@@ -488,24 +488,39 @@ ggplot(obsf[obsf$BUsed_Flowers==0,],aes(x=Used_Flowers,fill=Hummingbird)) + geom
 ```
 
 ```{r}
-sob<-split(obsf,obsf$Hummingbird)
-for(x in 1:length(sob)){
-  sob[[x]]$BFlowerA<-( sob[[x]]$FlowerA > quantile( sob[[x]]$FlowerA,0.5))*1}
-
-obsf<-as.data.frame(rbind_all(sob))
+#split into each species, get low and high resources, only presence records.
+sob<-obsf[obsf$Yobs>0,]
+qthresh<-sob %>% group_by(Hummingbird) %>% summarize(Thresh=quantile(FlowerA,.75))
+obsf<-merge(obsf,qthresh)
+obsf$BFlowerA<-(obsf$FlowerA > obsf$Thresh)*1
 
 #visualize
-ggplot(obsf[obsf$BFlowerA==0,],aes(x=FlowerA,fill=Hummingbird)) + geom_density() + facet_wrap(~Hummingbird,scales='free')
+ggplot(obsf,aes(y=FlowerA,x=Hummingbird)) + geom_boxplot() + facet_wrap(~BFlowerA,scales = "free",ncol=1) + theme(axis.text.x=element_text(angle=90,hjust=1,vjust=1)) + scale_x_discrete("Resource Availability",labels=c("High","Low")) 
 ```
 
-Given that these resource values are very large, scale by dividing by sd and subtracting the mean. Mean =0, sd=1. For used resources, this needs to be scaled per species
+###How many counts for each quantile class?
+
+Do we have enough data?
 
 ```{r}
-obsf$All_Flowers<-as.numeric(scale(obsf$All_Flowers))
+#loop through and calculated number of data points in each quantile cut
+tt<-lapply(seq(0,1,.1),function(x) {
+  sob<-obsf[obsf$Yobs>0,]
 
-obsf$FlowerA<-as.numeric(scale((obsf$FlowerA)))
+qthresh<-sob %>% group_by(Hummingbird) %>% summarize(AThresh=quantile(FlowerA,x))
+om<-merge(obsf,qthresh,by="Hummingbird")
+om$BFlowerA<-om$FlowerA > om$AThresh
+om<-om[om$Yobs>0 ,]
+out<-as.data.frame(table(om$Hummingbird,om$BFlowerA))
+colnames(out)<-c("Hummingbird","Resource","Count")
+out<-merge(out,qthresh)
+return(out)})
+
+names(tt)<-seq(0,1,.1)
+tt<-melt(tt,id.vars=colnames(tt[[1]]))
+colnames(tt)<-c("Hummingbird","Resources","Count","Flowers","Quantile")
+ggplot(tt,aes(col=Resources,x=Quantile,y=Count)) + geom_point(size=3) + geom_line(aes(group=Resources)) + facet_wrap(~Hummingbird,scales='free',ncol=3) +  scale_color_discrete(name="Resource Availability",labels=c("Low","High")) + geom_text(aes(label=round(Flowers)),size.=.8)
 ```
-
 
 Relationship among resource measures
 
@@ -676,12 +691,12 @@ Ninit<-rep(max(Dat$Yobs)+1,Dat$Nobs)
 InitStage <- function(){list(beta1=initB,beta2=initB,detect=.1,beta3=initB,alpha=initB,intercept=0,tau_alpha=0.1,tau_beta1=0.1,tau_beta2=0.1,tau_beta3=0.1,gamma1=0,gamma2=0,gamma3=0,N=Ninit)}
 
 #Parameters to track
-ParsStage <- c("alpha","beta1","beta2","beta3","intercept","sigma_int","sigma_slope1","sigma_slope2","sigma_slope3","gamma1","gamma2","gamma3","detect","fit","fitnew","E")
+ParsStage <- c("alpha","beta1","beta2","beta3","intercept","sigma_int","sigma_slope1","sigma_slope2","sigma_slope3","gamma1","gamma2","gamma3","detect","fit","fitnew","E","dprior","sigma_detect")
 
 #MCMC options
 
-ni <- 20000  # number of draws from the posterior
-nt <- 1  #thinning rate
+ni <- 300000  # number of draws from the posterior
+nt <- 5  #thinning rate
 nb <- ni*.95 # number to discard for burn-in
 nc <- 2  # number of chains
 
@@ -726,11 +741,11 @@ chainplot(pars,"detect","Detection Probability")
 
 ```{r,fig.height=12}
 ###Species level Slopes
-chainplot(pars,c("alpha","beta1","beta2","beta3","beta4"),"Species regression") + facet_grid(species~par)
+chainplot(pars,c("alpha","beta1","beta2","beta3"),"Species regression") + facet_grid(species~par)
 ```
 
 ```{r,fig.height=4}
-chainplot(pars,c("gamma1","gamma2","gamma3","sigma_int","sigma_slope1","sigma_slope2","sigma_slope3"),"Group Level Regression") + facet_wrap(~par,nrow=1)
+chainplot(pars,c("gamma1","gamma2","gamma3","sigma_int","sigma_slope1","sigma_slope2","sigma_slope3","dprior","sigma_detect"),"Group Level Regression") + facet_wrap(~par,nrow=1)
 ```
 
 ##Posteriors
@@ -747,7 +762,7 @@ tracegplot(pars,c("alpha","beta1","beta2","beta3"),"Species Level Parameters") +
 
 ```{r,fig.height=5}
 ###Detection Posterior Distributions
-tracegplot(pars,c("gamma1","gamma2","gamma3","sigma_int","sigma_slope1","sigma_slope2","sigma_slope3"),"Group-level Parameters") + facet_wrap(~par,nrow=2,scale='free')
+tracegplot(pars,c("gamma1","gamma2","gamma3","sigma_int","sigma_slope1","sigma_slope2","sigma_slope3","dprior","sigma_detect"),"Group-level Parameters") + facet_wrap(~par,nrow=2,scale='free')
 ```
 
 ##Predicted Relationship 
