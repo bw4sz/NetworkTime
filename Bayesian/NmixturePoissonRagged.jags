@@ -9,15 +9,15 @@
     N[x] ~ dpois(lambda[Bird[x],Plant[x],Time[x]] )    
     
     #Observation Process
-    Yobs[x] ~ dbin(detect,N[x])    
+    Yobs[x] ~ dbin(detect[Bird[x]],N[x])    
 
     #Assess Model Fit
       
     #Fit discrepancy statistics
-    eval[x]<-detect*N[x]
+    eval[x]<-detect[Bird[x]]*N[x]
     E[x]<-pow((Yobs[x]-eval[x]),2)/(eval[x]+0.5)
 
-    y.new[x]~dbin(detect,N[x])
+    y.new[x]~dbin(detect[Bird[x]],N[x])
     E.new[x]<-pow((y.new[x]-eval[x]),2)/(eval[x]+0.5)
 
     }
@@ -41,7 +41,7 @@
     intercept~dnorm(0,0.0001)
   
     #detect grouping
-    dprior~dbeta(1,3)
+    dprior~dunif(0,0.5)
     
     # Group intercept variance
     tau_alpha ~ dgamma(0.0001,0.0001)
