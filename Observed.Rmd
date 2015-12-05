@@ -477,14 +477,13 @@ obsf$BAll_Flowers<-(obsf$All_Flowers >quantile(log(obsf$All_Flowers),0.75))*1
 ```
 
 ```{r}
-sob<-split(obsf,obsf$Hummingbird)
-for(x in 1:length(sob)){
-  sob[[x]]$BUsed_Flowers<-(sob[[x]]$Used_Flowers) >         quantile(sob[[x]]$Used_Flowers,0.5)*1
-}
-obsf<-rbind_all(sob)
+sob<-obsf[obsf$Yobs>0,]
+qthresh<-sob %>% group_by(Hummingbird) %>% summarize(UThresh=quantile(Used_Flowers,.75))
+obsf<-merge(obsf,qthresh)
+obsf$BUsed_Flowers<-(obsf$Used_Flowers > obsf$UThresh)*1
 
 #visualize
-ggplot(obsf[obsf$BUsed_Flowers==0,],aes(x=Used_Flowers,fill=Hummingbird)) + geom_density() + facet_wrap(~Hummingbird,scales='free')
+ggplot(obsf,aes(y=Used_Flowers,x=Hummingbird)) + geom_boxplot() + facet_wrap(~BUsed_Flowers,scales = "free",ncol=1) + theme(axis.text.x=element_text(angle=90,hjust=1,vjust=1)) + scale_x_discrete("Resource Availability",labels=c("High","Low")) 
 ```
 
 ```{r}
@@ -543,7 +542,7 @@ Let's look at the same figures as above, with the addition of informed 0's for n
 ```{r}
 mobs<-obsf[,] %>% group_by(Hummingbird,Iplant_Double,Month,Year) %>% summarize(Events=n(),d=mean(Yobs),Traitmatch=unique(Traitmatch),Used_Flowers=mean(Used_Flowers))
 
-ggplot(mobs,aes(x=Traitmatch,y=d,col=Used_Flowers)) + geom_point(aes(size=Events),alpha=.8)  + scale_size_continuous(range=c(2,6)) + labs(col="Flower Availability",y="Average Number of Visits") + scale_color_continuous(low='blue',high='red') + facet_wrap(~Hummingbird,ncol=2) + theme_bw()
+ggplot(mobs,aes(x=Traitmatch,y=d,col=Used_Flowers)) + geom_point(aes(size=Events),alpha=.8)  + scale_size_continuous(range=c(2,6)) + labs(col="Flower Availability",y="Average Number of Visits") + scale_color_continuous(low='blue',high='red') + facet_wrap(~Hummingbird,ncol=2,scales='free') + theme_bw()
 ```
 
 ##Mean Intensity as a function of resources
@@ -552,6 +551,23 @@ ggplot(mobs,aes(x=Traitmatch,y=d,col=Used_Flowers)) + geom_point(aes(size=Events
 mobs<-obsf[,] %>% group_by(Hummingbird,Iplant_Double,Month,BFlowerA) %>% summarize(Events=n(),d=mean(Yobs),Traitmatch=unique(Traitmatch),Flowers=mean(Used_Flowers))
 
 ggplot(mobs,aes(x=log(Flowers),y=d,col=as.factor(BFlowerA))) + geom_point(aes(size=Events),alpha=.8) + theme_bw() + facet_wrap(~Hummingbird,scales="free") + labs(y="Average Number of Visits",col="Resource Availability")
+```
+
+```{r}
+#All flowers
+ggplot(obsf,aes(x=BAll_Flowers==1,y=Traitmatch,fill=Yobs > 0)) + geom_boxplot() + facet_wrap(~Hummingbird,ncol=3,scale='free') + labs(x="Resource Availability",fill="Visited") + scale_x_discrete(labels=c("Low","High")) + ggtitle("All Flowers")
+
+ggplot(obsf,aes(x=BUsed_Flowers==1,y=Traitmatch,fill=Yobs > 0)) + geom_boxplot() + facet_wrap(~Hummingbird,ncol=4) + labs(x="Resource Availability",fill="Visited") + scale_x_discrete(labels=c("Low","High")) + ggtitle("Used Flowers")
+
+ggplot(obsf,aes(x=BFlowerA==1,y=Traitmatch,fill=Yobs > 0)) + geom_boxplot() + facet_wrap(~Hummingbird,ncol=4) + labs(x="Resource Availability",fill="Visited") + scale_x_discrete(labels=c("Low","High")) + ggtitle("Flower Abundance")
+
+```
+
+Boxplots of trait-matching
+
+```{r}
+ggplot(obsf,aes(x=BFlowerA==1,y=Traitmatch,fill=Yobs > 0)) + geom_boxplot() + facet_wrap(~Hummingbird,ncol=2) + labs(x="Resource Availability",fill="Visited") + scale_x_discrete(labels=c("Low","High"))  + ggtitle("Flower Abundance")
+
 ```
 
 ##Mixed Effect models
@@ -620,7 +636,7 @@ $$\beta_{3,i} \sim N(\gamma_3i,\tau_{\beta_3})$$
 **Hyperpriors**
 
 Group Level Means
-$$dprior \sim U(0,0.5)
+$$dprior \sim U(0,0.5)$$
 $$\gamma_{1,i} \sim N(0,0.0001)$$
 $$\gamma_{2,i} \sim N(0,0.0001)$$
 $$\gamma_{3,i} \sim N(0,0.0001)$$
@@ -637,11 +653,10 @@ $$\tau_\beta3 \sim Gamma(0.0001,0.0001)$$
 **Derived quantities**
 
 $$\sigma_{int} = \sqrt[2]{\frac{1}{\tau_\alpha}}$$
-$$\sigma_{detect} = \sqrt[2]{\frac{1}{\tau_detect}}$$
+$$\sigma_{detect} = \sqrt[2]{\frac{1}{\tau_detect}$$
 $$\sigma_{slope1} = \sqrt[2]{\frac{1}{\tau_\beta1}}$$
 $$\sigma_{slope2} = \sqrt[2]{\frac{1}{\tau_\beta2}}$$
 $$\sigma_{slope3} = \sqrt[2]{\frac{1}{\tau_\beta3}}$$
-
 
 ```{r}
 #Reformat index for jags.
@@ -660,6 +675,11 @@ jagsIndexPlants<-data.frame(Iplant_Double=levels(obsf$Iplant_Double),jPlant=1:le
 ```{r}
 #Write formatted data to file
 write.csv(obsf,"InputData/FinalObs.csv")
+
+#scale flowers
+obsf$FlowerA<-as.numeric(scale(obsf$FlowerA))
+obsf$Used_Flowers<-as.numeric(scale(obsf$Used_Flowers))
+obsf$All_Flowers<-as.numeric(scale(obsf$All_Flowers))
 ```
 
 ```{r,eval=T,strip.white=T,eval=T}
@@ -683,21 +703,21 @@ Dat <- list(
   
   #Length of variables
   Birds=max(obsf$jBird),
-  resources=obsf$BFlowerA,
+  resources=obsf$Used_Flowers,
   traitmatch=obsf$Traitmatch)
 
 #Inits
 initB<-rep(.5,Dat$Birds)
 Ninit<-rep(max(Dat$Yobs)+1,Dat$Nobs)
 
-InitStage <- function(){list(beta1=initB,beta2=initB,detect=initB-.25,beta3=initB,alpha=initB,intercept=0,tau_alpha=0.1,tau_beta1=0.1,tau_beta2=0.1,tau_beta3=0.1,gamma1=0,gamma2=0,gamma3=0,N=Ninit,dprior=.25)}
+InitStage <- function(){list(beta1=initB,beta2=initB,detect=initB-.25,beta3=initB,alpha=initB,intercept=0,tau_alpha=0.1,tau_detect=0.1,tau_beta1=0.1,tau_beta2=0.1,tau_beta3=0.1,gamma1=0,gamma2=0,gamma3=0,N=Ninit,dprior=.25)}
 
 #Parameters to track
 ParsStage <- c("alpha","beta1","beta2","beta3","intercept","sigma_int","sigma_slope1","sigma_slope2","sigma_slope3","gamma1","gamma2","gamma3","detect","fit","fitnew","E","dprior","sigma_detect")
 
 #MCMC options
 
-ni <- 300000  # number of draws from the posterior
+ni <- 100000  # number of draws from the posterior
 nt <- 5  #thinning rate
 nb <- ni*.95 # number to discard for burn-in
 nc <- 2  # number of chains
@@ -747,14 +767,14 @@ chainplot(pars,c("alpha","beta1","beta2","beta3"),"Species regression") + facet_
 ```
 
 ```{r,fig.height=4}
-chainplot(pars,c("gamma1","gamma2","gamma3","sigma_int","sigma_slope1","sigma_slope2","sigma_slope3","dprior","sigma_detect"),"Group Level Regression") + facet_wrap(~par,nrow=1)
+chainplot(pars,c("gamma1","gamma2","gamma3","sigma_int","sigma_slope1","sigma_slope2","sigma_slope3","dprior","sigma_detect"),"Group Level Regression") + facet_wrap(~par,nrow=1,scales="free")
 ```
 
 ##Posteriors
 
 ```{r,cache=FALSE,fig.width=8,fig.height=10}
 #intercept
-tracegplot(pars,"detect","Detection Parameters") + xlim(0,1) + facet_wrap(~species,scales='free',ncol=2)
+tracegplot(pars,"detect","Detection Parameters") + facet_wrap(~species,scales='free',ncol=2)
 ```
 
 ```{r,fig.height=12}
@@ -797,15 +817,15 @@ ggplot(data=predy,aes(x=x)) + geom_ribbon(aes(ymin=lower,ymax=upper),alpha=0.2,f
 ```{r,fig.height=6,fig.width=10}
 
 #Trajectories from posterior
-predH<-trajF(alpha=castdf$intercept,beta1=castdf$gamma1,x=obsf[obsf$BFlowerA==1,"Traitmatch"],resources=obsf[obsf$BFlowerA==1,"BFlowerA"],beta2=castdf$gamma2,beta3=castdf$gamma3,type='hdi')
+predH<-trajF(alpha=castdf$intercept,beta1=castdf$gamma1,x=obsf[obsf$BUsed_Flowers==1,"Traitmatch"],resources=obsf[obsf$BUsed_Flowers==1,"Used_Flowers"],beta2=castdf$gamma2,beta3=castdf$gamma3,type='hdi')
 
-predL<-trajF(alpha=castdf$intercept,beta1=castdf$gamma1,x=obsf[obsf$BFlowerA==0,"Traitmatch"],resources=obsf[obsf$BFlowerA==0,"BFlowerA"],beta2=castdf$gamma2,beta3=castdf$gamma3,type='hdi')
+predL<-trajF(alpha=castdf$intercept,beta1=castdf$gamma1,x=obsf[obsf$BUsed_Flowers==0,"Traitmatch"],resources=obsf[obsf$BUsed_Flowers==0,"Used_Flowers"],beta2=castdf$gamma2,beta3=castdf$gamma3,type='hdi')
 
 predhl<-melt(list(High=predH,Low=predL),id.vars=colnames(predH))
 
 colnames(predhl)[5]<-"BFlowerL"
 
-obsf$BFlowerL<-factor(as.character(obsf$BFlowerA))
+obsf$BFlowerL<-factor(as.character(obsf$BUsed_Flowers))
 levels(obsf$BFlowerL)<-c("Low","High")
 
 ggplot(data=predhl,aes(x=x)) + geom_ribbon(aes(ymin=lower,ymax=upper,fill=BFlowerL),alpha=0.2)  + geom_line(aes(y=mean,col=BFlowerL),size=.8) + theme_bw() + ylab("Interactions") + xlab("Difference between Bill and Corolla Length") + geom_point(data=obsf,aes(x=Traitmatch,y=Yobs))+ labs(fill="Resource Availability",col="Resource Availability") + facet_wrap(~BFlowerL,scales='free')
@@ -816,14 +836,14 @@ That looks pretty crazy, the posterior is very broad, what about holding at mean
 ```{r,fig.height=6,fig.width=10}
 
 #Trajectories from posterior
-predH<-trajF(alpha=mean(castdf$intercept),beta1=mean(castdf$gamma1),x=obsf[obsf$BFlowerA==1,"Traitmatch"],resources=obsf[obsf$BFlowerA==1,"BFlowerA"],beta2=mean(castdf$gamma2),beta3=mean(castdf$gamma3),type='hdi')
+predH<-trajF(alpha=mean(castdf$intercept),beta1=mean(castdf$gamma1),x=obsf[obsf$BFlowerA==1,"Traitmatch"],resources=obsf[obsf$BFlowerA==1,"Used_Flowers"],beta2=mean(castdf$gamma2),beta3=mean(castdf$gamma3),type='hdi')
 
-predL<-trajF(alpha=mean(castdf$intercept),beta1=mean(castdf$gamma1),x=obsf[obsf$BFlowerA==0,"Traitmatch"],resources=obsf[obsf$BFlowerA==0,"BFlowerA"],beta2=mean(castdf$gamma2),beta3=mean(castdf$gamma3),type='hdi')
+predL<-trajF(alpha=mean(castdf$intercept),beta1=mean(castdf$gamma1),x=obsf[obsf$BFlowerA==0,"Traitmatch"],resources=obsf[obsf$BFlowerA==0,"Used_Flowers"],beta2=mean(castdf$gamma2),beta3=mean(castdf$gamma3),type='hdi')
 
 predhl<-melt(list(High=predH,Low=predL),id.vars=colnames(predH))
 colnames(predhl)[5]<-"BFlowerL"
 
-obsf$BFlowerL<-factor(as.character(obsf$BFlowerA))
+obsf$BFlowerL<-factor(as.character(obsf$BUsed_Flowers))
 levels(obsf$BFlowerL)<-c("Low","High")
 
 ggplot(data=predhl,aes(x=x)) + geom_ribbon(aes(ymin=lower,ymax=upper,fill=BFlowerL),alpha=0.2)  + geom_line(aes(y=mean,col=BFlowerL),size=.8) + theme_bw() + ylab("Interactions") + xlab("Difference between Bill and Corolla Length") + geom_point(data=obsf,aes(x=Traitmatch,y=Yobs))+ labs(fill="Resource Availability",col="Resource Availability") + facet_wrap(~BFlowerL,scales='free')
@@ -862,7 +882,7 @@ for(d in 1:length(species.split)){
   billd<-obsf[obsf$jBird %in% index,]
 
   #scale resources
-  species.traj[[d]]<-trajF(alpha=x$alpha,beta1=x$beta1,beta2=x$beta2,beta3=x$beta3,resources=billd$BFlowerA,x=billd$Traitmatch,type='hdi')
+  species.traj[[d]]<-trajF(alpha=x$alpha,beta1=x$beta1,beta2=x$beta2,beta3=x$beta3,resources=billd$Used_Flowers,x=billd$Traitmatch,type='hdi')
   }
 
 names(species.traj)<-names(species.split)
@@ -898,9 +918,8 @@ for(d in 1:length(species.split)){
   #get data for those species
   billd<-obsf[obsf$jBird %in% index,]
 
-  #scale resources
-  sl<-trajF(alpha=x$alpha,beta1=x$beta1,beta2=x$beta2,beta3=x$beta3,resources=billd[billd$BFlowerA==0,"BFlowerA"],x=billd[billd$BFlowerA==0,"Traitmatch"],type='hdi')
-  sh<-trajF(alpha=x$alpha,beta1=x$beta1,beta2=x$beta2,beta3=x$beta3,resources=billd[billd$BFlowerA==1,"BFlowerA"],x=billd[billd$BFlowerA==1,"Traitmatch"],type='hdi')
+  sl<-trajF(alpha=x$alpha,beta1=x$beta1,beta2=x$beta2,beta3=x$beta3,resources=billd[billd$BFlowerA==0,"Used_Flowers"],x=billd[billd$BFlowerA==0,"Traitmatch"],type='hdi')
+  sh<-trajF(alpha=x$alpha,beta1=x$beta1,beta2=x$beta2,beta3=x$beta3,resources=billd[billd$BFlowerA==1,"Used_Flowers"],x=billd[billd$BFlowerA==1,"Traitmatch"],type='hdi')
   sm<-melt(list(High=sh,Low=sl),id.vars=colnames(sl))
   colnames(sm)[5]<-"Resources"
   species.traj[[d]]<-sm
@@ -940,7 +959,7 @@ for(d in 1:length(species.split)){
   billd<-obsf[obsf$jBird %in% index,]
 
   #Calculate interaction effect
-  species.traj[[d]]<-intF(alpha=dat$alpha,beta1=dat$beta1,x=billd$Traitmatch,resources=billd$BFlowerA,beta2=dat$beta2,beta3=dat$beta3,type='hdi')
+  species.traj[[d]]<-intF(alpha=dat$alpha,beta1=dat$beta1,x=billd$Traitmatch,resources=billd$Used_Flowers,beta2=dat$beta2,beta3=dat$beta3,type='hdi')
   
   }
 
@@ -1063,7 +1082,7 @@ Order predictions from worst to best.
 
 ```{r}
 chiorder<-obsf %>% arrange(desc(chisq),Bird)
-head(chiorder[,c("Hummingbird","Iplant_Double","chisq","Yobs","FlowerA","Traitmatch")],10)
+head(chiorder[,c("Hummingbird","Iplant_Double","chisq","Yobs","Used_Flowers","Traitmatch")],10)
 
 #order `by highest average discrepancy
 chi<-obsf
@@ -1077,5 +1096,5 @@ ggplot(chi,aes(x=Hummingbird,y=Iplant_Double,fill=chisq)) + geom_tile() + theme_
 ```
 
 ```{r}
-#save.image("Observed.RData")
+save.image("Observed.RData")
 ```

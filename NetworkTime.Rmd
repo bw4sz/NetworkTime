@@ -38,7 +38,7 @@ setwd(gitpath)
 
 opts_chunk$set(message=FALSE,warning=FALSE,fig.height=9,fig.width=13,echo=FALSE,cache=TRUE,cache.path = 'NetworkTime_cache/', fig.path='figure/')
 
-#source bayes functions
+#so urce bayes functions
 source("Bayesian/BayesFunctions.R")
 ```
 
@@ -183,7 +183,7 @@ ggsave("Figures/Network_Resources.svg",height=10,width=10)
 
 ```{r}
 #just a subset
-p<-ggplot(network.fl[network.fl$Metric %in% c("mean.number.of.shared.partners.HL","H2","weighted NODF","connectance"),],aes(log(Flowers),y=True,shape=as.factor(Year))) + geom_point(aes(size=N)) + facet_wrap(~Metric,scale="free")  + geom_smooth(aes(group=1),method="lm") + theme_bw() + labs(col="Month",shape="Year",size="Interactions") + geom_text(aes(label=month.abb[Month]),hjust=-0.25,size=3) + scale_size_continuous(range=c(2.5,5),"Observations") + labs(x="Log Available Resources") + ylab("Score")
+p<-ggplot(network.fl[network.fl$Metric %in% c("mean.number.of.shared.partners.HL","niche.overlap","weighted NODF","connectance"),],aes(log(Flowers),y=True,shape=as.factor(Year))) + geom_point(aes(size=N)) + facet_wrap(~Metric,scale="free")  + geom_smooth(aes(group=1),method="lm") + theme_bw() + labs(col="Month",shape="Year",size="Interactions") + geom_text(aes(label=month.abb[Month]),hjust=-0.25,size=3) + scale_size_continuous(range=c(2.5,5),"Observations") + labs(x="Log Available Resources") + ylab("Score")
   print(p) 
 ggsave("Figures/Network_ResourcesSubset.jpg",height=5,width=10,dpi=300,units="in")
 ggsave("Figures/Network_ResourcesSubset.svg",height=5,width=10)
