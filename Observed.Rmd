@@ -645,7 +645,7 @@ $$ intercept \sim N(0,0.0001)$$
 Group Level Variance
 
 $$\tau_{\alpha} \sim Gamma(0.0001,0.0001)$$
-$$\tau_{detect} \sim Gamma(0.0001,0.0001)$$
+$$\tau_detect \sim Gamma(0.0001,0.0001)$$
 $$\tau_\beta1 \sim Gamma(0.0001,0.0001)$$
 $$\tau_\beta2 \sim Gamma(0.0001,0.0001)$$
 $$\tau_\beta3 \sim Gamma(0.0001,0.0001)$$
@@ -703,7 +703,7 @@ Dat <- list(
   
   #Length of variables
   Birds=max(obsf$jBird),
-  resources=obsf$Used_Flowers,
+  resources=obsf$BFlowerA,
   traitmatch=obsf$Traitmatch)
 
 #Inits
@@ -717,8 +717,8 @@ ParsStage <- c("alpha","beta1","beta2","beta3","intercept","sigma_int","sigma_sl
 
 #MCMC options
 
-ni <- 100000  # number of draws from the posterior
-nt <- 5  #thinning rate
+ni <- 250000  # number of draws from the posterior
+nt <- 10  #thinning rate
 nb <- ni*.95 # number to discard for burn-in
 nc <- 2  # number of chains
 
@@ -766,7 +766,7 @@ chainplot(pars,"detect","Detection Probability")
 chainplot(pars,c("alpha","beta1","beta2","beta3"),"Species regression") + facet_grid(species~par)
 ```
 
-```{r,fig.height=4}
+```{r,fig.height=4,fig.wigth=12}
 chainplot(pars,c("gamma1","gamma2","gamma3","sigma_int","sigma_slope1","sigma_slope2","sigma_slope3","dprior","sigma_detect"),"Group Level Regression") + facet_wrap(~par,nrow=1,scales="free")
 ```
 
@@ -817,15 +817,15 @@ ggplot(data=predy,aes(x=x)) + geom_ribbon(aes(ymin=lower,ymax=upper),alpha=0.2,f
 ```{r,fig.height=6,fig.width=10}
 
 #Trajectories from posterior
-predH<-trajF(alpha=castdf$intercept,beta1=castdf$gamma1,x=obsf[obsf$BUsed_Flowers==1,"Traitmatch"],resources=obsf[obsf$BUsed_Flowers==1,"Used_Flowers"],beta2=castdf$gamma2,beta3=castdf$gamma3,type='hdi')
+predH<-trajF(alpha=castdf$intercept,beta1=castdf$gamma1,x=obsf[obsf$BUsed_Flowers==1,"Traitmatch"],resources=obsf[obsf$BFlowerA==1,"BFlowerA"],beta2=castdf$gamma2,beta3=castdf$gamma3,type='hdi')
 
-predL<-trajF(alpha=castdf$intercept,beta1=castdf$gamma1,x=obsf[obsf$BUsed_Flowers==0,"Traitmatch"],resources=obsf[obsf$BUsed_Flowers==0,"Used_Flowers"],beta2=castdf$gamma2,beta3=castdf$gamma3,type='hdi')
+predL<-trajF(alpha=castdf$intercept,beta1=castdf$gamma1,x=obsf[obsf$BFlowerA==0,"Traitmatch"],resources=obsf[obsf$BFlowerA==0,"BFlowerA"],beta2=castdf$gamma2,beta3=castdf$gamma3,type='hdi')
 
 predhl<-melt(list(High=predH,Low=predL),id.vars=colnames(predH))
 
 colnames(predhl)[5]<-"BFlowerL"
 
-obsf$BFlowerL<-factor(as.character(obsf$BUsed_Flowers))
+obsf$BFlowerL<-factor(as.character(obsf$BFlowerA))
 levels(obsf$BFlowerL)<-c("Low","High")
 
 ggplot(data=predhl,aes(x=x)) + geom_ribbon(aes(ymin=lower,ymax=upper,fill=BFlowerL),alpha=0.2)  + geom_line(aes(y=mean,col=BFlowerL),size=.8) + theme_bw() + ylab("Interactions") + xlab("Difference between Bill and Corolla Length") + geom_point(data=obsf,aes(x=Traitmatch,y=Yobs))+ labs(fill="Resource Availability",col="Resource Availability") + facet_wrap(~BFlowerL,scales='free')
@@ -836,14 +836,14 @@ That looks pretty crazy, the posterior is very broad, what about holding at mean
 ```{r,fig.height=6,fig.width=10}
 
 #Trajectories from posterior
-predH<-trajF(alpha=mean(castdf$intercept),beta1=mean(castdf$gamma1),x=obsf[obsf$BFlowerA==1,"Traitmatch"],resources=obsf[obsf$BFlowerA==1,"Used_Flowers"],beta2=mean(castdf$gamma2),beta3=mean(castdf$gamma3),type='hdi')
+predH<-trajF(alpha=mean(castdf$intercept),beta1=mean(castdf$gamma1),x=obsf[obsf$BFlowerA==1,"Traitmatch"],resources=obsf[obsf$BFlowerA==1,"BFlowerA"],beta2=mean(castdf$gamma2),beta3=mean(castdf$gamma3),type='hdi')
 
-predL<-trajF(alpha=mean(castdf$intercept),beta1=mean(castdf$gamma1),x=obsf[obsf$BFlowerA==0,"Traitmatch"],resources=obsf[obsf$BFlowerA==0,"Used_Flowers"],beta2=mean(castdf$gamma2),beta3=mean(castdf$gamma3),type='hdi')
+predL<-trajF(alpha=mean(castdf$intercept),beta1=mean(castdf$gamma1),x=obsf[obsf$BFlowerA==0,"Traitmatch"],resources=obsf[obsf$BFlowerA==0,"BFlowerA"],beta2=mean(castdf$gamma2),beta3=mean(castdf$gamma3),type='hdi')
 
 predhl<-melt(list(High=predH,Low=predL),id.vars=colnames(predH))
 colnames(predhl)[5]<-"BFlowerL"
 
-obsf$BFlowerL<-factor(as.character(obsf$BUsed_Flowers))
+obsf$BFlowerL<-factor(as.character(obsf$BFlowerA))
 levels(obsf$BFlowerL)<-c("Low","High")
 
 ggplot(data=predhl,aes(x=x)) + geom_ribbon(aes(ymin=lower,ymax=upper,fill=BFlowerL),alpha=0.2)  + geom_line(aes(y=mean,col=BFlowerL),size=.8) + theme_bw() + ylab("Interactions") + xlab("Difference between Bill and Corolla Length") + geom_point(data=obsf,aes(x=Traitmatch,y=Yobs))+ labs(fill="Resource Availability",col="Resource Availability") + facet_wrap(~BFlowerL,scales='free')
@@ -882,7 +882,7 @@ for(d in 1:length(species.split)){
   billd<-obsf[obsf$jBird %in% index,]
 
   #scale resources
-  species.traj[[d]]<-trajF(alpha=x$alpha,beta1=x$beta1,beta2=x$beta2,beta3=x$beta3,resources=billd$Used_Flowers,x=billd$Traitmatch,type='hdi')
+  species.traj[[d]]<-trajF(alpha=x$alpha,beta1=x$beta1,beta2=x$beta2,beta3=x$beta3,resources=billd$BFlowerA,x=billd$Traitmatch,type='hdi')
   }
 
 names(species.traj)<-names(species.split)
@@ -918,8 +918,8 @@ for(d in 1:length(species.split)){
   #get data for those species
   billd<-obsf[obsf$jBird %in% index,]
 
-  sl<-trajF(alpha=x$alpha,beta1=x$beta1,beta2=x$beta2,beta3=x$beta3,resources=billd[billd$BFlowerA==0,"Used_Flowers"],x=billd[billd$BFlowerA==0,"Traitmatch"],type='hdi')
-  sh<-trajF(alpha=x$alpha,beta1=x$beta1,beta2=x$beta2,beta3=x$beta3,resources=billd[billd$BFlowerA==1,"Used_Flowers"],x=billd[billd$BFlowerA==1,"Traitmatch"],type='hdi')
+  sl<-trajF(alpha=x$alpha,beta1=x$beta1,beta2=x$beta2,beta3=x$beta3,resources=billd[billd$BFlowerA==0,"BFlowerA"],x=billd[billd$BFlowerA==0,"Traitmatch"],type='hdi')
+  sh<-trajF(alpha=x$alpha,beta1=x$beta1,beta2=x$beta2,beta3=x$beta3,resources=billd[billd$BFlowerA==1,"BFlowerA"],x=billd[billd$BFlowerA==1,"Traitmatch"],type='hdi')
   sm<-melt(list(High=sh,Low=sl),id.vars=colnames(sl))
   colnames(sm)[5]<-"Resources"
   species.traj[[d]]<-sm
@@ -959,7 +959,7 @@ for(d in 1:length(species.split)){
   billd<-obsf[obsf$jBird %in% index,]
 
   #Calculate interaction effect
-  species.traj[[d]]<-intF(alpha=dat$alpha,beta1=dat$beta1,x=billd$Traitmatch,resources=billd$Used_Flowers,beta2=dat$beta2,beta3=dat$beta3,type='hdi')
+  species.traj[[d]]<-intF(alpha=dat$alpha,beta1=dat$beta1,x=billd$Traitmatch,resources=billd$BFlowerA,beta2=dat$beta2,beta3=dat$beta3,type='hdi')
   
   }
 
