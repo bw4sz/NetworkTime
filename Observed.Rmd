@@ -441,7 +441,7 @@ for (x in 1:nrow(obsf)){
  byelev<-fltransects[fltransects$Transect_R %in% toselect,]
  
  #Filter by Date
- bydate<-byelev[abs(byelev$DateP -event_date)  < 30,]
+ bydate<-byelev[abs(byelev$DateP -event_date)  < 15,]
  
  #average number of flowers at each elevation within that time frame.
  
@@ -478,23 +478,23 @@ obsf$BAll_Flowers<-(obsf$All_Flowers >quantile(log(obsf$All_Flowers),0.75))*1
 
 ```{r}
 sob<-obsf[obsf$Yobs>0,]
-qthresh<-sob %>% group_by(Hummingbird) %>% summarize(UThresh=quantile(Used_Flowers,.75))
+qthresh<-sob %>% group_by(Hummingbird) %>% summarize(UThresh=quantile(Used_Flowers,.5))
 obsf<-merge(obsf,qthresh)
 obsf$BUsed_Flowers<-(obsf$Used_Flowers > obsf$UThresh)*1
 
 #visualize
-ggplot(obsf,aes(y=Used_Flowers,x=Hummingbird)) + geom_boxplot() + facet_wrap(~BUsed_Flowers,scales = "free",ncol=1) + theme(axis.text.x=element_text(angle=90,hjust=1,vjust=1)) + scale_x_discrete("Resource Availability",labels=c("High","Low")) 
+ggplot(obsf,aes(y=Used_Flowers,x=Hummingbird)) + geom_boxplot() + facet_wrap(~BUsed_Flowers,scales = "free",ncol=1) + theme(axis.text.x=element_text(angle=90,hjust=1,vjust=1)) 
 ```
 
 ```{r}
 #split into each species, get low and high resources, only presence records.
 sob<-obsf[obsf$Yobs>0,]
-qthresh<-sob %>% group_by(Hummingbird) %>% summarize(Thresh=quantile(FlowerA,.75))
+qthresh<-sob %>% group_by(Hummingbird) %>% summarize(Thresh=quantile(FlowerA,.5))
 obsf<-merge(obsf,qthresh)
 obsf$BFlowerA<-(obsf$FlowerA > obsf$Thresh)*1
 
 #visualize
-ggplot(obsf,aes(y=FlowerA,x=Hummingbird)) + geom_boxplot() + facet_wrap(~BFlowerA,scales = "free",ncol=1) + theme(axis.text.x=element_text(angle=90,hjust=1,vjust=1)) + scale_x_discrete("Resource Availability",labels=c("High","Low")) 
+ggplot(obsf,aes(y=FlowerA,x=Hummingbird)) + geom_boxplot() + facet_wrap(~BFlowerA,scales = "free",ncol=1) + theme(axis.text.x=element_text(angle=90,hjust=1,vjust=1)) 
 ```
 
 ###How many counts for each quantile class?
@@ -560,13 +560,6 @@ ggplot(obsf,aes(x=BAll_Flowers==1,y=Traitmatch,fill=Yobs > 0)) + geom_boxplot() 
 ggplot(obsf,aes(x=BUsed_Flowers==1,y=Traitmatch,fill=Yobs > 0)) + geom_boxplot() + facet_wrap(~Hummingbird,ncol=4) + labs(x="Resource Availability",fill="Visited") + scale_x_discrete(labels=c("Low","High")) + ggtitle("Used Flowers")
 
 ggplot(obsf,aes(x=BFlowerA==1,y=Traitmatch,fill=Yobs > 0)) + geom_boxplot() + facet_wrap(~Hummingbird,ncol=4) + labs(x="Resource Availability",fill="Visited") + scale_x_discrete(labels=c("Low","High")) + ggtitle("Flower Abundance")
-
-```
-
-Boxplots of trait-matching
-
-```{r}
-ggplot(obsf,aes(x=BFlowerA==1,y=Traitmatch,fill=Yobs > 0)) + geom_boxplot() + facet_wrap(~Hummingbird,ncol=2) + labs(x="Resource Availability",fill="Visited") + scale_x_discrete(labels=c("Low","High"))  + ggtitle("Flower Abundance")
 
 ```
 
@@ -653,7 +646,7 @@ $$\tau_\beta3 \sim Gamma(0.0001,0.0001)$$
 **Derived quantities**
 
 $$\sigma_{int} = \sqrt[2]{\frac{1}{\tau_\alpha}}$$
-$$\sigma_{detect} = \sqrt[2]{\frac{1}{\tau_detect}$$
+$$\sigma_{detect} = \sqrt[2]{\frac{1}{\tau_{detect}}}$$
 $$\sigma_{slope1} = \sqrt[2]{\frac{1}{\tau_\beta1}}$$
 $$\sigma_{slope2} = \sqrt[2]{\frac{1}{\tau_\beta2}}$$
 $$\sigma_{slope3} = \sqrt[2]{\frac{1}{\tau_\beta3}}$$
@@ -767,7 +760,7 @@ chainplot(pars,c("alpha","beta1","beta2","beta3"),"Species regression") + facet_
 ```
 
 ```{r,fig.height=4,fig.wigth=12}
-chainplot(pars,c("gamma1","gamma2","gamma3","sigma_int","sigma_slope1","sigma_slope2","sigma_slope3","dprior","sigma_detect"),"Group Level Regression") + facet_wrap(~par,nrow=1,scales="free")
+chainplot(pars,c("gamma1","gamma2","gamma3","sigma_int","sigma_slope1","sigma_slope2","sigma_slope3","dprior","sigma_detect"),"Group Level Regression") + facet_wrap(~par,nrow=2,scales="free")
 ```
 
 ##Posteriors
