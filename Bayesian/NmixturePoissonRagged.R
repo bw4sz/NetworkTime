@@ -26,7 +26,8 @@ cat("
     }
     
     for (i in 1:Birds){
-    detect[i] ~ dnorm(dprior,tau_detect)
+    logit(detect[i]) <- dtrans[i]
+    dtrans[i] ~ dnorm(dprior,tau_detect)
     alpha[i] ~ dnorm(intercept,tau_alpha)
     beta1[i] ~ dnorm(gamma1,tau_beta1)    
     beta2[i] ~ dnorm(gamma2,tau_beta2)    
@@ -44,7 +45,7 @@ cat("
     intercept~dnorm(0,0.0001)
   
     #detect grouping
-    dprior~dunif(0,0.5)
+    dprior~dnorm(0,1)
     
     # Group intercept variance
     tau_alpha ~ dgamma(0.0001,0.0001)
