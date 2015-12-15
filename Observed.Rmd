@@ -66,7 +66,7 @@ source("Bayesian/BayesFunctions.R")
 
 ```{r,eval=T}
 #load data is needed
-load("Observed.RData")
+#load("Observed.RData")
 ```
 
 #Read in Data
@@ -187,7 +187,6 @@ dathp<-merge(dath,elevP,by="Iplant_Double")
 
 #birds
 datph<-merge(dathp,elevH,by="Hummingbird")
-
 ```
 
 #Available Resources
@@ -571,7 +570,6 @@ ggplot(obsf,aes(x=Month %in% c(7,8,9,10,11),y=Traitmatch,fill=Yobs > 0)) + geom_
 Still not quite understanding the difference, what plants are used for each species that are not in common.
 
 ```{r}
-
 #Count of species in both time sets
 splist<-obsf %>% filter(Yobs>0) %>% group_by(Hummingbird,Resource=BAll_Flowers) %>% distinct(Iplant_Double) %>% dplyr::select(Iplant_Double)
 
@@ -600,6 +598,9 @@ for (x in 1:length(splist)){
   grid.draw(p[[x]])
 }
 
+#venn diagram writes a silly set of log files
+file.remove(list.files(pattern="*.log"))
+list.files()
 ```
 
 
@@ -757,7 +758,7 @@ nc <- 2  # number of chains
 
 ```
 
-```{r,eval=F}
+```{r,eval=T}
 #Jags
 #if running the model for the first time
 m1 = jags(inits=InitStage,
@@ -776,7 +777,7 @@ m1 = jags(inits=InitStage,
 
 Re-update if needed to extend
 
-```{r,eval=T}
+```{r,eval=F}
 rjags::load.module('dic')
 recompile(m1)
 m1<-update(m1,n.iter=100000)

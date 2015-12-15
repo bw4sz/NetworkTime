@@ -2,10 +2,9 @@
 
 extract_par<-function(x){
 #extract desired info from the models
-parsO<-melt(x$BUGSoutput$sims.array)
-colnames(parsO)<-c("Draw","Chain","parameter","estimate")
-
-parsO<-parsO[!parsO$Draw %in% 1:(max(parsO$Draw)-(2000/x$BUGSoutput$n.chains)),]
+  n<-dim(x$BUGSoutput$sims.array)[1]
+  parsO<-melt(x$BUGSoutput$sims.array[max(0,(n-2000)):n,,])
+colnames(parsO)<-c("Draw","Chain","parameter","estimate") 
 
 #label species and plants
 l<-levels(parsO$parameter)
