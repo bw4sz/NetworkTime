@@ -44,6 +44,12 @@ source("Bayesian/BayesFunctions.R")
 
 ************
 
+```{r}
+#load data if needed
+load("NetworkTime.Rdata")
+```
+
+
 ```{r,fig.height=4,fig.width=8}
 #Get flower transect data
 full.fl<-read.csv("C:/Users/Ben/Dropbox/Thesis/Maquipucuna_SantaLucia/Results/FlowerTransects/FlowerTransectClean.csv")[,-1]
@@ -61,11 +67,14 @@ flower.month$Month.a<-factor(month.abb[flower.month$Month],month.abb[c(1:12)])
 flower.month$Year<-as.factor(flower.month$Year)
 
 #get quantile for each transect
-thresh<-melt(group_by(flower.month,Transect_R) %>% summarize(Threshold=quantile(log(Flowers),0.75)) )
+thresh<-melt(group_by(flower.month,Transect_R) %>% summarize(Threshold=quantile(log(Flowers),0.5)) )
 flower.month<-merge(flower.month,thresh)
 flower.month$High<-log(flower.month$Flowers)>flower.month$value
+
+#fix the levels
+levels(flower.month$Transect_R)<-c("1300m - 1500m", "1500m - 1700m","1700m - 1900m","1900m - 2100m","2100m - 2300m","2300m - 2500m")
 #plot
-ggplot(flower.month,aes(x=Month.a,log(Flowers),shape=as.factor(Year),col=High)) + geom_point(size=3) + theme_bw()  + geom_smooth(aes(group=1)) + ylab("Flowers") + xlab("Month") + facet_wrap(~Transect_R,scales="free_y") + labs(shape="Year", y= "Log Available Flowers") + scale_x_discrete(breaks=month.abb[seq(1,12,2)]) + scale_color_manual(labels=c("Low","High"),values=c("black","red")) + labs(col="Resource Availability")
+ggplot(flower.month,aes(x=Month.a,log(Flowers),col=High,shape=as.factor(Year))) + geom_point(size=3) + theme_bw()  + geom_smooth(aes(group=1)) + ylab("Flowers") + xlab("Month") + facet_wrap(~Transect_R,scales="free_y") + labs(shape="Year", y= "Log Available Flowers") + scale_x_discrete(breaks=month.abb[seq(1,12,2)]) + scale_color_manual(labels=c("Low","High"),values=c("black","red")) + labs(col="Resource Availability")
 
 ggsave("Figures/AvailableFlowers.jpg",dpi=600,units="in",width=7,height=6)
 ggsave("Figures/AvailableFlowers.svg",units="in",width=7,height=6)
@@ -96,9 +105,6 @@ nullC<-function(x){
   x<-droplevels(x)
   N=nrow(x)
   month.inter<-t(table(x$Hummingbird,x$Iplant_Double))
-  #month.interB<-(month.inter>0)*1
-
-metricskeep<-c("connectance","niche overlap","togetherness","linkage density","partner diversity","mean number of shared partners","nestedness","number of compartments","weighted connectance")
 
 true_stat<-networklevel(month.inter)
   
@@ -107,7 +113,7 @@ true_stat<-melt(true_stat)
 true_stat$variable<-rownames(true_stat)
 
 # Create 199 random matrixes
-r.int<-permatfull(month.inter,times=200)
+r.int<-permatfull(month.inter,times=50)
 
 #Compute nestendness seperately.
 nested.test<-nestedness(month.inter)
@@ -116,7 +122,7 @@ nested.test<-nestedness(month.inter)
 null_total<-as.data.frame(
   t(sapply(r.int$perm,function(x){
   #Compute network statistics
-    out<-networklevel(x)
+    out<-networklevel(x,index="quantitative")
     return(out)
     })))
 #get the upper and lower 2.5th quantiles
@@ -183,11 +189,43 @@ ggsave("Figures/Network_Resources.svg",height=10,width=10)
 
 ```{r}
 #just a subset
-p<-ggplot(network.fl[network.fl$Metric %in% c("mean.number.of.shared.partners.HL","niche.overlap","weighted NODF","connectance"),],aes(log(Flowers),y=True,shape=as.factor(Year))) + geom_point(aes(size=N)) + facet_wrap(~Metric,scale="free")  + geom_smooth(aes(group=1),method="lm") + theme_bw() + labs(col="Month",shape="Year",size="Interactions") + geom_text(aes(label=month.abb[Month]),hjust=-0.25,size=3) + scale_size_continuous(range=c(2.5,5),"Observations") + labs(x="Log Available Resources") + ylab("Score")
+
+#network size
+size<-t(sapply(int.M,function(x){
+x<-droplevels(x)
+dim(table(x$Hummingbird,x$Iplant_Double))
+}))
+
+#split into high and low
+network.fl$HL<- network.fl$Flowers > quantile(network.fl$Flowers,0.5)
+
+keep<-c("mean.number.of.shared.partners.HL","niche.overlap.HL","weighted NODF","weighted connectance")
+
+ggplot(network.fl[network.fl$Metric %in% keep,],aes(x=HL,y=True)) + geom_boxplot() + facet_wrap(~Metric,scales="free")  + scale_x_discrete("Resource Availability",labels=c("Low","High"))  + ylab("value")
+
+ggsave("Figures/Boxplot_ResourcesSubset.jpg",height=5,width=10,dpi=300,units="in")
+ggsave("Figures/Boxplot_ResourcesSubset.svg",height=5,width=10)
+
+p<-ggplot(network.fl,aes(log(Flowers),y=True,shape=as.factor(Year))) + geom_point(aes(size=N)) + facet_wrap(~Metric,scale="free")  + geom_smooth(aes(group=1),method="lm") + theme_bw() + labs(col="Month",shape="Year",size="Interactions") + geom_text(aes(label=month.abb[Month]),hjust=-0.25,size=3) + scale_size_continuous(range=c(2.5,5),"Observations") + labs(x="Log Available Resources") + ylab("Score")
   print(p) 
 ggsave("Figures/Network_ResourcesSubset.jpg",height=5,width=10,dpi=300,units="in")
 ggsave("Figures/Network_ResourcesSubset.svg",height=5,width=10)
   
+#add in null model
+#plot mean position
+mpt<-network.fl %>% group_by(Metric,Flowers) %>% summarize(meanN=mean(c(Lower,Upper)))
+network.fl<-merge(network.fl,mpt,by=c("Metric","Flowers"))
+p + geom_pointrange(data=network.fl,aes(ymin=Lower,ymax=Upper,y=meanN),alpha=.5,col='red')
+```
+
+Linear regression
+```{r}
+network.fl$value<-network.fl$True
+summary(lm(data=network.fl[network.fl$Metric %in% "connectance",],value~log(Flowers)))
+network.fl$value<-network.fl$True
+summary(lm(data=network.fl[network.fl$Metric %in% "weighted NODF",],value~log(Flowers)))
+summary(lm(data=network.fl[network.fl$Metric %in% "niche.overlap.HL",],value~log(Flowers)))
+
 ```
 
 ## Figure 5. Trait matching
