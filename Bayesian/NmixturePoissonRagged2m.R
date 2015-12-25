@@ -17,9 +17,9 @@ cat("
     }
     }
 
-    #Detection probabilities for cameras
 
-    #Observed counts for each day of sampling at that camera
+    #Observed counts for each day of sampling
+
     for (x in 1:Nobs){
     
     #Observation Process for cameras
