@@ -6,17 +6,18 @@ cat("
     #Compute intensity for each pair of birds and plants
     for (i in 1:Birds){
     for (j in 1:Plants){
-     for (k in 1:Cameras){
+    for (k in 1:Cameras){
     
     #Process Model
-    log(lambda[i,j,k])<-alpha[i] + beta1[i] * Traitmatch[i,j] + beta2[i] * resources[k] + beta3[i] * Traitmatch[i,j] * resources[k]
+    log(lambda[i,j,k])<-alpha[i] + beta1[i] * Traitmatch[i,j] + beta2[i] * resources[i,k] + beta3[i] * Traitmatch[i,j] * resources[i,k]
     
     #For each camera - there is a latent count
-    N[x,y,z] ~ dpois(lambda[i,j,k])
-      }
+    N[i,j,k] ~ dpois(lambda[i,j,k])
+    }
+    }
     }
     
-   
+    
     #Observed counts for each day of sampling at that camera
     for (x in 1:Nobs){
     

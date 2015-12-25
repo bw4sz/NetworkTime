@@ -1,0 +1,108 @@
+---
+title: "TwoDetectSimulation"
+author: "Ben Weinstein"
+date: "December 25, 2015"
+output: html_document
+---
+
+
+```{r}
+#function that can be used to test different parameters
+sim<-function(gamma1,gamma2,gamma3){
+
+#Number of hummingbird species
+h_species=10
+plant_species=20
+Times=50
+detection_cam=0.25
+detection_trans=0.6
+
+#which records are camera, which are transects?
+mt<-rbinom(Times,1,0.5)
+mt[which(mt==1)]<-"Camera"
+mt[!which(mt=="Camera")]<-"Transect"
+
+#Bill sizes
+Bill<-rpois(h_species,10)
+
+#Corolla sizes
+Corolla<-rpois(plant_species,15)
+
+#Subtract both and take absolute value
+traitmatch<-abs(sapply(Corolla,function(x) x - Bill)/10)
+
+#fill out for each month
+traitarray<-array(NA,dim=c(h_species,plant_species,Times))
+#fill for each month
+for (x in 1:Times){
+  traitarray[,,x]<-traitmatch 
+}
+
+#simulate some poisson distributed resource counts for each replicate
+#this will be same for each species to start with.
+resources<-array(NA,dim=c(h_species,plant_species,Times))
+
+#fill for each month
+for (x in 1:Times){
+  resources[,,x]<-rpois(1,10)  
+}
+
+#standardize predictors
+resources<-array(data=scale(resources),dim=c(h_species,plant_species,Times))
+
+#regression slope for trait-matching and resources
+#trait match
+#gamma=-0.5
+intercept<-4
+sigma_slope1<- 0.1
+sigma_intercept<- 0.1
+
+#resources
+#gamma2=0
+sigma_slope2<- 0.1
+
+#resources * traitmatch
+#gamma3=0
+sigma_slope3<- 0.1
+
+#loop through each species and plants
+
+#draw values from hierarcichal distributions
+beta1<-rnorm(h_species,gamma1,sigma_slope1)
+beta2<-rnorm(h_species,gamma2,sigma_slope2)
+beta3<-rnorm(h_species,gamma3,sigma_slope3)
+
+alpha<-rnorm(h_species,intercept,sigma_intercept)
+
+#fit regression
+lambda<-exp(alpha + beta1 * traitarray + beta2 * resources + beta3 * resources * traitarray)
+
+true_interactions<-array(data=sapply(lambda,function(x){rpois(1,lambda=x)}),dim=c(h_species,plant_species,Times))
+
+#combine and melt into a single datafFrame
+mdat<-dcast(melt(list(y=true_interactions,traitmatch=traitarray,resources=resources)),Var1+Var2+Var3~L1)
+
+colnames(mdat)<-c("Bird","Plant","Time","resources","traitmatch","True_state")
+
+#detection models
+
+
+return(mdat)}
+```
+
+
+
+
+
+
+```{r}
+summary(cars)
+```
+
+You can also embed plots, for example:
+
+```{r, echo=FALSE}
+plot(cars)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.

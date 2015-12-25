@@ -1,42 +1,55 @@
 
+sink("Bayesian/NmixturePoissonRagged2m.jags")
+
+cat("
     model {
     #Compute intensity for each pair of birds and plants
     for (i in 1:Birds){
     for (j in 1:Plants){
-    for (k in 1:Cameras){
+    for (k in 1:Times){
     
     #Process Model
     log(lambda[i,j,k])<-alpha[i] + beta1[i] * Traitmatch[i,j] + beta2[i] * resources[i,k] + beta3[i] * Traitmatch[i,j] * resources[i,k]
     
-    #For each camera - there is a latent count
+    #True number of interactions
     N[i,j,k] ~ dpois(lambda[i,j,k])
     }
     }
     }
-    
-    
+
+    #Detection probabilities for cameras
+
     #Observed counts for each day of sampling at that camera
     for (x in 1:Nobs){
     
-    #Observation Process
-    Yobs[x] ~ dbin(detect[Bird[x]],N[Bird[x],Plant[x],Camera[x]])    
-    
+    #Observation Process for cameras
+    detect_cam[Bird[x]]<-dcam[Bird[x]] * cam_surveys[x]
+
+    #Observation Process for transects
+    detect_transect[Bird[x]]<-dtrans[Bird[x]] * trans_surveys[x]
+
+    Yobs_camera[x] ~ dbin(detect_cam[Bird[x]],N[Bird[x],Plant[x],Time[x]])    
+    Yobs_transect[x] ~ dbin(detect_transect[Bird[x]],N[Bird[x],Plant[x],Time[x]])    
+
     #Assess Model Fit
+    #ignore this for now.
     
     #Fit discrepancy statistics
-    eval[x]<-detect[Bird[x]]*N[Bird[x],Plant[x],Camera[x]]
-    E[x]<-pow((Yobs[x]-eval[x]),2)/(eval[x]+0.5)
+    #eval[x]<-detect[Bird[x]]*N[Bird[x],Plant[x],Camera[x]]
+    #E[x]<-pow((Yobs[x]-eval[x]),2)/(eval[x]+0.5)
     
-    ynew[x]~dbin(detect[Bird[x]],N[Bird[x],Plant[x],Camera[x]])
-    E.new[x]<-pow((ynew[x]-eval[x]),2)/(eval[x]+0.5)
+    #ynew[x]~dbin(detect[Bird[x]],N[Bird[x],Plant[x],Camera[x]])
+    #E.new[x]<-pow((ynew[x]-eval[x]),2)/(eval[x]+0.5)
     
     }
     
-
+    
     #Species level priors
-
+    
     for (i in 1:Birds){
-    detect[i] ~ dunif(0,0.5)
+    detect_cam[i] ~ dunif(0,0.5)
+    detect_trans[i] ~ dunif(0,0.5)
+
     alpha[i] ~ dnorm(intercept,tau_alpha)
     beta1[i] ~ dnorm(gamma1,tau_beta1)    
     beta2[i] ~ dnorm(gamma2,tau_beta2)    
@@ -48,7 +61,7 @@
     gamma1~dnorm(0,0.0001)
     gamma2~dnorm(0,0.0001)
     gamma3~dnorm(0,0.0001)
-
+    
     
     #Intercept grouping
     intercept~dnorm(0,0.0001)
@@ -60,22 +73,24 @@
     #Derived Quantity
     
     #Slope variance, turning precision to sd
-
+    
     #Group Effect of traits
     tau_beta1 ~ dgamma(0.0001,0.0001)
     sigma_slope1<-pow(1/tau_beta1,0.5)
-
+    
     #Group Effect of Resources
     tau_beta2 ~ dgamma(0.0001,0.0001)
     sigma_slope2<-pow(1/tau_beta2,0.5)
-
+    
     #Group Effect of Resources * Traits
     tau_beta3 ~ dgamma(0.0001,0.0001)
     sigma_slope3<-pow(1/tau_beta3,0.5)
     
     #derived posterior check
-    fit<-sum(E[]) #Discrepancy for the observed data
-    fitnew<-sum(E.new[])
+    #fit<-sum(E[]) #Discrepancy for the observed data
+    #fitnew<-sum(E.new[])
     
     }
-    
+    ",fill=TRUE)
+
+sink()
