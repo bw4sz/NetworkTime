@@ -1,7 +1,4 @@
 
-sink("Bayesian/NmixturePoissonRagged2m.jags")
-
-cat("
     model {
     #Compute intensity for each pair of birds and plants
     for (i in 1:Birds){
@@ -91,6 +88,4 @@ cat("
     #fitnew<-sum(E.new[])
     
     }
-    ",fill=TRUE)
-
-sink()
+    
