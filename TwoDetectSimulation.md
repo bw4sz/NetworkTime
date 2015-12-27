@@ -1,6 +1,9 @@
-# TwoDetectSimulation
+# Simulated Data for Two Detection Methods for Observing Species Interactions
 Ben Weinstein  
 December 25, 2015  
+
+#Summary
+
 
 
 
@@ -17,7 +20,7 @@ December 25, 2015
 h_species=10
 plant_species=20
 Times=24
-detection_cam=0.15
+detection_cam=0.25
 detection_trans=0.6
 
 #which records are camera, which are transects?
@@ -47,7 +50,7 @@ resources<-array(NA,dim=c(h_species,plant_species,Times))
 
 #fill for each month
 for (x in 1:Times){
-  resources[,,x]<-rpois(1,10)  
+  resources[,,x]<-rbinom(1,1,0.5)  
 }
 
 #standardize predictors
@@ -55,8 +58,8 @@ resources<-array(data=scale(resources),dim=c(h_species,plant_species,Times))
 
 #regression slope for trait-matching and resources
 #trait match
-gamma1=-0.6
-intercept<-2
+gamma1=-1
+intercept<-2.5
 sigma_slope1<- 0.1
 sigma_intercept<- 0.1
 
@@ -121,19 +124,9 @@ ggplot(mdatm,aes(x=traitmatch,y=value,col=variable)) + geom_point() + geom_smoot
 
 ```r
 #traitmatch dataframe
-Traitmatch<-mdat %>% group_by(Bird,Plant) %>% summarize(v=unique(traitmatch)) %>% acast(Bird~Plant)
-```
+Traitmatch<-mdat %>% group_by(Bird,Plant) %>% summarize(v=unique(traitmatch)) %>% acast(Bird~Plant,value.var="v")
 
-```
-## Using v as value column: use value.var to override.
-```
-
-```r
-TimeResources<-mdat %>% group_by(Time,Bird) %>% summarize(v=unique(resources)) %>% acast(Bird~Time)
-```
-
-```
-## Using v as value column: use value.var to override.
+TimeResources<-mdat %>% group_by(Time,Bird) %>% summarize(v=unique(resources)) %>% acast(Bird~Time,value.var="v")
 ```
 
 #Hierarchical Occupancy Model
@@ -146,7 +139,7 @@ $$ YCamera_{i,j,k} \sim B(N_{i,j,k},\omega_{Camera}) $$
 $$ \omega_{Camera} <- \phi_{Camera} * EffortCamera_k $$
 $$ \omega_{Transect} <- \phi_{Transect}* EffortTransect_k $$
 $$ N_{i,j,k} \sim Pois(\lambda_{i,j,k}) $$
-$$ log(\lambda_{i,j,k}) = \alpha_i + \Beta1_i * Traitmatch_{i,j} + \Beta2_i *Resources_k + \Beta3_i * Traitmatch_{i,j} * Resources_k $$
+$$ log(\lambda_{i,j,k}) = \alpha_i + \beta_{1,i} * Traitmatch_{i,j} + \beta_{2,i} *Resources_k + \beta_{3,i} * Traitmatch_{i,j} * Resources_k $$
 
 Priors
 $$ \phi_{Camera} \sim U(0,1) $$
@@ -163,24 +156,24 @@ $$\beta_{3,i} \sim N(\gamma_3i,\tau_{\beta_3})$$
 
 Group Level Means
 
-$$\gamma_{1,i} \sim N(0.001,0.001)$$
-$$\gamma_{2,i} \sim N(0.001,0.001)$$
-$$\gamma_{3,i} \sim N(0.001,0.001)$$
-$$ intercept \sim N(0.001,0.001)$$
+$$\gamma_{1,i} \sim N(0,0.0001)$$
+$$\gamma_{2,i} \sim N(0,0.0001)$$
+$$\gamma_{3,i} \sim N(0,0.0001)$$
+$$ intercept \sim N(0,0.0001)$$
 
 Group Level Variance
 
-$$\tau_{\alpha} \sim Gamma(0.001,0.001)$$
-$$\tau_\beta1 \sim Gamma(0.001,0.001)$$
-$$\tau_\beta2 \sim Gamma(0.001,0.001)$$
-$$\tau_\beta3 \sim Gamma(0.001,0.001)$$
+$$\tau_{\alpha} \sim Gamma(0.0001,0.0001)$$
+$$\tau_\beta1 \sim Gamma(0.0001,0.0001)$$
+$$\tau_\beta2 \sim Gamma(0.0001,0.0001)$$
+$$\tau_\beta3 \sim Gamma(0.0001,0.0001)$$
 
 **Derived quantities**
 
-$$\sigma_{int} = \frac{1}{\tau_{\alpha}}^2$$
-$$\sigma_{slope1} = \frac{1}{\tau_{\beta_1}}^2$$
-$$\sigma_{slope2} = \frac{1}{\tau_{\beta_2}}^2$$
-$$\sigma_{slope3} = \frac{1}{\tau_{\beta_3}}^2$$
+$$\sigma_{intercept} = \sqrt[2]{\frac{1}{\tau_\alpha}}$$
+$$\sigma_{slope1} = \sqrt[2]{\frac{1}{\tau_{\beta_1}}}$$
+$$\sigma_{slope2} = \sqrt[2]{\frac{1}{\tau_{\beta_2}}}$$
+$$\sigma_{slope3} = \sqrt[2]{\frac{1}{\tau_{\beta_3}}}$$
 
 # Analysis of observed data
 
@@ -212,7 +205,7 @@ ParsStage <- c("alpha","beta1","beta2","beta3","intercept","sigma_int","sigma_sl
 
 #MCMC options
 
-ni <- 15000  # number of draws from the posterior
+ni <- 20000  # number of draws from the posterior
 nt <- max(c(1,ni*.0001))  #thinning rate
 nb <- ni*.85 # number to discard for burn-in
 nc <- 2  # number of chains
@@ -271,7 +264,7 @@ ParsStage <- c("alpha","beta1","beta2","beta3","intercept","sigma_int","sigma_sl
 
 #MCMC options
 
-ni <- 20000  # number of draws from the posterior
+ni <- 30000  # number of draws from the posterior
 nt <- max(c(1,ni*.0001))  #thinning rate
 nb <- ni*.90 # number to discard for burn-in
 nc <- 2  # number of chains
@@ -406,7 +399,7 @@ ggplot(pars[pars$par %in% c("alpha","beta1","beta2","beta3"),],aes(x=Draw,y=esti
 
 
 ```r
-ggplot(pars[pars$par %in% c("dcam","dtrans"),],aes(x=Draw,y=estimate,col=as.factor(Chain))) + geom_line() + facet_grid(par~species,scale="free") + theme_bw() + labs(col="Chain") + ggtitle("Detection Probability")
+ggplot(pars[pars$par %in% c("dcam","dtrans"),],aes(x=Draw,y=estimate,col=as.factor(Chain))) + geom_line() + facet_grid(~par,scale="free") + theme_bw() + labs(col="Chain") + ggtitle("Detection Probability")
 ```
 
 ![](TwoDetectSimulation_files/figure-html/unnamed-chunk-8-1.png) 
@@ -449,63 +442,9 @@ colnames(tr)<-c("value","par")
 
 psim2<-p + geom_vline(data=tr,aes(xintercept=value),linetype='dashed',size=1,col="red")
 #ggsave("Figures/SimulationH.jpg",dpi=300,height=4,width=10)
-grid.arrange(psim,psim2,heights=c(.6,.4))
 ```
 
-```
-## stat_bin: binwidth defaulted to range/30. Use 'binwidth = x' to adjust this.
-## stat_bin: binwidth defaulted to range/30. Use 'binwidth = x' to adjust this.
-## stat_bin: binwidth defaulted to range/30. Use 'binwidth = x' to adjust this.
-## stat_bin: binwidth defaulted to range/30. Use 'binwidth = x' to adjust this.
-## stat_bin: binwidth defaulted to range/30. Use 'binwidth = x' to adjust this.
-## stat_bin: binwidth defaulted to range/30. Use 'binwidth = x' to adjust this.
-## stat_bin: binwidth defaulted to range/30. Use 'binwidth = x' to adjust this.
-## stat_bin: binwidth defaulted to range/30. Use 'binwidth = x' to adjust this.
-## stat_bin: binwidth defaulted to range/30. Use 'binwidth = x' to adjust this.
-## stat_bin: binwidth defaulted to range/30. Use 'binwidth = x' to adjust this.
-## stat_bin: binwidth defaulted to range/30. Use 'binwidth = x' to adjust this.
-## stat_bin: binwidth defaulted to range/30. Use 'binwidth = x' to adjust this.
-## stat_bin: binwidth defaulted to range/30. Use 'binwidth = x' to adjust this.
-## stat_bin: binwidth defaulted to range/30. Use 'binwidth = x' to adjust this.
-## stat_bin: binwidth defaulted to range/30. Use 'binwidth = x' to adjust this.
-## stat_bin: binwidth defaulted to range/30. Use 'binwidth = x' to adjust this.
-## stat_bin: binwidth defaulted to range/30. Use 'binwidth = x' to adjust this.
-## stat_bin: binwidth defaulted to range/30. Use 'binwidth = x' to adjust this.
-## stat_bin: binwidth defaulted to range/30. Use 'binwidth = x' to adjust this.
-## stat_bin: binwidth defaulted to range/30. Use 'binwidth = x' to adjust this.
-## stat_bin: binwidth defaulted to range/30. Use 'binwidth = x' to adjust this.
-## stat_bin: binwidth defaulted to range/30. Use 'binwidth = x' to adjust this.
-## stat_bin: binwidth defaulted to range/30. Use 'binwidth = x' to adjust this.
-## stat_bin: binwidth defaulted to range/30. Use 'binwidth = x' to adjust this.
-## stat_bin: binwidth defaulted to range/30. Use 'binwidth = x' to adjust this.
-## stat_bin: binwidth defaulted to range/30. Use 'binwidth = x' to adjust this.
-## stat_bin: binwidth defaulted to range/30. Use 'binwidth = x' to adjust this.
-## stat_bin: binwidth defaulted to range/30. Use 'binwidth = x' to adjust this.
-## stat_bin: binwidth defaulted to range/30. Use 'binwidth = x' to adjust this.
-## stat_bin: binwidth defaulted to range/30. Use 'binwidth = x' to adjust this.
-## stat_bin: binwidth defaulted to range/30. Use 'binwidth = x' to adjust this.
-## stat_bin: binwidth defaulted to range/30. Use 'binwidth = x' to adjust this.
-## stat_bin: binwidth defaulted to range/30. Use 'binwidth = x' to adjust this.
-## stat_bin: binwidth defaulted to range/30. Use 'binwidth = x' to adjust this.
-## stat_bin: binwidth defaulted to range/30. Use 'binwidth = x' to adjust this.
-## stat_bin: binwidth defaulted to range/30. Use 'binwidth = x' to adjust this.
-## stat_bin: binwidth defaulted to range/30. Use 'binwidth = x' to adjust this.
-## stat_bin: binwidth defaulted to range/30. Use 'binwidth = x' to adjust this.
-## stat_bin: binwidth defaulted to range/30. Use 'binwidth = x' to adjust this.
-## stat_bin: binwidth defaulted to range/30. Use 'binwidth = x' to adjust this.
-## stat_bin: binwidth defaulted to range/30. Use 'binwidth = x' to adjust this.
-## stat_bin: binwidth defaulted to range/30. Use 'binwidth = x' to adjust this.
-## stat_bin: binwidth defaulted to range/30. Use 'binwidth = x' to adjust this.
-## stat_bin: binwidth defaulted to range/30. Use 'binwidth = x' to adjust this.
-## stat_bin: binwidth defaulted to range/30. Use 'binwidth = x' to adjust this.
-## stat_bin: binwidth defaulted to range/30. Use 'binwidth = x' to adjust this.
-## stat_bin: binwidth defaulted to range/30. Use 'binwidth = x' to adjust this.
-## stat_bin: binwidth defaulted to range/30. Use 'binwidth = x' to adjust this.
-## stat_bin: binwidth defaulted to range/30. Use 'binwidth = x' to adjust this.
-## stat_bin: binwidth defaulted to range/30. Use 'binwidth = x' to adjust this.
-```
-
-![](TwoDetectSimulation_files/figure-html/unnamed-chunk-11-1.png) 
+![](TwoDetectSimulation_files/figure-html/unnamed-chunk-12-1.png) 
 
 ###Predicted Relationship 
 
@@ -563,7 +502,7 @@ orig<-trajF(alpha=rnorm(2000,intercept,sigma_intercept),beta1=rnorm(2000,gamma1,
 ggplot(data=predy,aes(x=x)) + geom_point(data=mdat,aes(x=traitmatch,y=True_state),alpha=.5,size=.5)+ geom_ribbon(aes(ymin=lower,ymax=upper),alpha=0.3,fill="red")  + geom_line(aes(y=mean),size=.8,col="red",linetype="dashed") + theme_bw() + ylab("Interactions") + geom_line(data=orig,aes(x=x,y=mean),col='black',size=1)+ xlab("Difference between Bill and Corolla Length") 
 ```
 
-![](TwoDetectSimulation_files/figure-html/unnamed-chunk-13-1.png) 
+![](TwoDetectSimulation_files/figure-html/unnamed-chunk-14-1.png) 
 
 The true data is plotted overtop the simulation relationship in black, and the predicted relationship in dashed red with pink CI intervals.
 
@@ -581,7 +520,7 @@ psim4<-ggplot(data=predyint,aes(x=x)) + geom_ribbon(aes(ymin=lower,ymax=upper),a
 psim4
 ```
 
-![](TwoDetectSimulation_files/figure-html/unnamed-chunk-14-1.png) 
+![](TwoDetectSimulation_files/figure-html/unnamed-chunk-15-1.png) 
 
 
 ```r
