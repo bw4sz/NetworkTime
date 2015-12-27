@@ -1,41 +1,23 @@
----
-title: "TwoDetectSimulation"
-author: "Ben Weinstein"
-date: "December 25, 2015"
-output: 
-  html_document:
-    toc: True
-    keep_md: True
-    theme: spacelab
----
-
-```{r,echo=F,message=FALSE,warning=F}
-library(ggplot2)
-library(stringr)
-library(gridExtra)
-require(knitr)
-library(R2jags)
-require(reshape2)
-require(ggplot2)
-library(scales)
-library(dplyr)
-opts_chunk$set(cache=F,fig.height = 5,fig.width = 7,warning=F,messages=F)
-
-source("Bayesian/BayesFunctions.R")
-```
+# TwoDetectSimulation
+Ben Weinstein  
+December 25, 2015  
 
 
-```{r}
-load("Simulation_2M.RData")
+
+
+
+```r
+#load("Simulation_2M.RData")
 ```
 
 #Simulate Data
 
-```{r}
+
+```r
 h_species=10
 plant_species=20
 Times=24
-detection_cam=0.25
+detection_cam=0.15
 detection_trans=0.6
 
 #which records are camera, which are transects?
@@ -73,8 +55,8 @@ resources<-array(data=scale(resources),dim=c(h_species,plant_species,Times))
 
 #regression slope for trait-matching and resources
 #trait match
-gamma1=-0.7
-intercept<-3
+gamma1=-0.6
+intercept<-2
 sigma_slope1<- 0.1
 sigma_intercept<- 0.1
 
@@ -128,15 +110,30 @@ mdat<-rbind_all(dat)
 
 # Observed Data
 
-```{r}
+
+```r
 mdatm<-melt(mdat,measure.vars = c("True_state","Y_Camera","Y_Transect"))
 
 ggplot(mdatm,aes(x=traitmatch,y=value,col=variable)) + geom_point() + geom_smooth(method="glm",family="poisson",linetype="dashed",size=1.1) + ggtitle("Correlation in Simulated Data") + labs(x="Difference in Bill and Corolla Length",y="Number of Interactions",col="Observation Process")
+```
 
+![](TwoDetectSimulation_files/figure-html/unnamed-chunk-4-1.png) 
+
+```r
 #traitmatch dataframe
 Traitmatch<-mdat %>% group_by(Bird,Plant) %>% summarize(v=unique(traitmatch)) %>% acast(Bird~Plant)
+```
 
+```
+## Using v as value column: use value.var to override.
+```
+
+```r
 TimeResources<-mdat %>% group_by(Time,Bird) %>% summarize(v=unique(resources)) %>% acast(Bird~Time)
+```
+
+```
+## Using v as value column: use value.var to override.
 ```
 
 #Hierarchical Occupancy Model
@@ -187,8 +184,8 @@ $$\sigma_{slope3} = \frac{1}{\tau_{\beta_3}}^2$$
 
 # Analysis of observed data
 
-```{r,eval=T,strip.white=T}
 
+```r
 paralleljags<-T
 
 if(paralleljags){
@@ -274,7 +271,7 @@ ParsStage <- c("alpha","beta1","beta2","beta3","intercept","sigma_int","sigma_sl
 
 #MCMC options
 
-ni <- 30000  # number of draws from the posterior
+ni <- 20000  # number of draws from the posterior
 nt <- max(c(1,ni*.0001))  #thinning rate
 nb <- ni*.90 # number to discard for burn-in
 nc <- 2  # number of chains
@@ -294,30 +291,143 @@ m = jags(inits=InitStage,
 }
 ```
 
-```{r}
+```
+## 
+## sink("Bayesian/NmixturePoissonRagged2m.jags")
+## 
+## cat("
+##     model {
+##     #Compute intensity for each pair of birds and plants
+##     for (i in 1:Birds){
+##     for (j in 1:Plants){
+##     for (k in 1:Times){
+##     
+##     #Process Model
+##     log(lambda[i,j,k])<-alpha[i] + beta1[i] * Traitmatch[i,j] + beta2[i] * resources[i,k] + beta3[i] * Traitmatch[i,j] * resources[i,k]
+##     
+##     #True number of interactions
+##     N[i,j,k] ~ dpois(lambda[i,j,k])
+##     }
+##     }
+##     }
+## 
+## 
+##     #Observed counts for each day of sampling
+## 
+##     for (x in 1:Nobs){
+##     
+##     #Observation Process for cameras
+##     detect_cam[x]<-dcam * cam_surveys[x]
+## 
+##     #Observation Process for transects
+##     detect_transect[x]<-dtrans * trans_surveys[x]
+## 
+##     Yobs_camera[x] ~ dbin(detect_cam[x],N[Bird[x],Plant[x],Time[x]])    
+##     Yobs_transect[x] ~ dbin(detect_transect[x],N[Bird[x],Plant[x],Time[x]])    
+## 
+##     #Assess Model Fit
+##     #ignore this for now.
+##     
+##     #Fit discrepancy statistics
+##     #eval[x]<-detect[Bird[x]]*N[Bird[x],Plant[x],Camera[x]]
+##     #E[x]<-pow((Yobs[x]-eval[x]),2)/(eval[x]+0.5)
+##     
+##     #ynew[x]~dbin(detect[Bird[x]],N[Bird[x],Plant[x],Camera[x]])
+##     #E.new[x]<-pow((ynew[x]-eval[x]),2)/(eval[x]+0.5)
+##     
+##     }
+##     
+##     #Species level priors
+##     
+##     for (i in 1:Birds){
+##     alpha[i] ~ dnorm(intercept,tau_alpha)
+##     beta1[i] ~ dnorm(gamma1,tau_beta1)    
+##     beta2[i] ~ dnorm(gamma2,tau_beta2)    
+##     beta3[i] ~ dnorm(gamma3,tau_beta3)    
+##     }
+##     
+##     #Detect priors
+##     dcam ~ dunif(0,1)
+##     dtrans ~ dunif(0,1)
+## 
+##     #Hyperpriors
+##     #Slope grouping
+##     gamma1~dnorm(0,0.0001)
+##     gamma2~dnorm(0,0.0001)
+##     gamma3~dnorm(0,0.0001)
+##     
+##     #Intercept grouping
+##     intercept~dnorm(0,0.0001)
+##     
+##     # Group intercept variance
+##     tau_alpha ~ dgamma(0.0001,0.0001)
+##     sigma_int<-pow(1/tau_alpha,0.5) 
+##     
+##     #Derived Quantity
+##     
+##     #Slope variance, turning precision to sd
+##     
+##     #Group Effect of traits
+##     tau_beta1 ~ dgamma(0.0001,0.0001)
+##     sigma_slope1<-pow(1/tau_beta1,0.5)
+##     
+##     #Group Effect of Resources
+##     tau_beta2 ~ dgamma(0.0001,0.0001)
+##     sigma_slope2<-pow(1/tau_beta2,0.5)
+##     
+##     #Group Effect of Resources * Traits
+##     tau_beta3 ~ dgamma(0.0001,0.0001)
+##     sigma_slope3<-pow(1/tau_beta3,0.5)
+##     
+##     #derived posterior check
+##     #fit<-sum(E[]) #Discrepancy for the observed data
+##     #fitnew<-sum(E.new[])
+##     
+##     }
+##     ",fill=TRUE)
+## 
+## sink()
+```
+
+
+```r
 pars<-extract_par(m)
 ```
 
 ###Assess Convergence
 
-```{r,cache=FALSE,eval=TRUE,fig.width=11,fig.height=5}
+
+```r
 ###Chains
 ggplot(pars[pars$par %in% c("alpha","beta1","beta2","beta3"),],aes(x=Draw,y=estimate,col=as.factor(Chain))) + geom_line() + facet_grid(par~species,scale="free") + theme_bw() + labs(col="Chain") + ggtitle("Species Level Probability")
 ```
 
-```{r}
+![](TwoDetectSimulation_files/figure-html/unnamed-chunk-7-1.png) 
+
+
+```r
 ggplot(pars[pars$par %in% c("dcam","dtrans"),],aes(x=Draw,y=estimate,col=as.factor(Chain))) + geom_line() + facet_grid(par~species,scale="free") + theme_bw() + labs(col="Chain") + ggtitle("Detection Probability")
 ```
 
-```{r,fig.height=5,fig.width=11,eval=T}
-ggplot(pars[pars$par %in% c("gamma1","gamma2","gamma3","sigma_int","sigma_slope1","sigma_slope2","sigma_slope3"),],aes(x=Draw,y=estimate,col=as.factor(Chain))) + geom_line() + theme_bw() + labs(col="Chain") + ggtitle("Group Level Regression") + facet_wrap(~par,scales="free")
+![](TwoDetectSimulation_files/figure-html/unnamed-chunk-8-1.png) 
 
+
+```r
+ggplot(pars[pars$par %in% c("gamma1","gamma2","gamma3","sigma_int","sigma_slope1","sigma_slope2","sigma_slope3"),],aes(x=Draw,y=estimate,col=as.factor(Chain))) + geom_line() + theme_bw() + labs(col="Chain") + ggtitle("Group Level Regression") + facet_wrap(~par,scales="free")
+```
+
+![](TwoDetectSimulation_files/figure-html/unnamed-chunk-9-1.png) 
+
+```r
 ggplot(pars[pars$par %in% c("dtrans","dcam"),],aes(x=Draw,y=estimate,col=as.factor(Chain))) + geom_line() + theme_bw() + labs(col="Chain") + ggtitle("Group-level regression") + facet_wrap(~par,scales="free",ncol=1)
 ```
 
+![](TwoDetectSimulation_files/figure-html/unnamed-chunk-9-2.png) 
+
 ###Posteriors
 
-```{r,cache=FALSE,fig.width=7,fig.height=13}
+
+```r
 ###Posterior Distributions
 p<-ggplot(pars[pars$par %in% c("alpha","beta1","beta2","beta3"),],aes(x=estimate)) + geom_histogram() + ggtitle("Estimate of parameters") + facet_grid(species~par,scales="free") + theme_bw() + ggtitle("Species Posteriors")
 
@@ -328,7 +438,8 @@ psim<-p + geom_vline(data=tr,aes(xintercept=value),col='red',linetype='dashed',s
 #ggsave("Figures/SimulationPosteriors.jpg",dpi=300,height=8,width=8)
 ```
 
-```{r,cache=FALSE,eval=TRUE,fig.height=13,fig.width=10}
+
+```r
 p<-ggplot(pars[pars$par %in% c("gamma1","gamma2","gamma3","intercept","sigma_int","sigma_slope1","sigma_slope2","sigma_slope3","dcam","dtrans"),],aes(x=estimate)) + geom_histogram() + ggtitle("Hierarchical Posteriors") + facet_wrap(~par,scale="free",nrow=2) + theme_bw() 
 
 #Add true values
@@ -338,15 +449,68 @@ colnames(tr)<-c("value","par")
 
 psim2<-p + geom_vline(data=tr,aes(xintercept=value),linetype='dashed',size=1,col="red")
 #ggsave("Figures/SimulationH.jpg",dpi=300,height=4,width=10)
+grid.arrange(psim,psim2,heights=c(.6,.4))
 ```
 
-```{r,echo=F}
-grid.arrange(psim,psim2,heights=c(.65,.45))
 ```
+## stat_bin: binwidth defaulted to range/30. Use 'binwidth = x' to adjust this.
+## stat_bin: binwidth defaulted to range/30. Use 'binwidth = x' to adjust this.
+## stat_bin: binwidth defaulted to range/30. Use 'binwidth = x' to adjust this.
+## stat_bin: binwidth defaulted to range/30. Use 'binwidth = x' to adjust this.
+## stat_bin: binwidth defaulted to range/30. Use 'binwidth = x' to adjust this.
+## stat_bin: binwidth defaulted to range/30. Use 'binwidth = x' to adjust this.
+## stat_bin: binwidth defaulted to range/30. Use 'binwidth = x' to adjust this.
+## stat_bin: binwidth defaulted to range/30. Use 'binwidth = x' to adjust this.
+## stat_bin: binwidth defaulted to range/30. Use 'binwidth = x' to adjust this.
+## stat_bin: binwidth defaulted to range/30. Use 'binwidth = x' to adjust this.
+## stat_bin: binwidth defaulted to range/30. Use 'binwidth = x' to adjust this.
+## stat_bin: binwidth defaulted to range/30. Use 'binwidth = x' to adjust this.
+## stat_bin: binwidth defaulted to range/30. Use 'binwidth = x' to adjust this.
+## stat_bin: binwidth defaulted to range/30. Use 'binwidth = x' to adjust this.
+## stat_bin: binwidth defaulted to range/30. Use 'binwidth = x' to adjust this.
+## stat_bin: binwidth defaulted to range/30. Use 'binwidth = x' to adjust this.
+## stat_bin: binwidth defaulted to range/30. Use 'binwidth = x' to adjust this.
+## stat_bin: binwidth defaulted to range/30. Use 'binwidth = x' to adjust this.
+## stat_bin: binwidth defaulted to range/30. Use 'binwidth = x' to adjust this.
+## stat_bin: binwidth defaulted to range/30. Use 'binwidth = x' to adjust this.
+## stat_bin: binwidth defaulted to range/30. Use 'binwidth = x' to adjust this.
+## stat_bin: binwidth defaulted to range/30. Use 'binwidth = x' to adjust this.
+## stat_bin: binwidth defaulted to range/30. Use 'binwidth = x' to adjust this.
+## stat_bin: binwidth defaulted to range/30. Use 'binwidth = x' to adjust this.
+## stat_bin: binwidth defaulted to range/30. Use 'binwidth = x' to adjust this.
+## stat_bin: binwidth defaulted to range/30. Use 'binwidth = x' to adjust this.
+## stat_bin: binwidth defaulted to range/30. Use 'binwidth = x' to adjust this.
+## stat_bin: binwidth defaulted to range/30. Use 'binwidth = x' to adjust this.
+## stat_bin: binwidth defaulted to range/30. Use 'binwidth = x' to adjust this.
+## stat_bin: binwidth defaulted to range/30. Use 'binwidth = x' to adjust this.
+## stat_bin: binwidth defaulted to range/30. Use 'binwidth = x' to adjust this.
+## stat_bin: binwidth defaulted to range/30. Use 'binwidth = x' to adjust this.
+## stat_bin: binwidth defaulted to range/30. Use 'binwidth = x' to adjust this.
+## stat_bin: binwidth defaulted to range/30. Use 'binwidth = x' to adjust this.
+## stat_bin: binwidth defaulted to range/30. Use 'binwidth = x' to adjust this.
+## stat_bin: binwidth defaulted to range/30. Use 'binwidth = x' to adjust this.
+## stat_bin: binwidth defaulted to range/30. Use 'binwidth = x' to adjust this.
+## stat_bin: binwidth defaulted to range/30. Use 'binwidth = x' to adjust this.
+## stat_bin: binwidth defaulted to range/30. Use 'binwidth = x' to adjust this.
+## stat_bin: binwidth defaulted to range/30. Use 'binwidth = x' to adjust this.
+## stat_bin: binwidth defaulted to range/30. Use 'binwidth = x' to adjust this.
+## stat_bin: binwidth defaulted to range/30. Use 'binwidth = x' to adjust this.
+## stat_bin: binwidth defaulted to range/30. Use 'binwidth = x' to adjust this.
+## stat_bin: binwidth defaulted to range/30. Use 'binwidth = x' to adjust this.
+## stat_bin: binwidth defaulted to range/30. Use 'binwidth = x' to adjust this.
+## stat_bin: binwidth defaulted to range/30. Use 'binwidth = x' to adjust this.
+## stat_bin: binwidth defaulted to range/30. Use 'binwidth = x' to adjust this.
+## stat_bin: binwidth defaulted to range/30. Use 'binwidth = x' to adjust this.
+## stat_bin: binwidth defaulted to range/30. Use 'binwidth = x' to adjust this.
+## stat_bin: binwidth defaulted to range/30. Use 'binwidth = x' to adjust this.
+```
+
+![](TwoDetectSimulation_files/figure-html/unnamed-chunk-11-1.png) 
 
 ###Predicted Relationship 
 
-```{r,fig.height=4,fig.width=4}
+
+```r
 castdf<-dcast(pars[pars$par %in% c("gamma1","gamma2","gamma3","intercept"),], Chain + Draw~par,value.var="estimate")
 
 trajF<-function(alpha,beta1,beta2,beta3,x,resources){
@@ -389,8 +553,8 @@ intF<-function(alpha,beta1,beta2,beta3,x,resources){
 
 #Predicted Relationship
 
-```{r}
 
+```r
 predy<-trajF(alpha=castdf$intercept,beta1=castdf$gamma1,x=as.numeric(traitarray),resources=as.numeric(apply(resources,2,unique)),beta2=castdf$gamma2,beta3=gamma3)
 
 orig<-trajF(alpha=rnorm(2000,intercept,sigma_intercept),beta1=rnorm(2000,gamma1,sigma_slope1),beta2=rnorm(2000,gamma2,sigma_slope2),beta3=rnorm(2000,gamma3,sigma_slope3),x=as.numeric(traitarray),resources=as.numeric(apply(resources,2,unique)))
@@ -399,11 +563,14 @@ orig<-trajF(alpha=rnorm(2000,intercept,sigma_intercept),beta1=rnorm(2000,gamma1,
 ggplot(data=predy,aes(x=x)) + geom_point(data=mdat,aes(x=traitmatch,y=True_state),alpha=.5,size=.5)+ geom_ribbon(aes(ymin=lower,ymax=upper),alpha=0.3,fill="red")  + geom_line(aes(y=mean),size=.8,col="red",linetype="dashed") + theme_bw() + ylab("Interactions") + geom_line(data=orig,aes(x=x,y=mean),col='black',size=1)+ xlab("Difference between Bill and Corolla Length") 
 ```
 
+![](TwoDetectSimulation_files/figure-html/unnamed-chunk-13-1.png) 
+
 The true data is plotted overtop the simulation relationship in black, and the predicted relationship in dashed red with pink CI intervals.
 
 ## Trait by Resource Interaction
 
-```{r}
+
+```r
 predyint<-intF(alpha=castdf$intercept,beta1=castdf$gamma1,x=as.numeric(traitarray),resources=resources,beta2=castdf$gamma2,beta3=gamma3)
 
 origint<-intF(alpha=rnorm(2000,intercept,sigma_intercept),beta1=rnorm(2000,gamma1,sigma_slope1),beta2=rnorm(2000,gamma2,sigma_slope2),beta3=rnorm(2000,gamma3,sigma_slope3),x=as.numeric(traitarray),resources=resources)
@@ -414,6 +581,9 @@ psim4<-ggplot(data=predyint,aes(x=x)) + geom_ribbon(aes(ymin=lower,ymax=upper),a
 psim4
 ```
 
-```{r}
+![](TwoDetectSimulation_files/figure-html/unnamed-chunk-14-1.png) 
+
+
+```r
 save.image("Simulation_2M.RData")
 ```

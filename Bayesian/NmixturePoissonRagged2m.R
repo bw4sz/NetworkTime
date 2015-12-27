@@ -62,7 +62,6 @@ cat("
     gamma2~dnorm(0,0.0001)
     gamma3~dnorm(0,0.0001)
     
-    
     #Intercept grouping
     intercept~dnorm(0,0.0001)
     
