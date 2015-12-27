@@ -32,43 +32,55 @@ source("Bayesian/BayesFunctions.R")
 load("Simulation_2M.RData")
 ```
 
-#Simulate Data
-
 There is some underlying intensity of interactions between hummingbird species  i and plant species j. We observe these interactions using transects across elevation ranges and cameras at individual flowers. To combine these data to jointly estimate the importance of trait-matching and resources on interaction intensity we need a hierarchical occupancy model that accounts for 1) the difference in sampling effort between survey types, 2) The variable number of replicates per species, 3) The difference in detectability of interactions based on survey type. The occupancy model below uses months as our estimated latent state. There are two surveys per month, and a variable number of cameras for each flower, often with no cameras on a given flower in a month. The model below was able to capture true simulated parameters that mimic our observed data.
 
-## True values
+# True Simulated values
 
 Hummingbird Species =10
+
 Plant Species=20
+
 Survey Periods = 24
+
 Detection Probability for Camera = 0.25
+
 Detection Probability for Transect = 0.6
 
+
 Group Intercept
+
 * intercept<-2.5
+
 * sigma_intercept<- 0.1
 
 Effect of Trait-matching
+
 * gamma1=-1
+
 * sigma_slope1<- 0.1
 
 Effect of Resources
+
 * gamma2=0
+
 * sigma_slope2<- 0.1
 
 Interaction effect of resources * traitmatch
-gamma3=0.3
-sigma_slope3<- 0.1
+
+* gamma3=0.3
+
+* sigma_slope3<- 0.1
 
 Bill sizes
 Bill<-rpois(h_species,10)
 
 Corolla sizes
+
 Corolla<-rpois(plant_species,15)
 
+
 Survey periods are 70% cameras, 30% Transect
-Transects have two replicates.
-Cameras have variable number of replicates, modeled as rpois(lambda=0.5)
+Transects have two replicates.Cameras have variable number of replicates, modeled as rpois(lambda=0.5).
 
 Resources are scored as either 'High' or 'Low' and is modeled as rbinom(n=1,size=1,prob=0.5)
 
@@ -171,7 +183,7 @@ mdat<-rbind_all(dat)
 ```{r}
 mdatm<-melt(mdat,measure.vars = c("True_state","Y_Camera","Y_Transect"))
 
-ggplot(mdatm,aes(x=traitmatch,y=value,col=variable)) + geom_point() + geom_smooth(method="glm",family="poisson",linetype="dashed",size=1.1) + ggtitle("Correlation in Simulated Data") + labs(x="Difference in Bill and Corolla Length",y="Number of Interactions",col="Observation Process")
+ggplot(mdatm,aes(x=traitmatch,y=value,col=variable)) + geom_point(alpha=.5) + geom_smooth(method="glm",family="poisson",linetype="dashed",size=1.1) + ggtitle("Correlation in Simulated Data") + labs(x="Difference in Bill and Corolla Length",y="Number of Interactions",col="Observation Process") + theme_bw()
 
 #traitmatch dataframe
 Traitmatch<-mdat %>% group_by(Bird,Plant) %>% summarize(v=unique(traitmatch)) %>% acast(Bird~Plant,value.var="v")
@@ -181,11 +193,11 @@ TimeResources<-mdat %>% group_by(Time,Bird) %>% summarize(v=unique(resources)) %
 
 #Hierarchical Occupancy Model
 
-For hummingbird species i feeding on plant species j observed along transect date k. 
+For hummingbird species i feeding on plant species j observed at time k and sampling event d. 
 
-$$ YTransect_{i,j,k} \sim B(N_{i,j,k},\omega_{Transect}) $$
+$$ YTransect_{i,j,k,d} \sim B(N_{i,j,k},\omega_{Transect}) $$
 
-$$ YCamera_{i,j,k} \sim B(N_{i,j,k},\omega_{Camera}) $$
+$$ YCamera_{i,j,k,d} \sim B(N_{i,j,k},\omega_{Camera}) $$
 $$ \omega_{Camera} <- \phi_{Camera} * EffortCamera_k $$
 $$ \omega_{Transect} <- \phi_{Transect}* EffortTransect_k $$
 $$ N_{i,j,k} \sim Pois(\lambda_{i,j,k}) $$
