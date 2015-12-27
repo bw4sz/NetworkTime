@@ -29,13 +29,50 @@ source("Bayesian/BayesFunctions.R")
 
 
 ```{r}
-#load("Simulation_2M.RData")
+load("Simulation_2M.RData")
 ```
 
 #Simulate Data
 
-```{r}
-h_species=10
+There is some underlying intensity of interactions between hummingbird species  i and plant species j. We observe these interactions using transects across elevation ranges and cameras at individual flowers. To combine these data to jointly estimate the importance of trait-matching and resources on interaction intensity we need a hierarchical occupancy model that accounts for 1) the difference in sampling effort between survey types, 2) The variable number of replicates per species, 3) The difference in detectability of interactions based on survey type. The occupancy model below uses months as our estimated latent state. There are two surveys per month, and a variable number of cameras for each flower, often with no cameras on a given flower in a month. The model below was able to capture true simulated parameters that mimic our observed data.
+
+## True values
+
+Hummingbird Species =10
+Plant Species=20
+Survey Periods = 24
+Detection Probability for Camera = 0.25
+Detection Probability for Transect = 0.6
+
+Group Intercept
+* intercept<-2.5
+* sigma_intercept<- 0.1
+
+Effect of Trait-matching
+* gamma1=-1
+* sigma_slope1<- 0.1
+
+Effect of Resources
+* gamma2=0
+* sigma_slope2<- 0.1
+
+Interaction effect of resources * traitmatch
+gamma3=0.3
+sigma_slope3<- 0.1
+
+Bill sizes
+Bill<-rpois(h_species,10)
+
+Corolla sizes
+Corolla<-rpois(plant_species,15)
+
+Survey periods are 70% cameras, 30% Transect
+Transects have two replicates.
+Cameras have variable number of replicates, modeled as rpois(lambda=0.5)
+
+Resources are scored as either 'High' or 'Low' and is modeled as rbinom(n=1,size=1,prob=0.5)
+
+```{r,eval=F}
 plant_species=20
 Times=24
 detection_cam=0.25
@@ -189,7 +226,7 @@ $$\sigma_{slope3} = \sqrt[2]{\frac{1}{\tau_{\beta_3}}}$$
 
 # Analysis of observed data
 
-```{r,eval=T,strip.white=T}
+```{r,eval=F,strip.white=T}
 paralleljags<-T
 
 if(paralleljags){
@@ -339,7 +376,7 @@ psim2<-p + geom_vline(data=tr,aes(xintercept=value),linetype='dashed',size=1,col
 #ggsave("Figures/SimulationH.jpg",dpi=300,height=4,width=10)
 ```
 
-```{r,echo=F,fig.height=15,fig.width=9}
+```{r,echo=F,fig.height=13,fig.width=12}
 suppressMessages(grid.arrange(psim,psim2,heights=c(.65,.45)))
 ```
 
@@ -389,7 +426,6 @@ intF<-function(alpha,beta1,beta2,beta3,x,resources){
 #Predicted Relationship
 
 ```{r}
-
 predy<-trajF(alpha=castdf$intercept,beta1=castdf$gamma1,x=as.numeric(traitarray),resources=as.numeric(apply(resources,2,unique)),beta2=castdf$gamma2,beta3=gamma3)
 
 orig<-trajF(alpha=rnorm(2000,intercept,sigma_intercept),beta1=rnorm(2000,gamma1,sigma_slope1),beta2=rnorm(2000,gamma2,sigma_slope2),beta3=rnorm(2000,gamma3,sigma_slope3),x=as.numeric(traitarray),resources=as.numeric(apply(resources,2,unique)))
