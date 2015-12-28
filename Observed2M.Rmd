@@ -1,5 +1,5 @@
 ---
-title: "Hierarchical occupancy Models for species interactions: Empirical Data"
+title: "Observed Data"
 author: "Ben Weinstein - Stony Brook University"
 output:
   html_document:
@@ -59,6 +59,9 @@ hum.morph<-read.csv(paste(droppath,"Thesis/Maquipucuna_SantaLucia/Results/Hummin
 
 #Bring in Interaction Matrix
 int<-read.csv(paste(droppath,"Thesis/Maquipucuna_SantaLucia/Results/Network/HummingbirdInteractions.csv",sep=""),row.names=1)
+
+#one date error
+int[int$DateP %in% '2013-07-25',"Month"]<-7
 
 #Correct known taxonomic disagreements, atleast compared to traits
 int[int$Iplant_Double=="Alloplectus purpureus","Iplant_Double"]<-"Glossoloma purpureum"
@@ -231,6 +234,7 @@ We have more information than just the presences, given species elevation ranges
 
 ```{r}
 indatlong<-acast(indatraw,Bird~Plant~Time~ID~Day,value.var="Yobs")
+
 indatlong[is.na(indatlong)]<-0
 ```
 
@@ -240,17 +244,19 @@ indatlong[is.na(indatlong)]<-0
 #Hummingbirds not present at that elevation
 
 for(t in 1:dim(indatlong)[3]){
+  for(x in 1:dim(indatlong)[4]){
   
-for(x in 1:dim(indatlong)[4]){
-  #IDs are unique to time periods.
-    a<-indatlong[,,!dimnames(indatlong)[[3]] %in% dimnames(indatlong)[[3]][t],x,]<-NA
-    
-  #Remove non sampled plants 
+    #Remove non sampled plants 
   a<-indatlong[,,t,x,]
-  
+
   #No observations at that plant
   toNA<-as.numeric(names(which(apply(a,2,sum)==0)))
   pres<-as.numeric(names(which(!apply(a,2,sum)==0)))
+  
+  if(length(pres)==0){next} else {
+    #IDs are unique to time periods.
+
+    indatlong[,,which(!dimnames(indatlong)[[3]] %in% dimnames(indatlong)[[3]][t]),x,]<-NA
   indatlong[,colnames(a) %in% toNA,t,x,]<-NA
 
   #Get elevation point of that sampling event
@@ -266,23 +272,19 @@ for(x in 1:dim(indatlong)[4]){
         
         if(!((low < camelev) & (camelev < high))){
           #if you had a wandering individual outside range, allow interaction to occur.
-          if(sum(indatlong[i,,t,x,],na.rm=T)>0){
-            print(c(i,x))
-            next}
-          #Othersise set to NA
-          indatlong[i,,t,x,]<-NA
+                indatlong[i,,t,x,]<-NA
         }
       }
+    }
+  }
 }
-}
-
 ### There can't be absences in days that weren't sampled.
 for (x in 1:dim(indatlong)[4]){
   cam<-indatlong[,,,x,]
   for (y in 1:dim(cam)[4]){
     sc<-sum(cam[,,,y],na.rm=T)
     if (sc ==0){
-      cam[,,,y]<-NA
+      indatlong[,,,x,y]<-NA
     }
   }
 }
@@ -296,10 +298,10 @@ colnames(indat)<-c("Bird","Plant","Time","ID","Day","Yobs")
 
 ```{r}
 #remerge the time period data
-Timelookup<-indatraw %>% dplyr::select(Time,DateP,Transect_R,Month,Year) %>% group_by(Camera,DateP,Transect_R,Month,Year) %>% distinct() %>% arrange(Time)
+Timelookup<-indatraw %>% dplyr::select(ID,Transect_R,Survey_Type) %>% group_by(ID,Transect_R,Survey_Type) %>% distinct() %>% arrange(ID)
 
 #Get time information
-indat<-merge(indat,Timelookup,by=c("Camera"))
+indat<-merge(indat,Timelookup,by=c("ID"))
 
 #Species names
 for (x in 1:nrow(indat)){
@@ -316,6 +318,7 @@ Reformat index for jags.
 Jags needs a vector of input species 1:n with no breaks.
 
 ```{r}
+#Easiest to work with jags as numeric ordinal values
 indat$Hummingbird<-as.factor(indat$Hummingbird)
 indat$Iplant_Double<-as.factor(indat$Iplant_Double)
 indat$jBird<-as.numeric(indat$Hummingbird)
@@ -327,9 +330,71 @@ jagsIndexPlants<-data.frame(Iplant_Double=levels(indat$Iplant_Double),jPlant=1:l
 
 #Similiarly, the trait matrix needs to reflect this indexing.
 jTraitmatch<-traitmatchT[rownames(traitmatchT) %in% unique(indat$Hummingbird),colnames(traitmatchT) %in% unique(indat$Iplant_Double)]
-
-write.csv(indat,"InputData/ObservedData.csv")
 ```
+
+#Resources at each month
+
+In our model the covariate is indexed at the scale at which the latent count is considered fixed. This means we need the resource availability per month across the entire elevation gradient for each point.
+
+```{r}
+fl<-read.csv(paste(droppath,"Thesis/Maquipucuna_SantaLucia/Results/FlowerTransects/FlowerTransectClean.csv",sep=""))
+
+#select desired columns
+fltransects<-fl %>% dplyr::select(Iplant_Double,month,Year,ID,Transect.ID,Family,Genus,Species,Height,Total_Flowers,Transect_R,Date,lon,lat,ele)
+
+#dates need a bit of formatting
+fltransects$DateP<-as.POSIXlt(fltransects$Date,format="%d/%m/%y")
+
+#which are NA needs to date/month reversed. ugly.
+fltransects[which(is.na(fltransects$DateP)),"DateP"]<-as.character(as.POSIXlt(as.character(fltransects[which(is.na(fltransects$DateP)),"Date"]),format="%m/%d/%Y"))
+
+#remove without elevation records (less than 1% of data)
+fltransects<-fltransects[!is.na(fltransects$ele),]
+
+#month should be capital 
+colnames(fltransects)[colnames(fltransects) %in% "month"]<-"Month"
+
+#Count of flowers per month
+fltransects$DateP<-as.character(fltransects$DateP)
+flower.month<-group_by(fltransects,Month,Year,Transect_R,DateP) %>% dplyr::summarise(Flowers=sum(Total_Flowers,na.rm=TRUE))  %>% filter(Flowers>20)
+  
+#Make month abbreviation column, with the right order
+flower.month$Month.a<-factor(month.abb[flower.month$Month],month.abb[c(1:12)])
+
+#Make year factor column
+flower.month$Year<-as.factor(flower.month$Year)
+
+#get quantile for each transect
+thresh<-melt(group_by(flower.month) %>% summarize(Threshold=mean(log(Flowers))))
+             
+flower.month<-merge(flower.month,thresh)
+flower.month$Availability<-as.factor((log(flower.month$Flowers)>flower.month$value) * 1)
+
+#plot
+ggplot(flower.month,aes(col=Availability,x=Month.a,log(Flowers),shape=as.factor(Year))) + geom_point(size=3) + theme_bw()  + geom_smooth(aes(group=1)) + ylab("Flowers") + xlab("Month") + facet_wrap(~Transect_R,scales="free_y") + labs(shape="Year", y= "Log Available Flowers") + scale_x_discrete(breaks=month.abb[seq(1,12,2)]) + scale_color_manual(labels=c("Low","High"),values=c("black","red")) 
+
+#turn min and max elvation into seperate columns for the range
+flower.month$minElev<-as.numeric(str_extract(flower.month$Transect_R,"(\\d+)"))
+flower.month$maxElev<-as.numeric(str_match(flower.month$Transect_R,"(\\d+)_(\\d+)")[,3])
+```
+
+```{r}
+#summarize per month
+#Count of flowers per month
+Fmonth<-flower.month %>%group_by(Month,Year,Transect_R) %>% summarise(Flowers=mean(Flowers)) %>% summarize(Flowers=mean(Flowers)) %>% mutate(Time=paste(Month,Year,sep="_")) 
+
+#Binary model
+Fmonth$Availability<-(log(Fmonth$Flowers) > mean(log(Fmonth$Flowers)) )*1 
+ggplot(Fmonth,aes(x=as.factor(Month),y=log(Flowers))) + geom_point(size=4,aes(col=as.factor(Availability))) + geom_line(aes(group=Year)) + labs(x="Month",y="Log Transformed Flower Count")
+indat<-merge(indat,Fmonth,by="Time")
+
+indat<-dcast(indat,...~Survey_Type,value.var="Yobs",fill=0)
+
+#Turn Time and ID into numeric indexes
+indat$jTime<-as.numeric(as.factor(indat$Time))
+indat$jID<-as.numeric(as.factor(indat$ID))
+```
+
 
 #Hierarchical Occupancy Model
 
@@ -375,212 +440,53 @@ $$\sigma_{slope1} = \sqrt[2]{\frac{1}{\tau_{\beta_1}}}$$
 $$\sigma_{slope2} = \sqrt[2]{\frac{1}{\tau_{\beta_2}}}$$
 $$\sigma_{slope3} = \sqrt[2]{\frac{1}{\tau_{\beta_3}}}$$
 
-# Poisson GLMM
-
-```{r,eval=F}
-runs<-55000
-
-#trigger parallel
-paralleljags<-T
+```{r,eval=F,strip.white=T}
 
 #Source model
-source("Bayesian/NoDetectNmixturePoissonRagged.R")
+source("Bayesian/NmixturePoissonRagged2m.R")
 
 #print model
-print.noquote(readLines("Bayesian//NoDetectNmixturePoissonRagged.R"))
+writeLines(readLines("Bayesian/NmixturePoissonRagged2m.R"))
 
-if(paralleljags){
+#Input Data
+Dat <- c('Yobs_camera','Yobs_transect','Birds','Bird','Plant','Time','Plants','Times','resources','Nobs','cam_surveys','trans_surveys','Traitmatch')
 
-  #for parallel run
-  Yobs=indat$Yobs
+#Inits
+InitStage <- function(){
+  #A blank Y matrix - all present
+  initY<-array(dim=c(Birds,Plants,Times),data=max(Yobs_transect,na.rm=T))
+  initB<-as.numeric(matrix(nrow=Birds,ncol=1,data=.1))
+
+list(beta1=initB,beta2=initB,beta3=initB,alpha=rep(.5,Birds),intercept=0,tau_alpha=0.1,tau_beta1=0.1,tau_beta2=0.1,tau_beta3=0.1,gamma1=0,gamma2=0,gamma3=0,dtrans=0.5,dcam=0.5,N=initY)}
+
+#Parameters to track
+ParsStage <- c("alpha","beta1","beta2","beta3","intercept","sigma_int","sigma_slope1","sigma_slope2","sigma_slope3","gamma1","gamma2","gamma3","dtrans","dcam")
+
+#MCMC options
+
+ni <- 200  # number of draws from the posterior
+nt <- max(c(1,ni*.0001))  #thinning rate
+nb <- ni*.85 # number to discard for burn-in
+nc <- 2  # number of chains
+
+#Jags
+
+  Yobs_camera = indat$Camera
+  Yobs_transect = indat$Transect
+  Birds=max(indat$jBird)
   Bird=indat$jBird
   Plant=indat$jPlant
+  Time=indat$jTime
   Plants=max(indat$jPlant)
-  Time=indat$Camera
-  Traitmatch=jTraitmatch
-  #number of birds to iterate
-  Birds=max(indat$jBird)
-  Nobs=length(indat$Yobs)
+  Times=max(indat$jTime)
+  resources=TimeResources
+  Nobs=nrow(indat)
+  cam_surveys=(indat$Survey_Type=="Camera")*1
+  trans_surveys=(indat$Survey_Type=="Transect")*1
+  Traitmatch=Traitmatch
 
-  #A blank Y matrix - all present
-  Ninit<-rep(max(indat$Yobs)+1,Nobs)
-  
-  #Inits
-  InitStage <- function() {list(beta=rep(0.5,Birds),alpha=rep(0.5,Birds),intercept=0,tau_alpha=0.1,tau_beta=0.1,N=Ninit,gamma=0)}
-  
-  #Parameters to track
-  ParsStage <- c("alpha","beta","intercept","sigma_int","sigma_slope","ynew","gamma","fit","fitnew")
-  
-  #MCMC options
-  ni <- runs  # number of draws from the posterior
-  nt <- 1   #thinning rate
-  nb <- runs*.95 # number to discard for burn-in
-  nc <- 2  # number of chains
-
-  Dat<-list("Yobs","Bird","Plant","Plants","Time","Traitmatch","Birds","Nobs","Ninit")
-
-    m2_niave<-do.call(jags.parallel,list(Dat,InitStage,ParsStage,model.file="Bayesian/NoDetectNmixturePoissonRagged.jags",n.thin=nt, n.iter=ni,n.burnin=nb,n.chains=nc))
-    
-  } else {
- #Input Data
-  Dat <- list(
-    Yobs=indat$Yobs,
-    Bird=indat$jBird,
-    Plant=indat$jPlant,
-    Plants=max(indat$jPlant),
-    Time=indat$Camera,
-    Traitmatch=jTraitmatch,
-    #number of birds to iterate
-    Birds=max(indat$jBird),
-    Nobs=length(indat$Yobs))
-  
-    #A blank Y matrix - all present
-    Ninit<-rep(max(Dat$Yobs)+1,Dat$Nobs)
-  
-    #Inits
-  InitStage <- function() {list(beta=rep(0.5,Dat$Birds),alpha=rep(0.5,Dat$Birds),dtrans=rep(0,Dat$Birds),intercept=0,tau_alpha=0.1,tau_beta=0.1,N=Ninit,gamma=0)}
-  
-  #Parameters to track
-  ParsStage <- c("detect","alpha","beta","intercept","sigma_int","sigma_slope","ynew","gamma","fit","fitnew")
-  
-  #MCMC options
-  ni <- runs  # number of draws from the posterior
-  nt <- 2   #thinning rate
-  nb <- runs*.95 # number to discard for burn-in
-  nc <- 2  # number of chains
-  
-  #Jags
-  
-  m2_niave <- jags(inits=InitStage,
-                   n.chains=nc, model.file="Bayesian/NoDetectNmixturePoissonRagged.jags",
-                   working.directory=getwd(),
-                   data=Dat,
-                   parameters.to.save=ParsStage,
-                   n.thin=nt,
-                   n.iter=ni,
-                   n.burnin=nb,
-                   DIC=T)
-}
+  m2<-do.call(jags.parallel,list(Dat,InitStage,ParsStage,model.file="Bayesian/NmixturePoissonRagged2m.jags",n.thin=nt, n.iter=ni,n.burnin=nb,n.chains=nc))
 ```
-
-
-```{r,eval=F}
-#recompile if needed
-load.module("dic")
-runs<-30000
-recompile(m2_niave)
-m2_niave<-update(m2_niave,n.iter=runs,n.burnin=runs*.9)
-```
-
-```{r}
-pars_dniave<-extract_par(m2_niave,data=indat,Bird="jBird",Plant="jPlant")
-pars_dniave$Model<-"Poisson GLMM"
-```
-
-##Assess Convergence
-
-```{r,cache=FALSE,fig.width=13,fig.height=5}
-###Chains
-ggplot(pars_dniave[pars_dniave$par %in% c("detect","alpha","beta"),],aes(x=Draw,y=estimate,col=as.factor(Chain))) + geom_line() + facet_grid(par~species,scale="free") + theme_bw() + labs(col="Chain") + ggtitle("Detection Probability")
-```
-
-```{r,fig.height=5,fig.width=11}
-ggplot(pars_dniave[pars_dniave$par %in% c("gamma","sigma_int","sigma_slope","intercept"),],aes(x=Draw,y=estimate,col=as.factor(Chain))) + geom_line() + theme_bw() + labs(col="Chain") + ggtitle("Trait-matching regression") + facet_wrap(~par,scales="free")
-```
-
-# Observed Data With Detection
-
-```{r,eval=F}
-runs<-70000
-
-#trigger parallel
-paralleljags<-T
-
-#Source model
-source("Bayesian/NmixturePoissonRagged.R")
-
-#print model
-print.noquote(readLines("Bayesian//NmixturePoissonRagged.R"))
-
-if(paralleljags){
-
-  #for parallel run
-  Yobs=indat$Yobs
-  Bird=indat$jBird
-  Plant=indat$jPlant
-  Camera=indat$Camera
-  Cameras=max(indat$Camera)
-  Day<-indat$Day
-  Days<-max(indat$Day)
-  Traitmatch=jTraitmatch
-  #number of birds to iterate
-  Birds=max(indat$jBird)
-  Plants=max(indat$jPlant)
-  Nobs=length(indat$Yobs)
-
-  #A blank Y matrix - all present
-  Ninit<-array(dim=c(Birds,Plants,Cameras),data=max(indat$Yobs)+1)
-
-  #Inits
-  InitStage <- function() {list(beta=rep(0.5,Birds),alpha=rep(0.5,Birds),intercept=0,tau_alpha=0.1,tau_beta=0.1,N=Ninit,gamma=0)}
-  
-  #Parameters to track
-  ParsStage <- c("detect","alpha","beta","intercept","sigma_int","sigma_slope","ynew","gamma","fit","fitnew")
-  
-  #MCMC options
-  ni <- runs  # number of draws from the posterior
-  nt <- 3   #thinning rate
-  nb <- runs*.90 # number to discard for burn-in
-  nc <- 2  # number of chains
-
-  Dat<-list("Yobs","Bird","Plant","Plants","Traitmatch","Birds","Nobs","Ninit","Day","Days","Camera","Cameras")
-
-    system.time(m2<-do.call(jags.parallel,list(Dat,InitStage,ParsStage,model.file="Bayesian/NmixturePoissonRagged.jags",n.thin=nt, n.iter=ni,n.burnin=nb,n.chains=nc)))
-  } else {
-  #Input Data
-  Dat <- list(
-     Yobs=indat$Yobs,
-    Bird=indat$jBird,
-    Plant=indat$jPlant,
-    Camera=indat$Camera,
-    Cameras=max(indat$Camera),
-    Day<-indat$Day,
-    Days<-max(indat$Day),
-    Traitmatch=traitmatch,
-    #number of birds to iterate
-    Birds=max(indat$jBird),
-    Plants=max(indat$jPlant),
-    Nobs=length(indat$Yobs)
-  )
-    #A blank Y matrix - all present
-  Ninit<-array(dim=c(Dat$Birds,Dat$Plants,Dat$Cameras),data=max(indat$Yobs)+1)
-  
-    #Inits
-  InitStage <- function() {list(beta=rep(0.5,Dat$Birds),alpha=rep(0.5,Dat$Birds),intercept=0,tau_alpha=0.1,tau_beta=0.1,N=Ninit,gamma=0)}
-  
-  #Parameters to track
-  ParsStage <- c("detect","alpha","beta","intercept","sigma_int","sigma_slope","ynew","gamma","fit","fitnew","lambda")
-  
-  #MCMC options
-  ni <- runs  # number of draws from the posterior
-  nt <- 3   #thinning rate
-  nb <- runs*.9 # number to discard for burn-in
-  nc <- 2  # number of chains
-  
-  #Jags
-  
-  system.time(m2 <- jags(inits=InitStage,
-                   n.chains=nc, model.file="Bayesian/NmixturePoissonRagged.jags",
-                   working.directory=getwd(),
-                   data=Dat,
-                   parameters.to.save=ParsStage,
-                   n.thin=nt,
-                   n.iter=ni,
-                   n.burnin=nb,
-                   DIC=T))
-}
-```
-
 
 ```{r,eval=F}
 #recompile if needed
