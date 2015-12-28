@@ -1,29 +1,40 @@
 #extract and create a dataframe of posteriors
 
-extract_par<-function(x){
-#extract desired info from the models
+extract_par<-function(x,data=obs,Bird="Bird",Plant="Plant"){
+  #extract desired info from the models
   n<-dim(x$BUGSoutput$sims.array)[1]
-  parsO<-melt(x$BUGSoutput$sims.array[max(0,(n-2000)):n,,])
-colnames(parsO)<-c("Draw","Chain","parameter","estimate") 
-
-#label species and plants
-l<-levels(parsO$parameter)
-
-#parameters to save
-totrack<-x$parameters.to.save
-
-#assign species index to ragged frame.
-sp_pl<-data.frame(parameter=l,species=as.numeric(str_match(l,pattern="\\[(\\d+)]")[,2]),par=str_extract(l,"\\w+"))
-
-#merge levels
-pars<-merge(parsO,sp_pl)
-
-#take out deviance
-pars<-pars[!pars$par %in% "deviance",]
-return(pars)
+  parsO<-melt(x$BUGSoutput$sims.array[max(0,(n-1000)):n,,])
+  colnames(parsO)<-c("Draw","Chain","parameter","estimate")
+  
+  #label species and plants
+  l<-levels(parsO$parameter)
+  
+  #parameters to save
+  totrack<-x$parameters.to.save
+  
+  #assign species index to ragged frame.
+  sp_pl<-data.frame(parameter=l,species=as.numeric(str_match(l,pattern="\\[(\\d+)]")[,2]),par=str_extract(l,"\\w+"))
+  
+  #correct N samples
+  #i<-sp_pl$par %in% "ynew"
+  
+  #Species
+  #sp_pl[i,][,"species"]<-data[as.numeric(str_match(sp_pl[i,][,"parameter"],pattern="\\[(\\d+)]")[,2]),Bird]
+  
+  
+  #Plant
+  #add a NA plant columns
+  #sp_pl$plant<-NA
+  #sp_pl[i,][,"plant"]<-
+   # data[as.numeric(str_match(sp_pl[i,][,"parameter"],pattern="\\[(\\d+)]")[,2]),Plant]
+  
+  #merge levels
+  pars<-merge(parsO,sp_pl)
+  
+  #take out deviance
+  pars<-pars[!pars$par %in% "deviance",]
+  return(pars)
 }
-
-
 #fits a chisquared residual for a given poisson function
 
 trajState<-function(alpha,beta,x,observed){
