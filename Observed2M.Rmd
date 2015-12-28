@@ -177,9 +177,9 @@ datph$Time<-paste(datph$Month,datph$Year,sep="_")
 #Label survey type
 datph$Survey_Type<-NA
 
-mt<-is.na(datph$TransectID)*1
+mt<-!is.na(datph$TransectID)*1
 datph$Survey_Type[mt==1]<-"Transect"
-datph$Survey_Type[!mt=="Transect"]<-"Camera"
+datph$Survey_Type[!datph$Survey_Type %in% "Transect"]<-"Camera"
 
 indatraw<- datph %>% group_by(Hummingbird,Iplant_Double,Bird,Plant,Time,ID,DateP,Survey_Type) %>% summarize(Yobs=n(),Elev=mean(ele,na.rm=T),Transect_R=unique(Transect_R)) 
 
@@ -211,6 +211,12 @@ indatraw<-as.data.frame(indatraw)
 #which elevation bin is each observation within
 labs<-paste(seq(1300,2500,200),seq(1500,2700,200),sep="_")
 indatraw$Transect_R[is.na(indatraw$Transect_R)]<-as.character(cut(indatraw[is.na(indatraw$Transect_R),]$Elev,seq(1300,2700,200),labels=labs))
+
+#Elev for the transects is the midpoint
+tran_elev<-indatraw[indatraw$Survey_Type=='Transect',"Transect_R"]
+indatraw[indatraw$Survey_Type=='Transect',"Elev"]<-sapply(tran_elev,function(x){
+  mean(as.numeric(str_split(x,"_")[[1]]))
+})
 ```
 
 ```{r}
@@ -241,42 +247,36 @@ for(x in 1:dim(indatlong)[4]){
   toNA<-as.numeric(names(which(apply(a,2,sum)==0)))
   pres<-as.numeric(names(which(!apply(a,2,sum)==0)))
   indatlong[,colnames(a) %in% toNA,,x,]<-NA
-  
-  #match elevation if there were presences
-  #for each plant there was a presence point
-  if(length(pres)>0){
-    for (y in 1:length(pres)){
+
+  #Get elevation point of that sampling event
+  cam<-dimnames(indatlong)[[4]][x]
+  camelev<-indatraw %>% filter(ID==cam) %>% .$Elev %>% unique()
       
-      #Get elevation point of that camera.
-      cam<-as.numeric(dimnames(indatlong)[[4]][x])
-      camelev<-indatraw %>% filter(Time==cam) %>% .$Elev %>% unique()
-      
-      #for each hummingbird, was that camera within elevation?
-      for(i in 1:dim(a)[1]){
-        low<-elevH[elevH$Bird == rownames(a)[i],"Low"]
-        high<-elevH[elevH$Bird == rownames(a)[i],"High"]
+  #for each hummingbird, was that camera within elevation?
+  for(i in 1:dim(a)[1]){
+      low<-elevH[elevH$Bird == rownames(a)[i],"Low"]
+      high<-elevH[elevH$Bird == rownames(a)[i],"High"]
         
         #if not in elev range, set to NA
+        
         if(!((low < camelev) & (camelev < high))){
           #if you had a wandering individual outside range, allow interaction to occur.
-          if(sum(indatlong[i,,x,,],na.rm=T)>0){
-            #print(c(i,x))
+          if(sum(indatlong[i,,,x,],na.rm=T)>0){
+            print(c(i,x))
             next}
           #Othersise set to NA
-          indatlong[i,,x,,]<-NA
+          indatlong[i,,,x,]<-NA
         }
       }
     }
-  }
-}
 
 ### There can't be absences in days that weren't sampled.
-for (x in 1:dim(indatlong)[3]){
-  cam<-indatlong[,,x,,]
+for (x in 1:dim(indatlong)[4]){
+  cam<-indatlong[,,,x,]
   for (y in 1:dim(cam)[4]){
     sc<-sum(cam[,,,y],na.rm=T)
     if (sc ==0){
-      cam[,,y]<-NA
+      cam[,,,y]<-NA
     }
   }
 }
@@ -285,7 +285,7 @@ for (x in 1:dim(indatlong)[3]){
 indat<-melt(indatlong)
 indat<-indat[!is.na(indat$value),]
 
-colnames(indat)<-c("Bird","Plant","Camera","Day","Yobs")
+colnames(indat)<-c("Bird","Plant","Time","ID","Day","Yobs")
 ```
 
 ```{r}
@@ -325,30 +325,49 @@ jTraitmatch<-traitmatchT[rownames(traitmatchT) %in% unique(indat$Hummingbird),co
 write.csv(indat,"InputData/ObservedData.csv")
 ```
 
-# Hierarcichal Occupancy Model
+#Hierarchical Occupancy Model
 
-$$ Y_{i,j,k} \sim Binom(N_{i,j,k},detect_i)$$
-$$N_{i,j,k} \sim Pois(\lambda_{i,j}) $$
-$$log(\lambda_{i,j})<-\alpha_i + \beta_i * abs(Bill_i - Corolla_i) $$
-$$detect_i \sim U(0,0.5)$$     
+For hummingbird species i feeding on plant species j observed at time k and sampling event d. 
+
+$$ YTransect_{i,j,k,d} \sim B(N_{i,j,k},\omega_{Transect}) $$
+
+$$ YCamera_{i,j,k,d} \sim B(N_{i,j,k},\omega_{Camera}) $$
+$$ \omega_{Camera} <- \phi_{Camera} * EffortCamera_k $$
+$$ \omega_{Transect} <- \phi_{Transect}* EffortTransect_k $$
+$$ N_{i,j,k} \sim Pois(\lambda_{i,j,k}) $$
+$$ log(\lambda_{i,j,k}) = \alpha_i + \beta_{1,i} * Traitmatch_{i,j} + \beta_{2,i} *Resources_k + \beta_{3,i} * Traitmatch_{i,j} * Resources_k $$
 
 **Priors**
 
+$$ \phi_{Camera} \sim U(0,1) $$
+$$ \phi_{Transect} \sim U(0,1) $$
 $$\alpha_i \sim N(intercept,\tau_{\alpha})$$
-$$\beta_i \sim N(\gamma,\tau_{detect})$$
+$$\beta_{1,i} \sim N(\gamma_1i,\tau_{\beta_1})$$
+$$\beta_{2,i} \sim N(\gamma_2i,\tau_{\beta_2})$$
+$$\beta_{3,i} \sim N(\gamma_3i,\tau_{\beta_3})$$
 
 **Hyperpriors**
 
-$$gamma \sim N(0,0.0001)$$
-$$intercept \sim N(0,0.0001)$$
+Group Level Means
+
+$$\gamma_{1,i} \sim N(0,0.0001)$$
+$$\gamma_{2,i} \sim N(0,0.0001)$$
+$$\gamma_{3,i} \sim N(0,0.0001)$$
+$$ intercept \sim N(0,0.0001)$$
+
+Group Level Variance
 
 $$\tau_{\alpha} \sim Gamma(0.0001,0.0001)$$
-$$\tau_\beta \sim Gamma(0.0001,0.0001)$$
+$$\tau_\beta1 \sim Gamma(0.0001,0.0001)$$
+$$\tau_\beta2 \sim Gamma(0.0001,0.0001)$$
+$$\tau_\beta3 \sim Gamma(0.0001,0.0001)$$
 
 **Derived quantities**
 
 $$\sigma_{intercept} = \sqrt[2]{\frac{1}{\tau_\alpha}}$$
-$$\sigma_{slope} = \sqrt[2]{\frac{1}{\tau_\beta}}$$
+$$\sigma_{slope1} = \sqrt[2]{\frac{1}{\tau_{\beta_1}}}$$
+$$\sigma_{slope2} = \sqrt[2]{\frac{1}{\tau_{\beta_2}}}$$
+$$\sigma_{slope3} = \sqrt[2]{\frac{1}{\tau_{\beta_3}}}$$
 
 # Poisson GLMM
 

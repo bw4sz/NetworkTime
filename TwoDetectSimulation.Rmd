@@ -195,9 +195,9 @@ TimeResources<-mdat %>% group_by(Time,Bird) %>% summarize(v=unique(resources)) %
 
 For hummingbird species i feeding on plant species j observed at time k and sampling event d. 
 
-$$ YTransect_{i,j,k,d} \sim B(N_{i,j,k},\omega_{Transect}) $$
+$$ YTransect_{i,j,k,d} \sim Binom(N_{i,j,k},\omega_{Transect}) $$
 
-$$ YCamera_{i,j,k,d} \sim B(N_{i,j,k},\omega_{Camera}) $$
+$$ YCamera_{i,j,k,d} \sim Binom(N_{i,j,k},\omega_{Camera}) $$
 $$ \omega_{Camera} <- \phi_{Camera} * EffortCamera_k $$
 $$ \omega_{Transect} <- \phi_{Transect}* EffortTransect_k $$
 $$ N_{i,j,k} \sim Pois(\lambda_{i,j,k}) $$

@@ -72,9 +72,9 @@ Resources are scored as either 'High' or 'Low' and is modeled as rbinom(n=1,size
 
 For hummingbird species i feeding on plant species j observed at time k and sampling event d. 
 
-$$ YTransect_{i,j,k,d} \sim B(N_{i,j,k},\omega_{Transect}) $$
+$$ YTransect_{i,j,k,d} \sim Binom(N_{i,j,k},\omega_{Transect}) $$
 
-$$ YCamera_{i,j,k,d} \sim B(N_{i,j,k},\omega_{Camera}) $$
+$$ YCamera_{i,j,k,d} \sim Binom(N_{i,j,k},\omega_{Camera}) $$
 $$ \omega_{Camera} <- \phi_{Camera} * EffortCamera_k $$
 $$ \omega_{Transect} <- \phi_{Transect}* EffortTransect_k $$
 $$ N_{i,j,k} \sim Pois(\lambda_{i,j,k}) $$
