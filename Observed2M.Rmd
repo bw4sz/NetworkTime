@@ -239,14 +239,19 @@ indatlong[is.na(indatlong)]<-0
 #Plants not surveyed in that time period
 #Hummingbirds not present at that elevation
 
+for(t in 1:dim(indatlong)[3]){
+  
 for(x in 1:dim(indatlong)[4]){
+  #IDs are unique to time periods.
+    a<-indatlong[,,!dimnames(indatlong)[[3]] %in% dimnames(indatlong)[[3]][t],x,]<-NA
+    
   #Remove non sampled plants 
-  a<-indatlong[,,,x,]
+  a<-indatlong[,,t,x,]
   
   #No observations at that plant
   toNA<-as.numeric(names(which(apply(a,2,sum)==0)))
   pres<-as.numeric(names(which(!apply(a,2,sum)==0)))
-  indatlong[,colnames(a) %in% toNA,,x,]<-NA
+  indatlong[,colnames(a) %in% toNA,t,x,]<-NA
 
   #Get elevation point of that sampling event
   cam<-dimnames(indatlong)[[4]][x]
@@ -261,14 +266,15 @@ for(x in 1:dim(indatlong)[4]){
         
         if(!((low < camelev) & (camelev < high))){
           #if you had a wandering individual outside range, allow interaction to occur.
-          if(sum(indatlong[i,,,x,],na.rm=T)>0){
+          if(sum(indatlong[i,,t,x,],na.rm=T)>0){
             print(c(i,x))
             next}
           #Othersise set to NA
-          indatlong[i,,,x,]<-NA
+          indatlong[i,,t,x,]<-NA
         }
       }
-    }
+}
+}
 
 ### There can't be absences in days that weren't sampled.
 for (x in 1:dim(indatlong)[4]){
