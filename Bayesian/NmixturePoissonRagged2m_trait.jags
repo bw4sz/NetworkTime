@@ -6,7 +6,7 @@
     for (k in 1:Times){
     
     #Process Model
-    log(lambda[i,j,k])<-alpha[i] + beta1[i] * Traitmatch[i,j] + beta2[i] * resources[i,k] + beta3[i] * Traitmatch[i,j] * resources[i,k]
+    log(lambda[i,j,k])<-alpha[i] + beta1[i] * Traitmatch[i,j]
     
     #True number of interactions
     N[i,j,k] ~ dpois(lambda[i,j,k])
@@ -46,16 +46,12 @@
     for (i in 1:Birds){
     alpha[i] ~ dnorm(intercept,tau_alpha)
     beta1[i] ~ dnorm(gamma1,tau_beta1)    
-    beta2[i] ~ dnorm(gamma2,tau_beta2)    
-    beta3[i] ~ dnorm(gamma3,tau_beta3)    
     }
 
     #Hyperpriors
     #Slope grouping
     gamma1~dnorm(0,0.0001)
-    gamma2~dnorm(0,0.0001)
-    gamma3~dnorm(0,0.0001)
-    
+
     #Intercept grouping
     intercept~dnorm(0,0.0001)
     
@@ -70,14 +66,6 @@
     #Group Effect of traits
     tau_beta1 ~ dgamma(0.0001,0.0001)
     sigma_slope1<-pow(1/tau_beta1,0.5)
-    
-    #Group Effect of Resources
-    tau_beta2 ~ dgamma(0.0001,0.0001)
-    sigma_slope2<-pow(1/tau_beta2,0.5)
-    
-    #Group Effect of Resources * Traits
-    tau_beta3 ~ dgamma(0.0001,0.0001)
-    sigma_slope3<-pow(1/tau_beta3,0.5)
     
     #derived posterior check
     #fit<-sum(E[]) #Discrepancy for the observed data

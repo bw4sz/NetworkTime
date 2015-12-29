@@ -17,23 +17,20 @@ cat("
     }
     }
 
-
     #Observed counts for each day of sampling
-
     for (x in 1:Nobs){
     
     #Observation Process for cameras
-    detect_cam[x]<-dcam[Bird[x]] * cam_surveys[x]
+    detect_cam[x]<-dcam * cam_surveys[x]
 
     #Observation Process for transects
-    detect_transect[x]<-dtrans[Bird[x]] * trans_surveys[x]
+    detect_transect[x]<-dtrans * trans_surveys[x]
 
     Yobs_camera[x] ~ dbin(detect_cam[x],N[Bird[x],Plant[x],Time[x]])    
     Yobs_transect[x] ~ dbin(detect_transect[x],N[Bird[x],Plant[x],Time[x]])    
 
     #Assess Model Fit
-    #ignore this for now.
-    
+
     #Fit discrepancy statistics
     #eval[x]<-detect[Bird[x]]*N[Bird[x],Plant[x],Camera[x]]
     #E[x]<-pow((Yobs[x]-eval[x]),2)/(eval[x]+0.5)
@@ -43,14 +40,13 @@ cat("
     
     }
     
+    #Detect priors
+    dcam ~ dunif(0,1)
+    dtrans ~ dunif(0,1)
+
     #Species level priors
     
     for (i in 1:Birds){
-
-    #Detect priors
-    dcam[i] ~ dunif(0,1)
-    dtrans[i] ~ dunif(0,1)
-
     alpha[i] ~ dnorm(intercept,tau_alpha)
     beta1[i] ~ dnorm(gamma1,tau_beta1)    
     beta2[i] ~ dnorm(gamma2,tau_beta2)    

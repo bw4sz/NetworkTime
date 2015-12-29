@@ -390,7 +390,7 @@ ggplot(Fmonth,aes(x=as.factor(Month),y=log(Flowers))) + geom_point(size=4,aes(co
 indat<-merge(indat,Fmonth,by="Time")
 
 #As matrix
-indat<-dcast(indat,...~Survey_Type,value.var="Yobs",fill=0)
+indat<-dcast(indat,...~Survey_Type,value.var="Yobs",fill=NA)
 
 #Turn Time and ID into numeric indexes
 indat$jTime<-as.numeric(as.factor(indat$Time))
@@ -404,6 +404,14 @@ resourceMatrix<-indat %>% group_by(jBird,Time) %>% summarize(v=unique(Flowers)) 
 
 ```{r}
 ggplot(indat,aes(x=Traitmatch)) + geom_point(aes(y=Camera),col='blue') + geom_point(aes(y=Transect),col='red') + stat_smooth(method="glm",family="poisson",aes(y=Transect),col='red') + stat_smooth(method="glm",family="poisson",aes(y=Camera),col='blue')
+```
+
+Sampling effort
+
+```{r}
+#At each data point there is a camera a transect or both
+cam_effort<-(!is.na(indat$Camera))*1
+trans_effort<-(!is.na(indat$Transect))*1
 ```
 
 #Hierarchical Occupancy Model
@@ -453,10 +461,10 @@ $$\sigma_{slope3} = \sqrt[2]{\frac{1}{\tau_{\beta_3}}}$$
 ```{r,eval=T,strip.white=T}
 
 #Source model
-source("Bayesian/NmixturePoissonRagged2m.R")
+source("Bayesian/NmixturePoissonRagged2m_trait.R")
 
 #print model
-writeLines(readLines("Bayesian/NmixturePoissonRagged2m.R"))
+writeLines(readLines("Bayesian/NmixturePoissonRagged2m_trait.R"))
 
 #Input Data
 Dat <- c('Yobs_camera','Yobs_transect','Birds','Bird','Plant','Time','Plants','Times','resources','Nobs','cam_surveys','trans_surveys','Traitmatch')
@@ -464,18 +472,21 @@ Dat <- c('Yobs_camera','Yobs_transect','Birds','Bird','Plant','Time','Plants','T
 #Inits
 InitStage <- function(){
   #A blank Y matrix - all present
-  initY<-array(dim=c(Birds,Plants,Times),100)
+  initY<-array(dim=c(Birds,Plants,Times),30)
   initB<-as.numeric(matrix(nrow=Birds,ncol=1,data=0))
   initD<-as.numeric(matrix(nrow=Birds,ncol=1,data=.5))
 
+#list(beta1=initB,beta2=initB,beta3=initB,alpha=rep(.5,Birds),intercept=0,tau_alpha=0.1,tau_beta1=0.1,tau_beta2=0.1,tau_beta3=0.1,gamma1=0,gamma2=0,gamma3=0,dtrans=0.5,dcam=0.5,N=initY)}
 
-list(beta1=initB,beta2=initB,beta3=initB,alpha=rep(.5,Birds),intercept=0,tau_alpha=0.1,tau_beta1=0.1,tau_beta2=0.1,tau_beta3=0.1,gamma1=0,gamma2=0,gamma3=0,dtrans=initD,dcam=initD,N=initY)}
+list(beta1=initB,alpha=rep(.5,Birds),intercept=1,tau_alpha=0.1,tau_beta1=0.1,gamma1=0,dtrans=0.3,dcam=0.2,N=initY)}
 
 #Parameters to track
-ParsStage <- c("alpha","beta1","beta2","beta3","intercept","sigma_int","sigma_slope1","sigma_slope2","sigma_slope3","gamma1","gamma2","gamma3","dtrans","dcam")
+ParsStage <- c("alpha","beta1","intercept","sigma_int","sigma_slope1","gamma1","dtrans","dcam")
+
+#ParsStage <- c("alpha","beta1","beta2","beta3","intercept","sigma_int","sigma_slope1","sigma_slope2","sigma_slope3","gamma1","gamma2","gamma3","dtrans","dcam")
 
 #MCMC options
-ni <- 20000  # number of draws from the posterior
+ni <- 50000  # number of draws from the posterior
 nt <- max(c(1,ni*.0001))  #thinning rate
 nb <- ni*.85 # number to discard for burn-in
 nc <- 2  # number of chains
@@ -484,6 +495,7 @@ nc <- 2  # number of chains
 
   Yobs_camera = indat$Camera
   Yobs_transect = indat$Transect
+
   Birds=max(indat$jBird)
   Bird=indat$jBird
   Plant=indat$jPlant
@@ -492,11 +504,11 @@ nc <- 2  # number of chains
   Times=max(indat$jTime)
   resources=resourceMatrix
   Nobs=nrow(indat)
-  cam_surveys=(indat$Camera>0)*1
-  trans_surveys=(indat$Transect>0)*1
+  cam_surveys= cam_effort
+  trans_surveys= trans_effort
   Traitmatch=jTraitmatch
 
-  m2<-do.call(jags.parallel,list(Dat,InitStage,ParsStage,model.file="Bayesian/NmixturePoissonRagged2m.jags",n.thin=nt, n.iter=ni,n.burnin=nb,n.chains=nc))
+  m2<-do.call(jags.parallel,list(Dat,InitStage,ParsStage,model.file="Bayesian/NmixturePoissonRagged2m_trait.jags",n.thin=nt, n.iter=ni,n.burnin=nb,n.chains=nc))
 ```
 
 ```{r,eval=F}
@@ -538,7 +550,7 @@ ggplot(pars_detect[pars_detect$par %in% c("dtrans","dcam"),],aes(x=par,y=estimat
 
 pars_detect<-merge(pars_detect,jagsIndexBird,by.x="species",by.y="jBird",all.x=T)
 
-ggplot(pars_detect[pars_detect$par %in% c("dcam","dtrans"),],aes(x=estimate)) + geom_histogram() + ggtitle("Posterior Distribution") + theme_bw() + facet_wrap(~Hummingbird,ncol=5) + xlab("Probability of Detection")
+ggplot(pars_detect[pars_detect$par %in% c("dcam","dtrans"),],aes(x=estimate)) + geom_histogram() + ggtitle("Posterior Distribution") + theme_bw() + facet_wrap(~species,ncol=5) + xlab("Probability of Detection")
 #ggsave("Figures/DetectionProb.jpg",dpi=300,height=7,width=11)
 ```
 
