@@ -67,7 +67,7 @@ flower.month$Month.a<-factor(month.abb[flower.month$Month],month.abb[c(1:12)])
 flower.month$Year<-as.factor(flower.month$Year)
 
 #get quantile for each transect
-thresh<-melt(group_by(flower.month,Transect_R) %>% summarize(Threshold=quantile(log(Flowers),0.5)) )
+thresh<-melt(group_by(flower.month,Transect_R) %>% summarize(Threshold=quantile(log(Flowers),0.75)) )
 flower.month<-merge(flower.month,thresh)
 flower.month$High<-log(flower.month$Flowers)>flower.month$value
 
@@ -221,11 +221,10 @@ p + geom_pointrange(data=network.fl,aes(ymin=Lower,ymax=Upper,y=meanN),alpha=.5,
 Linear regression
 ```{r}
 network.fl$value<-network.fl$True
-summary(lm(data=network.fl[network.fl$Metric %in% "connectance",],value~log(Flowers)))
+summary(lm(data=network.fl[network.fl$Metric %in% "weighted connectance",],value~log(Flowers)))
 network.fl$value<-network.fl$True
 summary(lm(data=network.fl[network.fl$Metric %in% "weighted NODF",],value~log(Flowers)))
 summary(lm(data=network.fl[network.fl$Metric %in% "niche.overlap.HL",],value~log(Flowers)))
-
 ```
 
 ## Figure 5. Trait matching
