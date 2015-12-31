@@ -28,7 +28,7 @@ library(picante)
 library(bipartite)
 library(VennDiagram)
 
-opts_chunk$set(message=FALSE,warning=FALSE,fig.width=6,fig.height=6,echo=TRUE,cache=F,fig.align='center',fig.path="figureObserved/")
+opts_chunk$set(message=FALSE,warning=FALSE,fig.width=10,fig.height=7,echo=TRUE,cache=F,fig.align='center',fig.path="figureObserved/")
 
 set.seed(3)
 #source functions
@@ -440,7 +440,7 @@ mnth<-sapply(indat$Time,function(x){
   as.numeric(str_split(x,"_")[[1]][1])})
 indat$BAll_Flowers<-(mnth  %in% c(6,7,8,9,10))*1
 
-qthresh<-indat %>% group_by(Hummingbird) %>% summarize(UThresh=quantile(Used_Flowers,.5))
+qthresh<-indat %>% group_by(Hummingbird) %>% summarize(UThresh=quantile(Used_Flowers,.8))
 
 #save a copy in case you need it here
 tosave<-indat
@@ -493,9 +493,9 @@ indat<-merge(indat,mr,by=c("jBird","jPlant","jTime"))
 mindat<-melt(indat,measure.vars=c("Camera","Transect"))
 ```
 
-View species identity
+View species identity in resource splits.
 
-```{r}
+```{r,fig.height=3,width=4}
 #Count of species in both time sets
 splist<-mindat %>% filter(value>0) %>% group_by(Hummingbird,Resource=BUsed_Flowers) %>% distinct(Iplant_Double) %>% dplyr::select(Iplant_Double)
 
@@ -688,7 +688,6 @@ ggplot(pars_detect[pars_detect$par %in% c("alpha","beta1","beta2","beta3"),],aes
 ```{r,cache=FALSE,fig.width=10,fig.height=5}
 #Detection figure
 ggplot(pars_detect[pars_detect$par %in% c("dtrans","dcam"),],aes(x=par,y=estimate)) + geom_violin(fill='black') + theme_bw() + ggtitle("Detection Probability") + scale_x_discrete(labels=c("Camera","Transect"))
-
 ```
 
 ```{r,cache=FALSE,fig.height=5,fig.width=13}
@@ -949,7 +948,7 @@ species.mean<-merge(species.mean,hum.morph[,c("English","Total_Culmen")],by.x="H
 
 ggplot(species.mean,aes(x=TotalCorolla,y=lambda,col=as.factor(Resource))) + geom_line(size=.9) + geom_vline(aes(xintercept=Total_Culmen),linetype='dashed') + facet_wrap(~Hummingbird,ncol=3,scales="free_y") + geom_point(size=.5) + theme_bw() + ylab("Estimated Daily Visitation Rate") + scale_color_manual("Resource Availability",labels=c("Low","High"),values=c("Blue","Red")) + xlab("Flower Corolla Length (mm)")
 
-ggsave("Figures/ResponseCurves.jpeg",height=6,width=7)
+ggsave("Figures/ResponseCurves.jpeg",height=6.5,width=9)
 ```
 
 ```{r}
