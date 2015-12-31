@@ -1,53 +1,23 @@
----
-title: "Trait-matching and Available Resources"
-author: "Ben Weinstein - Stony Brook University"
-output:
-  html_document:
-    toc: true
-    number_sections: true
-    theme: spacelab
-    keep_md: true
-  word_document: default
----
+# Trait-matching and Available Resources
+Ben Weinstein - Stony Brook University  
 
-```{r,warning=FALSE,message=FALSE,echo=FALSE,cache=FALSE}
-library(reshape2)
-library(BEST)
 
-library(foreach)
-library(doSNOW)
-library(chron)
-library(ggplot2)
-library(knitr)
-library(R2jags)
-library(dplyr)
-library(stringr)
-library(gridExtra)
-library(boot)
-library(picante)
-library(bipartite)
-library(VennDiagram)
 
-opts_chunk$set(message=FALSE,warning=FALSE,fig.width=6,fig.height=6,echo=TRUE,cache=F,fig.align='center',fig.path="figureObserved/")
 
-set.seed(3)
-#source functions
-
-source("Bayesian/BayesFunctions.R")
+```
+## [1] "Run Completed at 2015-12-30 22:46:04"
 ```
 
-```{r,echo=F,cache=FALSE}
-paste("Run Completed at",Sys.time())
-```
 
-```{r}
+```r
 #reload if needed
 #load("Observed.Rdata")
 ```
 
 #Observed dataset
 
-```{r}
+
+```r
 #read in flower morphology data, comes from Nectar.R
 droppath<-"C:/Users/Ben/Dropbox/"
 fl.morph<-read.csv(paste(droppath,"Thesis/Maquipucuna_SantaLucia/Results/FlowerMorphology.csv",sep=""))
@@ -112,7 +82,8 @@ dath<-dath[!dath$Pierce %in% c("y","Y"),]
 
 ##Match Species to Morphology
 
-```{r}
+
+```r
 #remove species with less than  10 observations
 keep<-names(which(table(dath$Hummingbird) > 20))
 
@@ -125,7 +96,8 @@ rownames(traitmatchF)<-hum.morph$English
 colnames(traitmatchF)<-fl.morph$Group.1
 ```
 
-```{r}
+
+```r
 #match names #Round to 2 decimals #Convert to cm for winbugs, avoids numerical underflow
 traitmatchT<-round(traitmatchF[rownames(traitmatchF) %in% dath$Hummingbird,colnames(traitmatchF) %in% dath$Iplant_Double],2)/10
 
@@ -139,9 +111,23 @@ Create a binary variable whether each observation was in a low elevation or high
 Accounting for non-availability.
 We have to figure out which plants were sampled in which periods, and if it was sampled, the non-detection are 0 if it wasn't the non-detection are NA. then remove all the Na's.
 
-```{r}
+
+```r
 elevH<-read.csv("InputData/HummingbirdElevation.csv",row.names=1)
 head(elevH)
+```
+
+```
+##                 Hummingbird  Low        m High Index
+## 1   Green-crowned Woodnymph 1359 1376.645 1390     1
+## 2 Rufous-tailed Hummingbird 1368 1476.333 1380     1
+## 3            Andean Emerald 1378 1386.261 1380     1
+## 4      White-necked Jacobin 1368 1397.500 1422     1
+## 5    Stripe-throated Hermit 1368 1440.887 1450     1
+## 6    White-whiskered Hermit 1340 1412.391 1450     1
+```
+
+```r
 colnames(elevH)[5]<-"Elevation"
 elevH$Bird<-1:nrow(elevH)
 
@@ -164,13 +150,13 @@ dathp<-merge(dath,elevP,by="Iplant_Double")
 
 #birds
 datph<-merge(dathp,elevH,by="Hummingbird")
-
 ```
 
 What elevation transect is each observation in?
 The camera data need to be inferred from the GPS point.
 
-```{r}
+
+```r
 #cut working best on data.frame
 datph<-as.data.frame(datph)
 
@@ -190,7 +176,8 @@ datph[datph$Survey_Type=='Transect',"ele"]<-sapply(tran_elev,function(x){
 
 ### Summarize Observations
 
-```{r}
+
+```r
 #ID for NA is holger transects, make the id's 1:n for each day of transect at each elevation, assuming no elevation was split across days.
 datph$ID<-as.character(datph$ID)
 
@@ -229,7 +216,8 @@ for (x in 1:nrow(indatraw)){
 }
 ```
 
-```{r}
+
+```r
 #match the traits
 traitmelt<-melt(traitmatchT)
 colnames(traitmelt)<-c("Hummingbird","Iplant_Double","Traitmatch")
@@ -239,13 +227,15 @@ colnames(traitmelt)<-c("Hummingbird","Iplant_Double","Traitmatch")
 
 We have more information than just the presences, given species elevation ranges, we have absences as well. Absences are birds that occur at the elevation of the plant sample, but were not recorded feeding on the flower.
 
-```{r}
+
+```r
 indatlong<-acast(indatraw,Bird~Plant~Time~ID~Day,value.var="Yobs")
 
 indatlong[is.na(indatlong)]<-0
 ```
 
-```{r}
+
+```r
 #Only non-detections are real 0's, the rest are NA's and are removed.
 #Plants not surveyed in that time period
 #Hummingbirds not present at that elevation
@@ -304,7 +294,8 @@ indat<-indat[!is.na(indat$value),]
 colnames(indat)<-c("Bird","Plant","Time","ID","Day","Yobs")
 ```
 
-```{r}
+
+```r
 #remerge the time period data
 Timelookup<-indatraw %>% dplyr::select(ID,Transect_R,Survey_Type) %>% group_by(ID,Transect_R,Survey_Type) %>% distinct() %>% arrange(ID)
 
@@ -325,7 +316,8 @@ indat<-merge(indat,traitmelt,by=c("Hummingbird","Iplant_Double"))
 Reformat index for jags.
 Jags needs a vector of input species 1:n with no breaks.
 
-```{r}
+
+```r
 #Easiest to work with jags as numeric ordinal values
 indat$Hummingbird<-as.factor(indat$Hummingbird)
 indat$Iplant_Double<-as.factor(indat$Iplant_Double)
@@ -344,7 +336,8 @@ jTraitmatch<-traitmatchT[rownames(traitmatchT) %in% unique(indat$Hummingbird),co
 
 In our model the covariate is indexed at the scale at which the latent count is considered fixed. This means we need the resource availability per month across the entire elevation gradient for each point.
 
-```{r,fig.height=4,fig.width=8}
+
+```r
 #Get flower transect data
 full.fl<-read.csv("C:/Users/Ben/Dropbox/Thesis/Maquipucuna_SantaLucia/Results/FlowerTransects/FlowerTransectClean.csv")[,-1]
 
@@ -369,13 +362,18 @@ flower.month$High<-log(flower.month$Flowers)>flower.month$value
 levels(flower.month$Transect_R)<-c("1300m - 1500m", "1500m - 1700m","1700m - 1900m","1900m - 2100m","2100m - 2300m","2300m - 2500m")
 #plot
 ggplot(flower.month,aes(x=Month.a,log(Flowers),col=High,shape=as.factor(Year))) + geom_point(size=3) + theme_bw()  + geom_smooth(aes(group=1)) + ylab("Flowers") + xlab("Month") + facet_wrap(~Transect_R,scales="free_y") + labs(shape="Year", y= "Log Available Flowers") + scale_x_discrete(breaks=month.abb[seq(1,12,2)]) + scale_color_manual(labels=c("Low","High"),values=c("black","red")) + labs(col="Resource Availability")
+```
 
+<img src="figureObserved/unnamed-chunk-15-1.png" title="" alt="" style="display: block; margin: auto;" />
+
+```r
 #turn min and max elvation into seperate columns for the range
 flower.month$minElev<-as.numeric(str_extract(flower.month$Transect_R,"(\\d+)"))
 flower.month$maxElev<-as.numeric(str_match(flower.month$Transect_R,"(\\d+)_(\\d+)")[,3])
 ```
 
-```{r}
+
+```r
 indat$All_Flowers<-NA
 indat$Used_Flowers<-NA
 indat$FlowerA<-NA
@@ -418,20 +416,24 @@ for (x in 1:nrow(indat)){
 
 ###Relationship between resource measures
 
-```{r}
+
+```r
 ggplot(indat,aes(x=All_Flowers,y=Used_Flowers)) + geom_point() + facet_wrap(~Hummingbird,scales="free")
 ```
 
+<img src="figureObserved/unnamed-chunk-17-1.png" title="" alt="" style="display: block; margin: auto;" />
+
 ##Binary Measures of Resources
 
-```{r}
+
+```r
 #All Resources
 #indat$BAll_Flowers<-(indat$All_Flowers > mean(indat$All_Flowers))*1
 mnth<-sapply(indat$Time,function(x){
   as.numeric(str_split(x,"_")[[1]][1])})
 indat$BAll_Flowers<-(mnth  %in% c(6,7,8,9,10))*1
 
-qthresh<-indat %>% group_by(Hummingbird) %>% summarize(UThresh=quantile(Used_Flowers,.5))
+qthresh<-indat %>% group_by(Hummingbird) %>% summarize(UThresh=quantile(Used_Flowers,.75))
 
 #save a copy in case you need it here
 tosave<-indat
@@ -446,7 +448,11 @@ indat$BFlowerA<-(indat$FlowerA > indat$FThresh)*1
 
 #visualize
 ggplot(indat,aes(y=Used_Flowers,x=as.factor(BUsed_Flowers))) + geom_boxplot() + facet_wrap(~Hummingbird,scales = "free",ncol=4) + theme(axis.text.x=element_text(angle=90,hjust=1,vjust=1))  + labs(x="Resource Availability") + ggtitle("Thresholds for Used Flowers Binary")
+```
 
+<img src="figureObserved/unnamed-chunk-18-1.png" title="" alt="" style="display: block; margin: auto;" />
+
+```r
 #need to correctly weight boxplots
 boxp<-list()
 for (x in 1:nrow(indat)){
@@ -455,14 +461,24 @@ for (x in 1:nrow(indat)){
 weightb<-rbind_all(boxp)
 
 ggplot(weightb,aes(x=BAll_Flowers==1,y=Traitmatch,fill=Yobs>0)) + geom_boxplot() + facet_wrap(~Hummingbird,ncol=4,scale="free") + labs(x="Resource Availability",fill="Visited") + scale_x_discrete(labels=c("Low","High")) + ggtitle("All Flowers")
-
-ggplot(weightb,aes(x=BUsed_Flowers==1,y=Traitmatch,fill=Yobs >0)) + geom_boxplot() + facet_wrap(~Hummingbird,ncol=4,scale="free") + labs(x="Resource Availability",fill="Visited") + scale_x_discrete(labels=c("Low","High")) + ggtitle("Used Flowers")
-
-ggplot(weightb,aes(x=BFlowerA==1,y=Traitmatch,fill=Yobs >0)) + geom_boxplot() + facet_wrap(~Hummingbird,ncol=4,scale="free") + labs(x="Resource Availability",fill="Visited") + scale_x_discrete(labels=c("Low","High")) + ggtitle("Individual Flowers")
-
 ```
 
-```{r}
+<img src="figureObserved/unnamed-chunk-18-2.png" title="" alt="" style="display: block; margin: auto;" />
+
+```r
+ggplot(weightb,aes(x=BUsed_Flowers==1,y=Traitmatch,fill=Yobs >0)) + geom_boxplot() + facet_wrap(~Hummingbird,ncol=4,scale="free") + labs(x="Resource Availability",fill="Visited") + scale_x_discrete(labels=c("Low","High")) + ggtitle("Used Flowers")
+```
+
+<img src="figureObserved/unnamed-chunk-18-3.png" title="" alt="" style="display: block; margin: auto;" />
+
+```r
+ggplot(weightb,aes(x=BFlowerA==1,y=Traitmatch,fill=Yobs >0)) + geom_boxplot() + facet_wrap(~Hummingbird,ncol=4,scale="free") + labs(x="Resource Availability",fill="Visited") + scale_x_discrete(labels=c("Low","High")) + ggtitle("Individual Flowers")
+```
+
+<img src="figureObserved/unnamed-chunk-18-4.png" title="" alt="" style="display: block; margin: auto;" />
+
+
+```r
 #Combine resources with observed data
 #As matrix
 indat<-dcast(indat,...~Survey_Type,value.var="Yobs",fill=NA)
@@ -486,7 +502,8 @@ mindat<-melt(indat,measure.vars=c("Camera","Transect"))
 
 View species identity
 
-```{r}
+
+```r
 #Count of species in both time sets
 splist<-mindat %>% filter(value>0) %>% group_by(Hummingbird,Resource=BUsed_Flowers) %>% distinct(Iplant_Double) %>% dplyr::select(Iplant_Double)
 
@@ -527,9 +544,17 @@ for (x in 1:length(splist)){
   grid.newpage()
   grid.draw(p[[x]])
 }
+```
 
+<img src="figureObserved/unnamed-chunk-20-1.png" title="" alt="" style="display: block; margin: auto;" /><img src="figureObserved/unnamed-chunk-20-2.png" title="" alt="" style="display: block; margin: auto;" /><img src="figureObserved/unnamed-chunk-20-3.png" title="" alt="" style="display: block; margin: auto;" /><img src="figureObserved/unnamed-chunk-20-4.png" title="" alt="" style="display: block; margin: auto;" /><img src="figureObserved/unnamed-chunk-20-5.png" title="" alt="" style="display: block; margin: auto;" /><img src="figureObserved/unnamed-chunk-20-6.png" title="" alt="" style="display: block; margin: auto;" /><img src="figureObserved/unnamed-chunk-20-7.png" title="" alt="" style="display: block; margin: auto;" /><img src="figureObserved/unnamed-chunk-20-8.png" title="" alt="" style="display: block; margin: auto;" /><img src="figureObserved/unnamed-chunk-20-9.png" title="" alt="" style="display: block; margin: auto;" /><img src="figureObserved/unnamed-chunk-20-10.png" title="" alt="" style="display: block; margin: auto;" /><img src="figureObserved/unnamed-chunk-20-11.png" title="" alt="" style="display: block; margin: auto;" /><img src="figureObserved/unnamed-chunk-20-12.png" title="" alt="" style="display: block; margin: auto;" /><img src="figureObserved/unnamed-chunk-20-13.png" title="" alt="" style="display: block; margin: auto;" /><img src="figureObserved/unnamed-chunk-20-14.png" title="" alt="" style="display: block; margin: auto;" />
+
+```r
 #venn diagram writes a silly set of log files
 file.remove(list.files(pattern="*.log"))
+```
+
+```
+## [1] TRUE TRUE TRUE TRUE
 ```
 
 #Exporatory Analysis
@@ -537,15 +562,23 @@ file.remove(list.files(pattern="*.log"))
 Red =Transect
 Blue = Camera
 
-```{r}
-ggplot(indat,aes(x=Traitmatch)) + geom_point(aes(y=Camera),col='blue') + geom_point(aes(y=Transect),col='red') + stat_smooth(method="glm",family="poisson",aes(y=Transect),col='red') + stat_smooth(method="glm",family="poisson",aes(y=Camera),col='blue') + theme_bw() + ggtitle("Raw Data: Traits")
 
+```r
+ggplot(indat,aes(x=Traitmatch)) + geom_point(aes(y=Camera),col='blue') + geom_point(aes(y=Transect),col='red') + stat_smooth(method="glm",family="poisson",aes(y=Transect),col='red') + stat_smooth(method="glm",family="poisson",aes(y=Camera),col='blue') + theme_bw() + ggtitle("Raw Data: Traits")
+```
+
+<img src="figureObserved/unnamed-chunk-21-1.png" title="" alt="" style="display: block; margin: auto;" />
+
+```r
 ggplot(indat,aes(x=FlowerA)) + geom_point(aes(y=Camera),col='blue') + geom_point(aes(y=Transect),col='red') + stat_smooth(method="glm",family="poisson",aes(y=Transect),col='red') + stat_smooth(method="glm",family="poisson",aes(y=Camera),col='blue') + theme_bw()
 ```
 
+<img src="figureObserved/unnamed-chunk-21-2.png" title="" alt="" style="display: block; margin: auto;" />
+
 ###Sampling effort
 
-```{r}
+
+```r
 #At each data point there is a camera a transect or both
 cam_effort<-(!is.na(indat$Camera))*1
 trans_effort<-(!is.na(indat$Transect))*1
@@ -595,14 +628,111 @@ $$\sigma_{slope1} = \sqrt[2]{\frac{1}{\tau_{\beta_1}}}$$
 $$\sigma_{slope2} = \sqrt[2]{\frac{1}{\tau_{\beta_2}}}$$
 $$\sigma_{slope3} = \sqrt[2]{\frac{1}{\tau_{\beta_3}}}$$
 
-```{r,eval=T,strip.white=T}
 
+```r
 #Source model
 source("Bayesian/NmixturePoissonRagged2m.R")
 
 #print model
 writeLines(readLines("Bayesian/NmixturePoissonRagged2m.R"))
+```
 
+```
+## 
+## sink("Bayesian/NmixturePoissonRagged2m.jags")
+## 
+## cat("
+##     model {
+##     #Compute intensity for each pair of birds and plants
+##     for (i in 1:Birds){
+##     for (j in 1:Plants){
+##     for (k in 1:Times){
+##     
+##     #Process Model
+##     log(lambda[i,j,k])<-alpha[i] + beta1[i] * Traitmatch[i,j] + beta2[i] * resources[i,j,k] + beta3[i] * Traitmatch[i,j] * resources[i,j,k]
+##     
+##     #True number of interactions
+##     N[i,j,k] ~ dpois(lambda[i,j,k])
+##     }
+##     }
+##     }
+## 
+##     #Observed counts for each day of sampling
+##     for (x in 1:Nobs){
+##     
+##     #Observation Process for cameras
+##     detect_cam[x]<-dcam * cam_surveys[x]
+## 
+##     #Observation Process for transects
+##     detect_transect[x]<-dtrans * trans_surveys[x]
+## 
+##     Yobs_camera[x] ~ dbin(detect_cam[x],N[Bird[x],Plant[x],Time[x]])    
+##     Yobs_transect[x] ~ dbin(detect_transect[x],N[Bird[x],Plant[x],Time[x]])    
+## 
+##     #Assess Model Fit
+## 
+##     #Fit discrepancy statistics
+##     #eval[x]<-detect[Bird[x]]*N[Bird[x],Plant[x],Camera[x]]
+##     #E[x]<-pow((Yobs[x]-eval[x]),2)/(eval[x]+0.5)
+##     
+##     #ynew[x]~dbin(detect[Bird[x]],N[Bird[x],Plant[x],Camera[x]])
+##     #E.new[x]<-pow((ynew[x]-eval[x]),2)/(eval[x]+0.5)
+##     
+##     }
+##     
+##     #Detect priors
+##     dcam ~ dunif(0,1)
+##     dtrans ~ dunif(0,1)
+## 
+##     #Species level priors
+##     
+##     for (i in 1:Birds){
+##     alpha[i] ~ dnorm(intercept,tau_alpha)
+##     beta1[i] ~ dnorm(gamma1,tau_beta1)    
+##     beta2[i] ~ dnorm(gamma2,tau_beta2)    
+##     beta3[i] ~ dnorm(gamma3,tau_beta3)    
+##     }
+## 
+##     #Hyperpriors
+##     #Slope grouping
+##     gamma1~dnorm(0,0.0001)
+##     gamma2~dnorm(0,0.0001)
+##     gamma3~dnorm(0,0.0001)
+##     
+##     #Intercept grouping
+##     intercept~dnorm(0,0.0001)
+##     
+##     # Group intercept variance
+##     tau_alpha ~ dgamma(0.0001,0.0001)
+##     sigma_int<-pow(1/tau_alpha,0.5) 
+##     
+##     #Derived Quantity
+##     
+##     #Slope variance, turning precision to sd
+##     
+##     #Group Effect of traits
+##     tau_beta1 ~ dgamma(0.0001,0.0001)
+##     sigma_slope1<-pow(1/tau_beta1,0.5)
+##     
+##     #Group Effect of Resources
+##     tau_beta2 ~ dgamma(0.0001,0.0001)
+##     sigma_slope2<-pow(1/tau_beta2,0.5)
+##     
+##     #Group Effect of Resources * Traits
+##     tau_beta3 ~ dgamma(0.0001,0.0001)
+##     sigma_slope3<-pow(1/tau_beta3,0.5)
+##     
+##     #derived posterior check
+##     #fit<-sum(E[]) #Discrepancy for the observed data
+##     #fitnew<-sum(E.new[])
+##     
+##     }
+##     ",fill=TRUE)
+## 
+## sink()
+```
+
+```r
 #Input Data
 Dat <- c('Yobs_camera','Yobs_transect','Birds','Bird','Plant','Time','Plants','Times','resources','Nobs','cam_surveys','trans_surveys','Traitmatch')
 
@@ -616,12 +746,12 @@ InitStage <- function(){
 list(beta1=initB,beta2=initB,beta3=initB,alpha=rep(.5,Birds),intercept=0,tau_alpha=0.1,tau_beta1=0.1,tau_beta2=0.1,tau_beta3=0.1,gamma1=0,gamma2=0,gamma3=0,dtrans=0.5,dcam=0.5,N=initY)}
 
 #Parameters to track
-ParsStage <- c("alpha","beta1","beta2","beta3","intercept","sigma_int","sigma_slope1","sigma_slope2","sigma_slope3","gamma1","gamma2","gamma3","dtrans","dcam","lambda")
+ParsStage <- c("alpha","beta1","beta2","beta3","intercept","sigma_int","sigma_slope1","sigma_slope2","sigma_slope3","gamma1","gamma2","gamma3","dtrans","dcam")
 
 #MCMC options
-ni <- 20000  # number of draws from the posterior
-nt <- max(c(2,ni*.0001))  #thinning rate
-nb <- ni*.95 # number to discard for burn-in
+ni <- 50000  # number of draws from the posterior
+nt <- max(c(1,ni*.0001))  #thinning rate
+nb <- ni*.90 # number to discard for burn-in
 nc <- 2  # number of chains
 
 #Jags
@@ -643,7 +773,8 @@ nc <- 2  # number of chains
   m2<-do.call(jags.parallel,list(Dat,InitStage,ParsStage,model.file="Bayesian/NmixturePoissonRagged2m.jags",n.thin=nt, n.iter=ni,n.burnin=nb,n.chains=nc))
 ```
 
-```{r,eval=F}
+
+```r
 #recompile if needed
 load.module("dic")
 runs<-40000
@@ -651,70 +782,96 @@ recompile(m2)
 m2<-update(m2,n.iter=runs,n.burnin=runs*.9,n.thin=3)
 ```
 
-```{r}
+
+```r
 #extract par to data.frame
 pars_detect<-extract_par(m2,data=indat,Bird="jBird",Plant="jPlant")
 ```
 
 ##Assess Convergence
 
-```{r,cache=FALSE,fig.width=13,fig.height=5}
+
+```r
 ###Chains
 ggplot(pars_detect[pars_detect$par %in% c("alpha","beta1"," beta2","beta3"),],aes(x=Draw,y=estimate,col=as.factor(Chain))) + geom_line() + facet_grid(par~species,scale="free") + theme_bw() + labs(col="Chain") + ggtitle("Species Level")
+```
 
+<img src="figureObserved/unnamed-chunk-26-1.png" title="" alt="" style="display: block; margin: auto;" />
+
+```r
 ggplot(pars_detect[pars_detect$par %in% c("dcam","dtrans"),],aes(x=Draw,y=estimate,col=as.factor(Chain))) + geom_line() + facet_wrap(~par,scale="free",ncol=1) + theme_bw() + labs(col="Chain") + ggtitle("Species Level")
 ```
 
-```{r,fig.height=5,fig.width=11}
+<img src="figureObserved/unnamed-chunk-26-2.png" title="" alt="" style="display: block; margin: auto;" />
+
+
+```r
 ggplot(pars_detect[pars_detect$par %in% c("gamma1","intercept","sigma_int","sigma_slope1","gamma2","gamma3","sigma_slope2","sigma_slope3"),],aes(x=Draw,y=estimate,col=as.factor(Chain))) + geom_line() + theme_bw() + labs(col="Chain") + ggtitle("Group Level Parameters") + facet_wrap(~par,scales="free")
 ```
 
+<img src="figureObserved/unnamed-chunk-27-1.png" title="" alt="" style="display: block; margin: auto;" />
+
 #Posteriors
 
-```{r,cache=FALSE,fig.width=11,fig.height=14}
+
+```r
 ###Posterior Distributions
 ggplot(pars_detect[pars_detect$par %in% c("alpha","beta1","beta2","beta3"),],aes(x=estimate)) + geom_histogram(position='identity') +  facet_grid(species~par,scales="free") + theme_bw() + ggtitle("Species Parameters")
 ```
 
-```{r,cache=FALSE,fig.width=10,fig.height=5}
+<img src="figureObserved/unnamed-chunk-28-1.png" title="" alt="" style="display: block; margin: auto;" />
+
+
+```r
 #Detection figure
 ggplot(pars_detect[pars_detect$par %in% c("dtrans","dcam"),],aes(x=par,y=estimate)) + geom_violin(fill='black') + theme_bw() + ggtitle("Detection Probability") + scale_x_discrete(labels=c("Camera","Transect"))
-
 ```
 
-```{r,cache=FALSE,fig.height=5,fig.width=13}
+<img src="figureObserved/unnamed-chunk-29-1.png" title="" alt="" style="display: block; margin: auto;" />
+
+
+```r
 ggplot(pars_detect[pars_detect$par %in% c("gamma1","gamma2","gamma3","intercept","sigma_int","sigma_slope1","sigma_slope2","sigma_slope3"),],aes(x=estimate)) + geom_histogram() + ggtitle("Group Level Posteriors") + facet_wrap(~par,scale="free",nrow=2) + theme_bw() 
 ```
 
+<img src="figureObserved/unnamed-chunk-30-1.png" title="" alt="" style="display: block; margin: auto;" />
+
 #Predicted Relationship 
 
-```{r,fig.height=4,fig.width=4}
+
+```r
 #Expand out pars
 castdf<-dcast(pars_detect[pars_detect$par %in% c("gamma1","gamma2","gamma3","intercept"),], Chain + Draw~par,value.var="estimate")
 ```
 
 Hold resource relationship at 0, what does trait-matching look like?
 
-```{r,fig.width=9,fig.height=7}
+
+```r
 #Trajectories from posterior
 predy<-trajF(alpha=castdf$intercept,beta1=castdf$gamma1,x=indat$Traitmatch,resources=indat$scaledR,beta2=0,beta3=0,type='hdi')
 
 ggplot(data=predy,aes(x=x)) + geom_ribbon(aes(ymin=lower,ymax=upper),alpha=0.1,fill="red")  + geom_line(aes(y=mean),size=.5,col="red",linetype="dashed") + theme_bw() + ylab("Interactions") + xlab("Difference between Bill and Corolla Length") + geom_point(data=indat,aes(x=Traitmatch,y=Camera)) + geom_point(data=indat,aes(x=Traitmatch,y=Transect))
 ```
 
+<img src="figureObserved/unnamed-chunk-32-1.png" title="" alt="" style="display: block; margin: auto;" />
+
 ##Full posterior prediction
 
-```{r,fig.width=7,fig.height=6}
+
+```r
 #Trajectories from posterior
 predy<-trajF(alpha=castdf$intercept,beta1=castdf$gamma1,x=indat$Traitmatch,resources=indat$scaledR,beta2=castdf$gamma3,beta3=castdf$gamma3,type='hdi')
 
 ggplot(data=predy,aes(x=x)) + geom_ribbon(aes(ymin=lower,ymax=upper),alpha=0.2,fill="red")  +  theme_bw() + ylab("Interactions") + xlab("Difference between Bill and Corolla Length") + geom_point(data=indat,aes(x=Traitmatch,y=Camera)) + geom_line(aes(y=mean)) + geom_point(data=indat,aes(x=Traitmatch,y=Transect)) 
 ```
 
+<img src="figureObserved/unnamed-chunk-33-1.png" title="" alt="" style="display: block; margin: auto;" />
+
 ## At High and Low Resource Availability
 
-```{r,fig.height=6,fig.width=10}
 
+```r
 #Trajectories from posterior
 predH<-trajF(alpha=castdf$intercept,beta1=castdf$gamma1,x=indat[indat$BUsed_Flowers==1,"Traitmatch"],resources=indat[indat$BUsed_Flowers==1,"BUsed_Flowers"],beta2=castdf$gamma2,beta3=castdf$gamma3,type='hdi')
 
@@ -730,11 +887,13 @@ levels(indat$BFlowerL)<-c("Low","High")
 ggplot(data=predhl,aes(x=x)) + geom_ribbon(aes(ymin=lower,ymax=upper,fill=BFlowerL),alpha=0.2)  + geom_line(aes(y=mean,col=BFlowerL),size=.8) + theme_bw() + ylab("Interactions") + xlab("Difference between Bill and Corolla Length") + geom_point(data=mindat,aes(x=Traitmatch,y=value))+ labs(fill="Resource Availability",col="Resource Availability") 
 ```
 
+<img src="figureObserved/unnamed-chunk-34-1.png" title="" alt="" style="display: block; margin: auto;" />
+
 
 ##Species Predictions
 
-```{r,fig.height=10,fig.width=11,eval=T}
 
+```r
 castdf<-dcast(pars_detect[pars_detect$par %in% c("beta1","beta2","beta3","alpha"),], species +Chain +Draw ~par ,value.var="estimate")
 
 #Turn to 
@@ -768,10 +927,12 @@ spe<-merge(species.traj,jagsIndexBird,by.x="Index",by.y="jBird")
 ggplot(data=spe,aes(x=x)) + geom_ribbon(aes(ymin=lower,ymax=upper),alpha=0.2,fill='red') + geom_line(aes(y=mean),size=.5) + theme_bw() + ylab("Occurrence Probability")+ xlab("Difference between Bill and Corolla Length") + facet_wrap(~Hummingbird,scales="free",ncol=4) + geom_point(data=mindat,aes(x=Traitmatch,y=value,shape=variable),size=2.5) + labs(shape="Sampling Method")
 ```
 
+<img src="figureObserved/unnamed-chunk-35-1.png" title="" alt="" style="display: block; margin: auto;" />
+
 ###Species Predictions: High and Low Availability
 
-```{r,fig.height=10,fig.width=11,eval=T}
 
+```r
 castdf<-dcast(pars_detect[pars_detect$par %in% c("beta1","beta2","beta3","alpha"),], species +Chain +Draw ~par ,value.var="estimate")
 
 #Turn to 
@@ -808,10 +969,12 @@ spe<-merge(species.traj,jagsIndexBird,by.x="Index",by.y="jBird")
 ggplot(data=spe,aes(x=x)) + geom_ribbon(aes(ymin=lower,ymax=upper,fill=Resources),alpha=0.2) + geom_line(aes(y=mean,col=Resources),size=.5) + theme_bw() + ylab("Occurrence Probability")+ xlab("Difference between Bill and Corolla Length") + facet_wrap(~Hummingbird,scales="free",ncol=3) + geom_point(data=mindat,aes(x=Traitmatch,y=value,shape=variable),size=1.5,alpha=.5)
 ```
 
+<img src="figureObserved/unnamed-chunk-36-1.png" title="" alt="" style="display: block; margin: auto;" />
+
 ##Species Level Interaction
 
-```{r,fig.height=11,fig.width=10,eval=T}
 
+```r
 castdf<-dcast(pars_detect[pars_detect$par %in% c("beta1","beta2","beta3","alpha"),], species +Chain + Draw~par,value.var="estimate")
 
 #Turn to 
@@ -847,21 +1010,27 @@ spe<-merge(species.traj,jagsIndexBird,by.x="Index",by.y="jBird")
 ggplot(data=spe,aes(x=x)) + geom_ribbon(aes(ymin=lower,ymax=upper,fill=Hummingbird),alpha=0.3) + geom_line(aes(y=mean,col=Hummingbird),size=1) + theme_bw() + xlab("Difference between Bill and Corolla Length")  + ylab("Effect of Resources on Trait Difference") + facet_wrap(~Hummingbird,scales="free",ncol=3)
 ```
 
+<img src="figureObserved/unnamed-chunk-37-1.png" title="" alt="" style="display: block; margin: auto;" />
+
 These plots can be tricky to interpret if one forgets that trait matching as a covariate is a distance. Therefore remember that a positive slope in the plot above indiciates, "As resources increase species use flowers less similiar to their bill lengths". 
 
 ##Interaction density functions
 Let's take a closer look at distribution of interaction effect posteriors values for each species.
 
-```{r}
+
+```r
 post<-pars_detect %>% filter(par %in% "beta3") %>% group_by(species) %>% summarize(mean=mean(estimate),median=median(estimate),lower=quantile(probs=0.025,estimate),upper=quantile(probs=0.975,estimate),hdi_l=hdi(estimate)[[1]],hdi_u=hdi(estimate)[[2]]) %>% melt(id.vars='species')
 ggplot(pars_detect[pars_detect$par %in% "beta3",],aes(x=estimate)) + geom_histogram() + facet_wrap(~species,scales='free',ncol=3) + geom_vline(data=post,aes(xintercept=value,col=variable))
 ```
+
+<img src="figureObserved/unnamed-chunk-38-1.png" title="" alt="" style="display: block; margin: auto;" />
 
 ##Interaction and Bill Length
 
 Do species with long bill lengths have positive interaction effects?
 
-```{r,fig.height=7,fig.width=8}
+
+```r
 #species names
 b<-pars_detect[pars_detect$par %in% "beta3",]
 b<-merge(b,jagsIndexBird,by.x="species",by.y="jBird")
@@ -876,68 +1045,24 @@ ord<-post %>% filter(variable=="mean") %>% arrange(value) %>% .$Hummingbird
 
 b$Hummingbird<-factor(b$Hummingbird,levels=ord)
 ggplot(b,aes(y=estimate,x=Hummingbird,fill=Total_Culmen)) + geom_violin() + coord_flip() + scale_fill_continuous(low='blue',high='red') + ggtitle("Interaction Effect and Bill Length") + theme_bw()
-
 ```
 
-#Estimated niche breadth
+<img src="figureObserved/unnamed-chunk-39-1.png" title="" alt="" style="display: block; margin: auto;" />
 
-```{r}
-castdf<-dcast(pars_detect[pars_detect$par %in% c("beta1","beta2","beta3","alpha"),], species +Chain + Draw~par,value.var="estimate")
 
-#Turn to 
-castdf$species<-factor(castdf$species,levels=1:max(as.numeric(castdf$species)))
 
-species.split<-split(castdf,list(castdf$species),drop = T)
-
-species.traj<-lapply(species.split,function(dat){
-  index<-unique(dat$species)
-  
-  #get data for those species
-  billd<-indat[indat$jBird %in% index,]
-  
-  d<-data.frame(alpha=dat$alpha,beta1=dat$beta1,beta2=dat$beta2,beta3=dat$beta3)
-  
-  #fit regression for each input estimate
-  sampletraj<-list()
-  
-  for (y in 1:nrow(d)){
-    v=exp(d$alpha[y] + d$beta1[y] * billd$Traitmatch + d$beta2[y] * billd$scaledR + d$beta3[y] * billd$Traitmatch*billd$scaledR)
-    
-    sampletraj[[y]]<-data.frame(x=as.numeric(billd$Traitmatch),y=as.numeric(v),r=as.numeric(billd$scaledR),jBird=billd$jBird,jPlant=billd$jPlant,jTime=billd$jTime)
-  }
-  
-  sample_all<-rbind_all(sampletraj)
-})
-  
-species.traj<-rbind_all(species.traj)
-
-species.mean<-species.traj %>% group_by(jBird,jPlant,jTime) %>% summarize(Traitmatch=unique(x),lambda=mean(y),Resource=unique(r))
-
-species.mean<-merge(species.mean,indat[,colnames(indat) %in% c("jBird","jPlant","jTime","Hummingbird","Iplant_Double")])
-
-#get corolla sizes
-species.mean<-merge(species.mean,fl.morph,by.x="Iplant_Double", by.y="Group.1")
-ggplot(species.mean) + geom_density2d(aes(x=TotalCorolla,y=lambda,col=as.factor(Resource))) + theme_bw() + facet_wrap(~Hummingbird,scales="free")+ scale_color_discrete("Resources Availability",labels=c("Low","High")) + ggtitle("2D Density Plots")
-
-ggplot(species.mean) + geom_density2d(aes(x=TotalCorolla,y=lambda,col=Hummingbird)) + theme_bw() + facet_wrap(~Resource,scales="free") 
-
-fiveplot<-species.mean %>% group_by(Hummingbird,Resource) %>% summarize(min=min(TotalCorolla),max=max(TotalCorolla),mean=mean(TotalCorolla),median=quantile(TotalCorolla,0.5))
-
-ggplot(species.mean,aes(x=TotalCorolla,y=lambda,col=as.factor(Resource))) + geom_line() + facet_wrap(~Hummingbird) + geom_point()
-
-#bill order
-ord<-hum.morph %>% arrange(Total_Culmen) %>% .$English
-species.mean$Hummingbird<-factor(species.mean$Hummingbird,levels=ord)
-
-#add level to hum.morph to match naming convention
-species.mean<-merge(species.mean,hum.morph[,c("English","Total_Culmen")],by.x="Hummingbird",by.y="English")
-
-ggplot(species.mean,aes(x=TotalCorolla,y=lambda,col=as.factor(Resource))) + geom_line(size=.9) + geom_vline(aes(xintercept=Total_Culmen),linetype='dashed') + facet_wrap(~Hummingbird,ncol=3,scales="free_y") + geom_point(size=.5) + theme_bw() + ylab("Estimated Daily Visitation Rate") + scale_color_manual("Resource Availability",labels=c("Low","High"),values=c("Blue","Red")) + xlab("Flower Corolla Length")
-```
-
-```{r}
+```r
 gc()
+```
+
+```
+##             used   (Mb) gc trigger   (Mb)   max used    (Mb)
+## Ncells   1967420  105.1    3205452  171.2    3205452   171.2
+## Vcells 302814308 2310.3  902840668 6888.2 2061567912 15728.6
+```
+
+```r
 save.image("Observed.Rdata")
-``` 
+```
 
 

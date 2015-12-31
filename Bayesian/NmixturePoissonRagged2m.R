@@ -81,12 +81,7 @@ cat("
     #Group Effect of Resources * Traits
     tau_beta3 ~ dgamma(0.0001,0.0001)
     sigma_slope3<-pow(1/tau_beta3,0.5)
-    
-    #derived posterior check
-    #fit<-sum(E[]) #Discrepancy for the observed data
-    #fitnew<-sum(E.new[])
-    
-    }
+}
     ",fill=TRUE)
 
 sink()
