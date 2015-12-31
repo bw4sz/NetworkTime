@@ -297,6 +297,15 @@ for (x in 1:dim(indatlong)[4]){
   }
 }
 
+#Remove columns that are all 0's
+for (x in dim(indatlong)[1]){
+  for(y in dim(indatlong)[2]){
+    ss<-sum(indatlong[x,y,,,],na.rm=T)
+    if(ss==0){
+      indatlong[x,y,,,]<-NA
+    }
+  }
+}
 #melt and remove Na's
 indat<-melt(indatlong)
 indat<-indat[!is.na(indat$value),]
@@ -616,7 +625,7 @@ InitStage <- function(){
 list(beta1=initB,beta2=initB,beta3=initB,alpha=rep(.5,Birds),intercept=0,tau_alpha=0.1,tau_beta1=0.1,tau_beta2=0.1,tau_beta3=0.1,gamma1=0,gamma2=0,gamma3=0,dtrans=0.5,dcam=0.5,N=initY)}
 
 #Parameters to track
-ParsStage <- c("alpha","beta1","beta2","beta3","intercept","sigma_int","sigma_slope1","sigma_slope2","sigma_slope3","gamma1","gamma2","gamma3","dtrans","dcam","lambda")
+ParsStage <- c("alpha","beta1","beta2","beta3","intercept","sigma_int","sigma_slope1","sigma_slope2","sigma_slope3","gamma1","gamma2","gamma3","dtrans","dcam")
 
 #MCMC options
 ni <- 20000  # number of draws from the posterior
@@ -728,6 +737,8 @@ indat$BFlowerL<-factor(as.character(indat$BUsed_Flowers))
 levels(indat$BFlowerL)<-c("Low","High")
 
 ggplot(data=predhl,aes(x=x)) + geom_ribbon(aes(ymin=lower,ymax=upper,fill=BFlowerL),alpha=0.2)  + geom_line(aes(y=mean,col=BFlowerL),size=.8) + theme_bw() + ylab("Interactions") + xlab("Difference between Bill and Corolla Length") + geom_point(data=mindat,aes(x=Traitmatch,y=value))+ labs(fill="Resource Availability",col="Resource Availability") 
+ggsave("Figures/AllRegression.jpeg",height=5,width=7)
+
 ```
 
 
@@ -806,6 +817,8 @@ spe<-merge(species.traj,jagsIndexBird,by.x="Index",by.y="jBird")
 
 #plot and compare to original data
 ggplot(data=spe,aes(x=x)) + geom_ribbon(aes(ymin=lower,ymax=upper,fill=Resources),alpha=0.2) + geom_line(aes(y=mean,col=Resources),size=.5) + theme_bw() + ylab("Occurrence Probability")+ xlab("Difference between Bill and Corolla Length") + facet_wrap(~Hummingbird,scales="free",ncol=3) + geom_point(data=mindat,aes(x=Traitmatch,y=value,shape=variable),size=1.5,alpha=.5)
+ggsave("Figures/SpeciesRegression.jpeg",height=6,width=7)
+
 ```
 
 ##Species Level Interaction
@@ -845,6 +858,8 @@ spe<-merge(species.traj,jagsIndexBird,by.x="Index",by.y="jBird")
 
 #plot and compare to original data
 ggplot(data=spe,aes(x=x)) + geom_ribbon(aes(ymin=lower,ymax=upper,fill=Hummingbird),alpha=0.3) + geom_line(aes(y=mean,col=Hummingbird),size=1) + theme_bw() + xlab("Difference between Bill and Corolla Length")  + ylab("Effect of Resources on Trait Difference") + facet_wrap(~Hummingbird,scales="free",ncol=3)
+ggsave("Figures/SpeciesInteraction.jpeg",height=6,width=7)
+
 ```
 
 These plots can be tricky to interpret if one forgets that trait matching as a covariate is a distance. Therefore remember that a positive slope in the plot above indiciates, "As resources increase species use flowers less similiar to their bill lengths". 
@@ -932,7 +947,9 @@ species.mean$Hummingbird<-factor(species.mean$Hummingbird,levels=ord)
 #add level to hum.morph to match naming convention
 species.mean<-merge(species.mean,hum.morph[,c("English","Total_Culmen")],by.x="Hummingbird",by.y="English")
 
-ggplot(species.mean,aes(x=TotalCorolla,y=lambda,col=as.factor(Resource))) + geom_line(size=.9) + geom_vline(aes(xintercept=Total_Culmen),linetype='dashed') + facet_wrap(~Hummingbird,ncol=3,scales="free_y") + geom_point(size=.5) + theme_bw() + ylab("Estimated Daily Visitation Rate") + scale_color_manual("Resource Availability",labels=c("Low","High"),values=c("Blue","Red")) + xlab("Flower Corolla Length")
+ggplot(species.mean,aes(x=TotalCorolla,y=lambda,col=as.factor(Resource))) + geom_line(size=.9) + geom_vline(aes(xintercept=Total_Culmen),linetype='dashed') + facet_wrap(~Hummingbird,ncol=3,scales="free_y") + geom_point(size=.5) + theme_bw() + ylab("Estimated Daily Visitation Rate") + scale_color_manual("Resource Availability",labels=c("Low","High"),values=c("Blue","Red")) + xlab("Flower Corolla Length (mm)")
+
+ggsave("Figures/ResponseCurves.jpeg",height=6,width=7)
 ```
 
 ```{r}
