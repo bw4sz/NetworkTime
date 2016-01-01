@@ -5,7 +5,7 @@ Ben Weinstein - Stony Brook University
 
 
 ```
-## [1] "Run Completed at 2015-12-31 14:58:56"
+## [1] "Run Completed at 2015-12-31 22:40:10"
 ```
 
 
@@ -14,7 +14,7 @@ Ben Weinstein - Stony Brook University
 #load("Observed.Rdata")
 ```
 
-#Observed dataset
+#Load in data
 
 
 ```r
@@ -27,6 +27,10 @@ fl.morph<-fl.morph[-1,]
 
 #Bring in Hummingbird Morphology Dataset, comes from
 hum.morph<-read.csv(paste(droppath,"Thesis/Maquipucuna_SantaLucia/Results/HummingbirdMorphology.csv",sep=""))
+
+#taxonomy change, we are calling them Crowned Woodnymph's now.
+
+hum.morph$English[hum.morph$English %in% "Green-crowned Woodnymph"]<-"Crowned Woodnymph"
 
 #Bring in Interaction Matrix
 int<-read.csv(paste(droppath,"Thesis/Maquipucuna_SantaLucia/Results/Network/HummingbirdInteractions.csv",sep=""),row.names=1)
@@ -47,7 +51,7 @@ int[int$Iplant_Double=="Drymonia collegarum","Iplant_Double"]<-"Alloplectus tetr
 #Some reasonable level of presences, 25 points
 keep<-names(which(table(int$Hummingbird) > 20))
 
-int<-int[int$Hummingbird %in% keep,]
+int<-int[int$Hummingbird %in% keep & !int$Hummingbird %in% "Sparkling Violetear",]
 
 m.dat<-droplevels(int[colnames(int) %in% c("ID","Video","Time","Hummingbird","Sex","TransectID","Transect_R","Iplant_Double","Pierce","DateP","Month","ele","Type")])
 
@@ -84,11 +88,6 @@ dath<-dath[!dath$Pierce %in% c("y","Y"),]
 
 
 ```r
-#remove species with less than  10 observations
-keep<-names(which(table(dath$Hummingbird) > 20))
-
-dath<-droplevels(dath[dath$Hummingbird %in% keep,])
-
 #observed traitmatching
 traitmatchF<-abs(t(sapply(hum.morph$Bill,function(x){x-fl.morph$TotalCorolla})))
 
@@ -119,12 +118,12 @@ head(elevH)
 
 ```
 ##                 Hummingbird  Low        m High Index
-## 1   Green-crowned Woodnymph 1359 1376.645 1390     1
-## 2 Rufous-tailed Hummingbird 1368 1476.333 1380     1
-## 3            Andean Emerald 1378 1386.261 1380     1
-## 4      White-necked Jacobin 1368 1397.500 1422     1
-## 5    Stripe-throated Hermit 1368 1440.887 1450     1
-## 6    White-whiskered Hermit 1340 1412.391 1450     1
+## 1            Andean Emerald 1378 1378.632 1380     1
+## 2    White-whiskered Hermit 1331 1429.676 1621     1
+## 3    Stripe-throated Hermit 1360 1448.331 1513     1
+## 4         Crowned Woodnymph 1360 1523.477 2049     1
+## 5 Rufous-tailed Hummingbird 1370 1532.000 1862     3
+## 6  Wedge-billed Hummingbird 1331 1654.409 1995     3
 ```
 
 ```r
@@ -287,15 +286,7 @@ for (x in 1:dim(indatlong)[4]){
   }
 }
 
-#Remove columns that are all 0's
-for (x in dim(indatlong)[1]){
-  for(y in dim(indatlong)[2]){
-    ss<-sum(indatlong[x,y,,,],na.rm=T)
-    if(ss==0){
-      indatlong[x,y,,,]<-NA
-    }
-  }
-}
+
 #melt and remove Na's
 indat<-melt(indatlong)
 indat<-indat[!is.na(indat$value),]
@@ -363,7 +354,7 @@ flower.month$Month.a<-factor(month.abb[flower.month$Month],month.abb[c(1:12)])
 flower.month$Year<-as.factor(flower.month$Year)
 
 #get quantile for each transect
-thresh<-melt(group_by(flower.month,Transect_R) %>% summarize(Threshold=quantile(log(Flowers),0.75)) )
+thresh<-melt(group_by(flower.month,Transect_R) %>% summarize(Threshold=quantile(log(Flowers),0.5)) )
 flower.month<-merge(flower.month,thresh)
 flower.month$High<-log(flower.month$Flowers)>flower.month$value
 
@@ -451,7 +442,7 @@ indat<-merge(indat,qthresh)
 indat$BUsed_Flowers<-(indat$Used_Flowers > indat$UThresh)*1
 
 
-fthresh<-indat %>% filter(Yobs >0) %>% group_by(Hummingbird) %>% summarize(FThresh=quantile(FlowerA,.75))
+fthresh<-indat %>% filter(Yobs >0) %>% group_by(Hummingbird) %>% summarize(FThresh=quantile(FlowerA,.5))
 indat<-merge(indat,fthresh)
 indat$BFlowerA<-(indat$FlowerA > indat$FThresh)*1
 
@@ -498,7 +489,7 @@ indat$jTime<-as.numeric(as.factor(indat$Time))
 indat$jID<-as.numeric(as.factor(indat$ID))
 
 #index resources
-resourceMatrix<-indat %>% group_by(jBird,jPlant,jTime) %>% summarize(v=unique(BUsed_Flowers)) %>% acast(jBird ~ jPlant ~ jTime,value.var='v',fill=0)
+resourceMatrix<-indat %>% group_by(jBird,jPlant,jTime) %>% summarize(v=unique(BFlowerA)) %>% acast(jBird ~ jPlant ~ jTime,value.var='v',fill=0)
 
 #bind to indat for later
 mr<-melt(resourceMatrix)
@@ -509,12 +500,12 @@ indat<-merge(indat,mr,by=c("jBird","jPlant","jTime"))
 mindat<-melt(indat,measure.vars=c("Camera","Transect"))
 ```
 
-View species identity
+View species identity in resource splits.
 
 
 ```r
 #Count of species in both time sets
-splist<-mindat %>% filter(value>0) %>% group_by(Hummingbird,Resource=BUsed_Flowers) %>% distinct(Iplant_Double) %>% dplyr::select(Iplant_Double)
+splist<-mindat %>% filter(value>0) %>% group_by(Hummingbird,Resource=BFlowerA) %>% distinct(Iplant_Double) %>% dplyr::select(Iplant_Double)
 
 #relevel text
 splist$Resource<-factor(as.factor(as.character(splist$Resource)),labels = c("Low","High"))
@@ -753,7 +744,7 @@ list(beta1=initB,beta2=initB,beta3=initB,alpha=rep(.5,Birds),intercept=0,tau_alp
 ParsStage <- c("alpha","beta1","beta2","beta3","intercept","sigma_int","sigma_slope1","sigma_slope2","sigma_slope3","gamma1","gamma2","gamma3","dtrans","dcam")
 
 #MCMC options
-ni <- 20000  # number of draws from the posterior
+ni <- 50000  # number of draws from the posterior
 nt <- max(c(2,ni*.0001))  #thinning rate
 nb <- ni*.95 # number to discard for burn-in
 nc <- 2  # number of chains
@@ -877,21 +868,25 @@ ggplot(data=predy,aes(x=x)) + geom_ribbon(aes(ymin=lower,ymax=upper),alpha=0.2,f
 
 ```r
 #Trajectories from posterior
-predH<-trajF(alpha=castdf$intercept,beta1=castdf$gamma1,x=indat[indat$BUsed_Flowers==1,"Traitmatch"],resources=indat[indat$BUsed_Flowers==1,"BUsed_Flowers"],beta2=castdf$gamma2,beta3=castdf$gamma3,type='hdi')
+predH<-trajF(alpha=castdf$intercept,beta1=castdf$gamma1,x=indat[indat$BFlowerA==1,"Traitmatch"],resources=indat[indat$BFlowerA==1,"BFlowerA"],beta2=castdf$gamma2,beta3=castdf$gamma3,type='hdi')
 
-predL<-trajF(alpha=castdf$intercept,beta1=castdf$gamma1,x=indat[indat$BUsed_Flowers==0,"Traitmatch"],resources=indat[indat$BUsed_Flowers==0,"BUsed_Flowers"],beta2=castdf$gamma2,beta3=castdf$gamma3,type='hdi')
+predL<-trajF(alpha=castdf$intercept,beta1=castdf$gamma1,x=indat[indat$BFlowerA==0,"Traitmatch"],resources=indat[indat$BFlowerA==0,"BFlowerA"],beta2=castdf$gamma2,beta3=castdf$gamma3,type='hdi')
 
 predhl<-melt(list(High=predH,Low=predL),id.vars=colnames(predH))
 
 colnames(predhl)[5]<-"BFlowerL"
 
-indat$BFlowerL<-factor(as.character(indat$BUsed_Flowers))
+indat$BFlowerL<-factor(as.character(indat$BFlowerA))
 levels(indat$BFlowerL)<-c("Low","High")
 
 ggplot(data=predhl,aes(x=x)) + geom_ribbon(aes(ymin=lower,ymax=upper,fill=BFlowerL),alpha=0.2)  + geom_line(aes(y=mean,col=BFlowerL),size=.8) + theme_bw() + ylab("Interactions") + xlab("Difference between Bill and Corolla Length") + geom_point(data=mindat,aes(x=Traitmatch,y=value))+ labs(fill="Resource Availability",col="Resource Availability") 
 ```
 
 <img src="figureObserved/unnamed-chunk-34-1.png" title="" alt="" style="display: block; margin: auto;" />
+
+```r
+ggsave("Figures/AllRegression.jpeg",height=5,width=7)
+```
 
 
 ##Species Predictions
@@ -953,8 +948,8 @@ for(d in 1:length(species.split)){
   #get data for those species
   billd<-indat[indat$jBird %in% index,]
 
-  sl<-trajF(alpha=x$alpha,beta1=x$beta1,beta2=x$beta2,beta3=x$beta3,resources=billd[billd$BUsed_Flowers==0,"BUsed_Flowers"],x=billd[billd$BUsed_Flowers==0,"Traitmatch"],type='hdi')
-  sh<-trajF(alpha=x$alpha,beta1=x$beta1,beta2=x$beta2,beta3=x$beta3,resources=billd[billd$BUsed_Flowers==1,"BUsed_Flowers"],x=billd[billd$BUsed_Flowers==1,"Traitmatch"],type='hdi')
+  sl<-trajF(alpha=x$alpha,beta1=x$beta1,beta2=x$beta2,beta3=x$beta3,resources=billd[billd$BFlowerA==0,"BFlowerA"],x=billd[billd$BFlowerA==0,"Traitmatch"],type='hdi')
+  sh<-trajF(alpha=x$alpha,beta1=x$beta1,beta2=x$beta2,beta3=x$beta3,resources=billd[billd$BFlowerA==1,"BFlowerA"],x=billd[billd$BFlowerA==1,"Traitmatch"],type='hdi')
   sm<-melt(list(High=sh,Low=sl),id.vars=colnames(sl))
   colnames(sm)[5]<-"Resources"
   species.traj[[d]]<-sm
@@ -974,6 +969,10 @@ ggplot(data=spe,aes(x=x)) + geom_ribbon(aes(ymin=lower,ymax=upper,fill=Resources
 ```
 
 <img src="figureObserved/unnamed-chunk-36-1.png" title="" alt="" style="display: block; margin: auto;" />
+
+```r
+ggsave("Figures/SpeciesRegression.jpeg",height=6,width=7)
+```
 
 ##Species Level Interaction
 
@@ -1016,6 +1015,10 @@ ggplot(data=spe,aes(x=x)) + geom_ribbon(aes(ymin=lower,ymax=upper,fill=Hummingbi
 
 <img src="figureObserved/unnamed-chunk-37-1.png" title="" alt="" style="display: block; margin: auto;" />
 
+```r
+ggsave("Figures/SpeciesInteraction.jpeg",height=6,width=7)
+```
+
 These plots can be tricky to interpret if one forgets that trait matching as a covariate is a distance. Therefore remember that a positive slope in the plot above indiciates, "As resources increase species use flowers less similiar to their bill lengths". 
 
 ##Interaction density functions
@@ -1028,6 +1031,30 @@ ggplot(pars_detect[pars_detect$par %in% "beta3",],aes(x=estimate)) + geom_histog
 ```
 
 <img src="figureObserved/unnamed-chunk-38-1.png" title="" alt="" style="display: block; margin: auto;" />
+
+##Traitmatching and Bill Length
+
+Do species with long bill lengths have positive traitmatching effects?
+
+
+```r
+#species names
+b<-pars_detect[pars_detect$par %in% "beta1",]
+b<-merge(b,jagsIndexBird,by.x="species",by.y="jBird")
+
+#traits
+b<-merge(b,hum.morph,by.x="Hummingbird",by.y="English")
+
+post<-b %>% filter(par %in% "beta1") %>% group_by(Hummingbird) %>% summarize(mean=mean(estimate),median=median(estimate),lower=quantile(probs=0.025,estimate),upper=quantile(probs=0.975,estimate),hdi_l=hdi(estimate)[[1]],hdi_u=hdi(estimate)[[2]]) %>% melt(id.vars='Hummingbird')
+
+#get order of mean posterior
+ord<-post %>% filter(variable=="mean") %>% arrange(value) %>% .$Hummingbird
+
+b$Hummingbird<-factor(b$Hummingbird,levels=ord)
+ggplot(b,aes(y=estimate,x=Hummingbird,fill=Total_Culmen)) + geom_violin() + coord_flip() + scale_fill_continuous(low='blue',high='red') + ggtitle("Traitmatching and Bill Length") + theme_bw()
+```
+
+<img src="figureObserved/unnamed-chunk-39-1.png" title="" alt="" style="display: block; margin: auto;" />
 
 ##Interaction and Bill Length
 
@@ -1051,7 +1078,7 @@ b$Hummingbird<-factor(b$Hummingbird,levels=ord)
 ggplot(b,aes(y=estimate,x=Hummingbird,fill=Total_Culmen)) + geom_violin() + coord_flip() + scale_fill_continuous(low='blue',high='red') + ggtitle("Interaction Effect and Bill Length") + theme_bw()
 ```
 
-<img src="figureObserved/unnamed-chunk-39-1.png" title="" alt="" style="display: block; margin: auto;" />
+<img src="figureObserved/unnamed-chunk-40-1.png" title="" alt="" style="display: block; margin: auto;" />
 
 #Estimated niche breadth
 
@@ -1095,23 +1122,17 @@ species.mean<-merge(species.mean,fl.morph,by.x="Iplant_Double", by.y="Group.1")
 ggplot(species.mean) + geom_density2d(aes(x=TotalCorolla,y=lambda,col=as.factor(Resource))) + theme_bw() + facet_wrap(~Hummingbird,scales="free")+ scale_color_discrete("Resources Availability",labels=c("Low","High")) + ggtitle("2D Density Plots")
 ```
 
-<img src="figureObserved/unnamed-chunk-40-1.png" title="" alt="" style="display: block; margin: auto;" />
+<img src="figureObserved/unnamed-chunk-41-1.png" title="" alt="" style="display: block; margin: auto;" />
 
 ```r
 ggplot(species.mean) + geom_density2d(aes(x=TotalCorolla,y=lambda,col=Hummingbird)) + theme_bw() + facet_wrap(~Resource,scales="free") 
 ```
 
-<img src="figureObserved/unnamed-chunk-40-2.png" title="" alt="" style="display: block; margin: auto;" />
+<img src="figureObserved/unnamed-chunk-41-2.png" title="" alt="" style="display: block; margin: auto;" />
 
 ```r
 fiveplot<-species.mean %>% group_by(Hummingbird,Resource) %>% summarize(min=min(TotalCorolla),max=max(TotalCorolla),mean=mean(TotalCorolla),median=quantile(TotalCorolla,0.5))
 
-ggplot(species.mean,aes(x=TotalCorolla,y=lambda,col=as.factor(Resource))) + geom_line() + facet_wrap(~Hummingbird) + geom_point()
-```
-
-<img src="figureObserved/unnamed-chunk-40-3.png" title="" alt="" style="display: block; margin: auto;" />
-
-```r
 #bill order
 ord<-hum.morph %>% arrange(Total_Culmen) %>% .$English
 species.mean$Hummingbird<-factor(species.mean$Hummingbird,levels=ord)
@@ -1119,10 +1140,33 @@ species.mean$Hummingbird<-factor(species.mean$Hummingbird,levels=ord)
 #add level to hum.morph to match naming convention
 species.mean<-merge(species.mean,hum.morph[,c("English","Total_Culmen")],by.x="Hummingbird",by.y="English")
 
-ggplot(species.mean,aes(x=TotalCorolla,y=lambda,col=as.factor(Resource))) + geom_line(size=.9) + geom_vline(aes(xintercept=Total_Culmen),linetype='dashed') + facet_wrap(~Hummingbird,ncol=3,scales="free_y") + geom_point(size=.5) + theme_bw() + ylab("Estimated Daily Visitation Rate") + scale_color_manual("Resource Availability",labels=c("Low","High"),values=c("Blue","Red")) + xlab("Flower Corolla Length (mm)")
+p<-ggplot(species.mean,aes(x=TotalCorolla,y=lambda,col=as.factor(Resource))) + geom_line(size=.9) + geom_vline(aes(xintercept=Total_Culmen),linetype='dashed') + facet_wrap(~Hummingbird,ncol=3,scales="free_y")  + theme_bw() + ylab("Estimated Daily Interaction Rate") + scale_color_manual("Resource Availability",labels=c("Low","High"),values=c("Blue","Red")) + xlab("Flower Corolla Length (mm)") 
+p
 ```
 
-<img src="figureObserved/unnamed-chunk-40-4.png" title="" alt="" style="display: block; margin: auto;" />
+<img src="figureObserved/unnamed-chunk-41-3.png" title="" alt="" style="display: block; margin: auto;" />
+
+```r
+ggsave("Figures/ResponseCurves.jpeg",height=6.5,width=9)
+```
+
+
+```r
+#plot original data in a similiar fashion.
+oplot<-merge(indatraw,fl.morph,by.x="Iplant_Double",by.y="Group.1")
+oplot<-merge(oplot,hum.morph[,c("English","Total_Culmen")],by.x="Hummingbird",by.y="English")
+
+#resource table
+tom<-indat %>% dplyr::select(Hummingbird,Time,BFlowerA) %>% distinct()
+
+oplot<-merge(oplot,tom,by=c("Hummingbird","Time"))
+
+oplot<-oplot %>% group_by(Hummingbird,TotalCorolla,BFlowerA) %>% summarize(mean=mean(Yobs),lower=quantile(Yobs,0.05),high=quantile(Yobs,0.95))
+
+p + geom_point(size=.5,data=oplot,aes(y=mean,col=as.factor(BFlowerA)))
+```
+
+<img src="figureObserved/unnamed-chunk-42-1.png" title="" alt="" style="display: block; margin: auto;" />
 
 
 ```r
@@ -1131,8 +1175,8 @@ gc()
 
 ```
 ##             used   (Mb) gc trigger   (Mb)   max used    (Mb)
-## Ncells   1969727  105.2    3205452  171.2    3205452   171.2
-## Vcells 332781469 2539.0  902841402 6888.2 2061569239 15728.6
+## Ncells   2031075  108.5    3205452  171.2    3205452   171.2
+## Vcells 268902541 2051.6  673228180 5136.4 1436555230 10960.1
 ```
 
 ```r
