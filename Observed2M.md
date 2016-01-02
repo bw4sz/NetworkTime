@@ -5,7 +5,7 @@ Ben Weinstein - Stony Brook University
 
 
 ```
-## [1] "Run Completed at 2015-12-31 22:40:10"
+## [1] "Run Completed at 2016-01-01 19:00:36"
 ```
 
 
@@ -49,9 +49,9 @@ int[int$Iplant_Double=="Alloplectus teuscheri","Iplant_Double"]<-"Drymonia teusc
 int[int$Iplant_Double=="Drymonia collegarum","Iplant_Double"]<-"Alloplectus tetragonoides"
 
 #Some reasonable level of presences, 25 points
-keep<-names(which(table(int$Hummingbird) > 20))
+keep<-names(which(table(int$Hummingbird) > 25))
 
-int<-int[int$Hummingbird %in% keep & !int$Hummingbird %in% "Sparkling Violetear",]
+int<-int[int$Hummingbird %in% keep & !int$Hummingbird %in% "Fawn-breasted Brilliant",]
 
 m.dat<-droplevels(int[colnames(int) %in% c("ID","Video","Time","Hummingbird","Sex","TransectID","Transect_R","Iplant_Double","Pierce","DateP","Month","ele","Type")])
 
@@ -81,7 +81,7 @@ missingTraits<-int.FLlevels[!int.FLlevels %in% fl.morph$X]
 dath<-merge(dath,fl.morph, by.x="Iplant_Double",by.y="X")
 
 #Drop piercing events, since they don't represent correlation
-dath<-dath[!dath$Pierce %in% c("y","Y"),]
+#dath<-dath[!dath$Pierce %in% c("y","Y"),]
 ```
 
 ##Match Species to Morphology
@@ -546,7 +546,7 @@ for (x in 1:length(splist)){
 }
 ```
 
-<img src="figureObserved/unnamed-chunk-20-1.png" title="" alt="" style="display: block; margin: auto;" /><img src="figureObserved/unnamed-chunk-20-2.png" title="" alt="" style="display: block; margin: auto;" /><img src="figureObserved/unnamed-chunk-20-3.png" title="" alt="" style="display: block; margin: auto;" /><img src="figureObserved/unnamed-chunk-20-4.png" title="" alt="" style="display: block; margin: auto;" /><img src="figureObserved/unnamed-chunk-20-5.png" title="" alt="" style="display: block; margin: auto;" /><img src="figureObserved/unnamed-chunk-20-6.png" title="" alt="" style="display: block; margin: auto;" /><img src="figureObserved/unnamed-chunk-20-7.png" title="" alt="" style="display: block; margin: auto;" /><img src="figureObserved/unnamed-chunk-20-8.png" title="" alt="" style="display: block; margin: auto;" /><img src="figureObserved/unnamed-chunk-20-9.png" title="" alt="" style="display: block; margin: auto;" /><img src="figureObserved/unnamed-chunk-20-10.png" title="" alt="" style="display: block; margin: auto;" /><img src="figureObserved/unnamed-chunk-20-11.png" title="" alt="" style="display: block; margin: auto;" /><img src="figureObserved/unnamed-chunk-20-12.png" title="" alt="" style="display: block; margin: auto;" /><img src="figureObserved/unnamed-chunk-20-13.png" title="" alt="" style="display: block; margin: auto;" /><img src="figureObserved/unnamed-chunk-20-14.png" title="" alt="" style="display: block; margin: auto;" />
+<img src="figureObserved/unnamed-chunk-20-1.png" title="" alt="" style="display: block; margin: auto;" /><img src="figureObserved/unnamed-chunk-20-2.png" title="" alt="" style="display: block; margin: auto;" /><img src="figureObserved/unnamed-chunk-20-3.png" title="" alt="" style="display: block; margin: auto;" /><img src="figureObserved/unnamed-chunk-20-4.png" title="" alt="" style="display: block; margin: auto;" /><img src="figureObserved/unnamed-chunk-20-5.png" title="" alt="" style="display: block; margin: auto;" /><img src="figureObserved/unnamed-chunk-20-6.png" title="" alt="" style="display: block; margin: auto;" /><img src="figureObserved/unnamed-chunk-20-7.png" title="" alt="" style="display: block; margin: auto;" /><img src="figureObserved/unnamed-chunk-20-8.png" title="" alt="" style="display: block; margin: auto;" /><img src="figureObserved/unnamed-chunk-20-9.png" title="" alt="" style="display: block; margin: auto;" /><img src="figureObserved/unnamed-chunk-20-10.png" title="" alt="" style="display: block; margin: auto;" /><img src="figureObserved/unnamed-chunk-20-11.png" title="" alt="" style="display: block; margin: auto;" /><img src="figureObserved/unnamed-chunk-20-12.png" title="" alt="" style="display: block; margin: auto;" /><img src="figureObserved/unnamed-chunk-20-13.png" title="" alt="" style="display: block; margin: auto;" />
 
 ```r
 #venn diagram writes a silly set of log files
@@ -744,7 +744,7 @@ list(beta1=initB,beta2=initB,beta3=initB,alpha=rep(.5,Birds),intercept=0,tau_alp
 ParsStage <- c("alpha","beta1","beta2","beta3","intercept","sigma_int","sigma_slope1","sigma_slope2","sigma_slope3","gamma1","gamma2","gamma3","dtrans","dcam")
 
 #MCMC options
-ni <- 50000  # number of draws from the posterior
+ni <- 80000  # number of draws from the posterior
 nt <- max(c(2,ni*.0001))  #thinning rate
 nb <- ni*.95 # number to discard for burn-in
 nc <- 2  # number of chains
@@ -1157,9 +1157,9 @@ oplot<-merge(indatraw,fl.morph,by.x="Iplant_Double",by.y="Group.1")
 oplot<-merge(oplot,hum.morph[,c("English","Total_Culmen")],by.x="Hummingbird",by.y="English")
 
 #resource table
-tom<-indat %>% dplyr::select(Hummingbird,Time,BFlowerA) %>% distinct()
+tom<-indat %>% dplyr::select(Hummingbird,Iplant_Double,Time,BFlowerA) %>% distinct()
 
-oplot<-merge(oplot,tom,by=c("Hummingbird","Time"))
+oplot<-merge(oplot,tom,by=c("Hummingbird","Iplant_Double","Time"))
 
 oplot<-oplot %>% group_by(Hummingbird,TotalCorolla,BFlowerA) %>% summarize(mean=mean(Yobs),lower=quantile(Yobs,0.05),high=quantile(Yobs,0.95))
 
@@ -1175,8 +1175,8 @@ gc()
 
 ```
 ##             used   (Mb) gc trigger   (Mb)   max used    (Mb)
-## Ncells   2031075  108.5    3205452  171.2    3205452   171.2
-## Vcells 268902541 2051.6  673228180 5136.4 1436555230 10960.1
+## Ncells   2043309  109.2    3205452  171.2    3205452   171.2
+## Vcells 259749512 1981.8  621360356 4740.7 1366127502 10422.8
 ```
 
 ```r
