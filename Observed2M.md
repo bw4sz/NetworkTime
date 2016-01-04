@@ -5,7 +5,7 @@ Ben Weinstein - Stony Brook University
 
 
 ```
-## [1] "Run Completed at 2016-01-03 20:32:23"
+## [1] "Run Completed at 2016-01-03 21:55:09"
 ```
 
 
@@ -429,10 +429,10 @@ ggplot(indat,aes(x=All_Flowers,y=Used_Flowers)) + geom_point() + facet_wrap(~Hum
 
 ```r
 #All Resources
-#indat$BAll_Flowers<-(indat$All_Flowers > mean(indat$All_Flowers))*1
-mnth<-sapply(indat$Time,function(x){
-  as.numeric(str_split(x,"_")[[1]][1])})
-indat$BAll_Flowers<-(mnth  %in% c(6,7,8,9,10))*1
+indat$BAll_Flowers<-(indat$All_Flowers > quantile(indat$All_Flowers,0.75))*1
+#mnth<-sapply(indat$Time,function(x){
+ # as.numeric(str_split(x,"_")[[1]][1])})
+#indat$BAll_Flowers<-(mnth  %in% c(6,7,8,9,10))*1
 
 qthresh<-indat %>% group_by(Hummingbird) %>% summarize(UThresh=quantile(Used_Flowers,.5))
 
@@ -443,7 +443,7 @@ indat<-merge(indat,qthresh)
 indat$BUsed_Flowers<-(indat$Used_Flowers > indat$UThresh)*1
 
 
-fthresh<-indat %>% group_by(Hummingbird) %>% summarize(FThresh=quantile(FlowerA,.5))
+fthresh<-indat %>% group_by(Hummingbird) %>% summarize(FThresh=quantile(FlowerA,.75))
 indat<-merge(indat,fthresh)
 indat$BFlowerA<-(indat$FlowerA > indat$FThresh)*1
 
@@ -747,7 +747,7 @@ list(beta1=initB,beta2=initB,beta3=initB,alpha=rep(.5,Birds),intercept=0,tau_alp
 ParsStage <- c("alpha","beta1","beta2","beta3","intercept","sigma_int","sigma_slope1","sigma_slope2","sigma_slope3","gamma1","gamma2","gamma3","dtrans","dcam")
 
 #MCMC options
-ni <- 60000  # number of draws from the posterior
+ni <- 70000  # number of draws from the posterior
 nt <- max(c(2,ni*.0001))  #thinning rate
 nb <- ni*.95 # number to discard for burn-in
 nc <- 2  # number of chains
@@ -796,18 +796,19 @@ ggplot(pars_detect[pars_detect$par %in% c("alpha","beta1"," beta2","beta3"),],ae
 
 <img src="figureObserved/unnamed-chunk-26-1.png" title="" alt="" style="display: block; margin: auto;" />
 
+
 ```r
 ggplot(pars_detect[pars_detect$par %in% c("dcam","dtrans"),],aes(x=Draw,y=estimate,col=as.factor(Chain))) + geom_line() + facet_wrap(species~par,scale="free",ncol=4) + theme_bw() + labs(col="Chain") + ggtitle("Species Level")
 ```
 
-<img src="figureObserved/unnamed-chunk-26-2.png" title="" alt="" style="display: block; margin: auto;" />
+<img src="figureObserved/unnamed-chunk-27-1.png" title="" alt="" style="display: block; margin: auto;" />
 
 
 ```r
 ggplot(pars_detect[pars_detect$par %in% c("gamma1","intercept","sigma_int","sigma_slope1","gamma2","gamma3","sigma_slope2","sigma_slope3"),],aes(x=Draw,y=estimate,col=as.factor(Chain))) + geom_line() + theme_bw() + labs(col="Chain") + ggtitle("Group Level Parameters") + facet_wrap(~par,scales="free")
 ```
 
-<img src="figureObserved/unnamed-chunk-27-1.png" title="" alt="" style="display: block; margin: auto;" />
+<img src="figureObserved/unnamed-chunk-28-1.png" title="" alt="" style="display: block; margin: auto;" />
 
 #Posteriors
 
@@ -817,7 +818,7 @@ ggplot(pars_detect[pars_detect$par %in% c("gamma1","intercept","sigma_int","sigm
 ggplot(pars_detect[pars_detect$par %in% c("alpha","beta1","beta2","beta3"),],aes(x=estimate)) + geom_histogram(position='identity') +  facet_grid(species~par,scales="free") + theme_bw() + ggtitle("Species Parameters")
 ```
 
-<img src="figureObserved/unnamed-chunk-28-1.png" title="" alt="" style="display: block; margin: auto;" />
+<img src="figureObserved/unnamed-chunk-29-1.png" title="" alt="" style="display: block; margin: auto;" />
 
 
 ```r
@@ -825,14 +826,14 @@ ggplot(pars_detect[pars_detect$par %in% c("alpha","beta1","beta2","beta3"),],aes
 ggplot(pars_detect[pars_detect$par %in% c("dtrans","dcam"),],aes(x=par,y=estimate)) + geom_violin(fill='black') + theme_bw() + ggtitle("Detection Probability") + scale_x_discrete(labels=c("Camera","Transect")) + facet_wrap(~species,ncol=3)
 ```
 
-<img src="figureObserved/unnamed-chunk-29-1.png" title="" alt="" style="display: block; margin: auto;" />
+<img src="figureObserved/unnamed-chunk-30-1.png" title="" alt="" style="display: block; margin: auto;" />
 
 
 ```r
 ggplot(pars_detect[pars_detect$par %in% c("gamma1","gamma2","gamma3","intercept","sigma_int","sigma_slope1","sigma_slope2","sigma_slope3"),],aes(x=estimate)) + geom_histogram() + ggtitle("Group Level Posteriors") + facet_wrap(~par,scale="free",nrow=2) + theme_bw() 
 ```
 
-<img src="figureObserved/unnamed-chunk-30-1.png" title="" alt="" style="display: block; margin: auto;" />
+<img src="figureObserved/unnamed-chunk-31-1.png" title="" alt="" style="display: block; margin: auto;" />
 
 #Predicted Relationship 
 
@@ -852,7 +853,7 @@ predy<-trajF(alpha=castdf$intercept,beta1=castdf$gamma1,x=indat$Traitmatch,resou
 ggplot(data=predy,aes(x=x)) + geom_ribbon(aes(ymin=lower,ymax=upper),alpha=0.1,fill="red")  + geom_line(aes(y=mean),size=.5,col="red",linetype="dashed") + theme_bw() + ylab("Interactions") + xlab("Difference between Bill and Corolla Length") + geom_point(data=indat,aes(x=Traitmatch,y=Camera)) + geom_point(data=indat,aes(x=Traitmatch,y=Transect))
 ```
 
-<img src="figureObserved/unnamed-chunk-32-1.png" title="" alt="" style="display: block; margin: auto;" />
+<img src="figureObserved/unnamed-chunk-33-1.png" title="" alt="" style="display: block; margin: auto;" />
 
 ##Full posterior prediction
 
@@ -864,7 +865,7 @@ predy<-trajF(alpha=castdf$intercept,beta1=castdf$gamma1,x=indat$Traitmatch,resou
 ggplot(data=predy,aes(x=x)) + geom_ribbon(aes(ymin=lower,ymax=upper),alpha=0.2,fill="red")  +  theme_bw() + ylab("Interactions") + xlab("Difference between Bill and Corolla Length") + geom_point(data=indat,aes(x=Traitmatch,y=Camera)) + geom_line(aes(y=mean)) + geom_point(data=indat,aes(x=Traitmatch,y=Transect)) 
 ```
 
-<img src="figureObserved/unnamed-chunk-33-1.png" title="" alt="" style="display: block; margin: auto;" />
+<img src="figureObserved/unnamed-chunk-34-1.png" title="" alt="" style="display: block; margin: auto;" />
 
 ## At High and Low Resource Availability
 
@@ -885,7 +886,7 @@ levels(indat$BFlowerL)<-c("Low","High")
 ggplot(data=predhl,aes(x=x)) + geom_ribbon(aes(ymin=lower,ymax=upper,fill=BFlowerL),alpha=0.2)  + geom_line(aes(y=mean,col=BFlowerL),size=.8) + theme_bw() + ylab("Interactions") + xlab("Difference between Bill and Corolla Length") + geom_point(data=mindat,aes(x=Traitmatch,y=value))+ labs(fill="Resource Availability",col="Resource Availability") 
 ```
 
-<img src="figureObserved/unnamed-chunk-34-1.png" title="" alt="" style="display: block; margin: auto;" />
+<img src="figureObserved/unnamed-chunk-35-1.png" title="" alt="" style="display: block; margin: auto;" />
 
 ```r
 ggsave("Figures/AllRegression.jpeg",height=5,width=7)
@@ -929,7 +930,7 @@ spe<-merge(species.traj,jagsIndexBird,by.x="Index",by.y="jBird")
 ggplot(data=spe,aes(x=x)) + geom_ribbon(aes(ymin=lower,ymax=upper),alpha=0.2,fill='red') + geom_line(aes(y=mean),size=.5) + theme_bw() + ylab("Occurrence Probability")+ xlab("Difference between Bill and Corolla Length") + facet_wrap(~Hummingbird,scales="free",ncol=4) + geom_point(data=mindat,aes(x=Traitmatch,y=value,shape=variable),size=2.5) + labs(shape="Sampling Method")
 ```
 
-<img src="figureObserved/unnamed-chunk-35-1.png" title="" alt="" style="display: block; margin: auto;" />
+<img src="figureObserved/unnamed-chunk-36-1.png" title="" alt="" style="display: block; margin: auto;" />
 
 ###Species Predictions: High and Low Availability
 
@@ -971,7 +972,7 @@ spe<-merge(species.traj,jagsIndexBird,by.x="Index",by.y="jBird")
 ggplot(data=spe,aes(x=x)) + geom_ribbon(aes(ymin=lower,ymax=upper,fill=Resources),alpha=0.2) + geom_line(aes(y=mean,col=Resources),size=.5) + theme_bw() + ylab("Occurrence Probability")+ xlab("Difference between Bill and Corolla Length") + facet_wrap(~Hummingbird,scales="free",ncol=3) + geom_point(data=mindat,aes(x=Traitmatch,y=value,shape=variable),size=1.5,alpha=.5)
 ```
 
-<img src="figureObserved/unnamed-chunk-36-1.png" title="" alt="" style="display: block; margin: auto;" />
+<img src="figureObserved/unnamed-chunk-37-1.png" title="" alt="" style="display: block; margin: auto;" />
 
 ```r
 ggsave("Figures/SpeciesRegression.jpeg",height=6,width=7)
@@ -1016,7 +1017,7 @@ spe<-merge(species.traj,jagsIndexBird,by.x="Index",by.y="jBird")
 ggplot(data=spe,aes(x=x)) + geom_ribbon(aes(ymin=lower,ymax=upper,fill=Hummingbird),alpha=0.3) + geom_line(aes(y=mean,col=Hummingbird),size=1) + theme_bw() + xlab("Difference between Bill and Corolla Length")  + ylab("Effect of Resources on Trait Difference") + facet_wrap(~Hummingbird,scales="free",ncol=3)
 ```
 
-<img src="figureObserved/unnamed-chunk-37-1.png" title="" alt="" style="display: block; margin: auto;" />
+<img src="figureObserved/unnamed-chunk-38-1.png" title="" alt="" style="display: block; margin: auto;" />
 
 ```r
 ggsave("Figures/SpeciesInteraction.jpeg",height=6,width=7)
@@ -1033,7 +1034,7 @@ post<-pars_detect %>% filter(par %in% "beta3") %>% group_by(species) %>% summari
 ggplot(pars_detect[pars_detect$par %in% "beta3",],aes(x=estimate)) + geom_histogram() + facet_wrap(~species,scales='free',ncol=3) + geom_vline(data=post,aes(xintercept=value,col=variable))
 ```
 
-<img src="figureObserved/unnamed-chunk-38-1.png" title="" alt="" style="display: block; margin: auto;" />
+<img src="figureObserved/unnamed-chunk-39-1.png" title="" alt="" style="display: block; margin: auto;" />
 
 ##Traitmatching and Bill Length
 
@@ -1057,7 +1058,7 @@ b$Hummingbird<-factor(b$Hummingbird,levels=ord)
 ggplot(b,aes(y=estimate,x=Hummingbird,fill=Total_Culmen)) + geom_violin() + coord_flip() + scale_fill_continuous(low='blue',high='red') + ggtitle("Traitmatching and Bill Length") + theme_bw()
 ```
 
-<img src="figureObserved/unnamed-chunk-39-1.png" title="" alt="" style="display: block; margin: auto;" />
+<img src="figureObserved/unnamed-chunk-40-1.png" title="" alt="" style="display: block; margin: auto;" />
 
 ##Interaction and Bill Length
 
@@ -1081,7 +1082,7 @@ b$Hummingbird<-factor(b$Hummingbird,levels=ord)
 ggplot(b,aes(y=estimate,x=Hummingbird,fill=Total_Culmen)) + geom_violin() + coord_flip() + scale_fill_continuous(low='blue',high='red') + ggtitle("Interaction Effect and Bill Length") + theme_bw()
 ```
 
-<img src="figureObserved/unnamed-chunk-40-1.png" title="" alt="" style="display: block; margin: auto;" />
+<img src="figureObserved/unnamed-chunk-41-1.png" title="" alt="" style="display: block; margin: auto;" />
 
 #Estimated niche breadth
 
@@ -1122,16 +1123,16 @@ species.mean<-merge(species.mean,indat[,colnames(indat) %in% c("jBird","jPlant",
 
 #get corolla sizes
 species.mean<-merge(species.mean,fl.morph,by.x="Iplant_Double", by.y="Group.1")
-ggplot(species.mean) + geom_density2d(aes(x=TotalCorolla,y=lambda,col=as.factor(Resource))) + theme_bw() + facet_wrap(~Hummingbird,scales="free")+ scale_color_discrete("Resources Availability",labels=c("Low","High")) + ggtitle("2D Density Plots")
+ggplot(species.mean) + geom_density2d(aes(x=TotalCorolla,y=lambda,col=as.factor(Resource))) + theme_bw() + facet_wrap(~Hummingbird,scales="free",ncol=3)+ scale_color_manual("Resources Availability",labels=c("Low","High"),values=c("Blue","Red")) + ggtitle("2D Density Plots")
 ```
 
-<img src="figureObserved/unnamed-chunk-41-1.png" title="" alt="" style="display: block; margin: auto;" />
+<img src="figureObserved/unnamed-chunk-42-1.png" title="" alt="" style="display: block; margin: auto;" />
 
 ```r
 ggplot(species.mean) + geom_density2d(aes(x=TotalCorolla,y=lambda,col=Hummingbird)) + theme_bw() + facet_wrap(~Resource,scales="free") 
 ```
 
-<img src="figureObserved/unnamed-chunk-41-2.png" title="" alt="" style="display: block; margin: auto;" />
+<img src="figureObserved/unnamed-chunk-42-2.png" title="" alt="" style="display: block; margin: auto;" />
 
 ```r
 fiveplot<-species.mean %>% group_by(Hummingbird,Resource) %>% summarize(min=min(TotalCorolla),max=max(TotalCorolla),mean=mean(TotalCorolla),median=quantile(TotalCorolla,0.5))
@@ -1147,7 +1148,7 @@ p<-ggplot(species.mean,aes(x=TotalCorolla,y=lambda,col=as.factor(Resource))) + g
 p
 ```
 
-<img src="figureObserved/unnamed-chunk-41-3.png" title="" alt="" style="display: block; margin: auto;" />
+<img src="figureObserved/unnamed-chunk-42-3.png" title="" alt="" style="display: block; margin: auto;" />
 
 ```r
 ggsave("Figures/ResponseCurves.jpeg",height=6.5,width=9)
@@ -1169,7 +1170,7 @@ oplot<-oplot %>% group_by(Hummingbird,TotalCorolla,BFlowerA) %>% summarize(mean=
 p + geom_point(size=.5,data=oplot,aes(y=mean,col=as.factor(BFlowerA)))
 ```
 
-<img src="figureObserved/unnamed-chunk-42-1.png" title="" alt="" style="display: block; margin: auto;" />
+<img src="figureObserved/unnamed-chunk-43-1.png" title="" alt="" style="display: block; margin: auto;" />
 
 
 ```r
@@ -1178,8 +1179,8 @@ gc()
 
 ```
 ##             used   (Mb) gc trigger   (Mb)   max used    (Mb)
-## Ncells   2034873  108.7    3886542  207.6    3886542   207.6
-## Vcells 274487625 2094.2  687891059 5248.2 1569389052 11973.5
+## Ncells   2034850  108.7    3886542  207.6    3886542   207.6
+## Vcells 274479100 2094.2  687891123 5248.2 1569389109 11973.5
 ```
 
 ```r
