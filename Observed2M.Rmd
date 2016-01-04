@@ -42,7 +42,7 @@ paste("Run Completed at",Sys.time())
 
 ```{r}
 #reload if needed
-load("Observed.Rdata")
+#load("Observed.Rdata")
 ```
 
 #Load in data
@@ -82,9 +82,9 @@ int[int$Iplant_Double=="Drymonia collegarum","Iplant_Double"]<-"Alloplectus tetr
 #Some reasonable level of presences, 25 points
 keep<-names(which(table(int$Hummingbird) > 25))
 
-int<-int[int$Hummingbird %in% keep & !int$Hummingbird %in% "Sparkling Violetear",]
+int<-int[int$Hummingbird %in% keep & !int$Hummingbird %in% c("Sparkling Violetear"),]
 
-m.dat<-droplevels(int[colnames(int) %in% c("ID","Video","Time","Hummingbird","Sex","TransectID","Transect_R","Iplant_Double","Pierce","DateP","Month","ele","Type")])
+m.dat<-droplevels(int[colnames(int) %in% c("ID","Video","Time","Humming vbbird","Sex","TransectID","Transect_R","Iplant_Double","Pierce","DateP","Month","ele","Type")])
 
 #Does the data come from camera or transect?
 m.dat$Type<-(is.na(m.dat$TransectID))*1
@@ -411,7 +411,7 @@ for (x in 1:nrow(indat)){
   indat$Used_Flowers[x]<-byspecies%>% group_by(Date_F,Transect_R) %>% summarize(n=sum(Total_Flowers,na.rm=T)) %>% group_by(Transect_R) %>% summarize(mn=mean(n)) %>% summarize(F=sum(mn)) %>% .$F
   
   #just the abundance of that species
-  bys <-  byspecies[byspecies$Iplant_Double %in% sp,]
+  bys <-  bydate[bydate$Iplant_Double %in% sp,]
   indat$FlowerA[x] <-  bys %>% group_by(Date_F,Transect_R) %>% summarize(n=sum(Total_Flowers,na.rm=T)) %>% group_by(Transect_R) %>% summarize(mn=mean(n)) %>% summarize(F=sum(mn)) %>% .$F
 
 }
@@ -427,10 +427,10 @@ ggplot(indat,aes(x=All_Flowers,y=Used_Flowers)) + geom_point() + facet_wrap(~Hum
 
 ```{r}
 #All Resources
-#indat$BAll_Flowers<-(indat$All_Flowers > mean(indat$All_Flowers))*1
-mnth<-sapply(indat$Time,function(x){
-  as.numeric(str_split(x,"_")[[1]][1])})
-indat$BAll_Flowers<-(mnth  %in% c(6,7,8,9,10))*1
+indat$BAll_Flowers<-(indat$All_Flowers > quantile(indat$All_Flowers,0.75))*1
+#mnth<-sapply(indat$Time,function(x){
+ # as.numeric(str_split(x,"_")[[1]][1])})
+#indat$BAll_Flowers<-(mnth  %in% c(6,7,8,9,10))*1
 
 qthresh<-indat %>% group_by(Hummingbird) %>% summarize(UThresh=quantile(Used_Flowers,.5))
 
@@ -441,7 +441,7 @@ indat<-merge(indat,qthresh)
 indat$BUsed_Flowers<-(indat$Used_Flowers > indat$UThresh)*1
 
 
-fthresh<-indat %>% filter(Yobs >0) %>% group_by(Hummingbird) %>% summarize(FThresh=quantile(FlowerA,.5))
+fthresh<-indat %>% group_by(Hummingbird) %>% summarize(FThresh=quantile(FlowerA,.75))
 indat<-merge(indat,fthresh)
 indat$BFlowerA<-(indat$FlowerA > indat$FThresh)*1
 
@@ -614,13 +614,13 @@ InitStage <- function(){
   initB<-as.numeric(matrix(nrow=Birds,ncol=1,data=0))
   initD<-as.numeric(matrix(nrow=Birds,ncol=1,data=.5))
 
-list(beta1=initB,beta2=initB,beta3=initB,alpha=rep(.5,Birds),intercept=0,tau_alpha=0.1,tau_beta1=0.1,tau_beta2=0.1,tau_beta3=0.1,gamma1=0,gamma2=0,gamma3=0,dtrans=0.5,dcam=0.5,N=initY)}
+list(beta1=initB,beta2=initB,beta3=initB,alpha=rep(.5,Birds),intercept=0,tau_alpha=0.1,tau_beta1=0.1,tau_beta2=0.1,tau_beta3=0.1,gamma1=0,gamma2=0,gamma3=0,dtrans=initD,dcam=initD,N=initY)}
 
 #Parameters to track
 ParsStage <- c("alpha","beta1","beta2","beta3","intercept","sigma_int","sigma_slope1","sigma_slope2","sigma_slope3","gamma1","gamma2","gamma3","dtrans","dcam")
 
 #MCMC options
-ni <- 80000  # number of draws from the posterior
+ni <- 60000  # number of draws from the posterior
 nt <- max(c(2,ni*.0001))  #thinning rate
 nb <- ni*.95 # number to discard for burn-in
 nc <- 2  # number of chains
@@ -662,8 +662,10 @@ pars_detect<-extract_par(m2,data=indat,Bird="jBird",Plant="jPlant")
 ```{r,cache=FALSE,fig.width=13,fig.height=5}
 ###Chains
 ggplot(pars_detect[pars_detect$par %in% c("alpha","beta1"," beta2","beta3"),],aes(x=Draw,y=estimate,col=as.factor(Chain))) + geom_line() + facet_grid(par~species,scale="free") + theme_bw() + labs(col="Chain") + ggtitle("Species Level")
+```
 
-ggplot(pars_detect[pars_detect$par %in% c("dcam","dtrans"),],aes(x=Draw,y=estimate,col=as.factor(Chain))) + geom_line() + facet_wrap(~par,scale="free",ncol=1) + theme_bw() + labs(col="Chain") + ggtitle("Species Level")
+```{r,fig.height=10}
+ggplot(pars_detect[pars_detect$par %in% c("dcam","dtrans"),],aes(x=Draw,y=estimate,col=as.factor(Chain))) + geom_line() + facet_wrap(species~par,scale="free",ncol=4) + theme_bw() + labs(col="Chain") + ggtitle("Species Level")
 ```
 
 ```{r,fig.height=5,fig.width=11}
@@ -677,9 +679,9 @@ ggplot(pars_detect[pars_detect$par %in% c("gamma1","intercept","sigma_int","sigm
 ggplot(pars_detect[pars_detect$par %in% c("alpha","beta1","beta2","beta3"),],aes(x=estimate)) + geom_histogram(position='identity') +  facet_grid(species~par,scales="free") + theme_bw() + ggtitle("Species Parameters")
 ```
 
-```{r,cache=FALSE,fig.width=10,fig.height=5}
+```{r,cache=FALSE,fig.width=10,fig.height=10}
 #Detection figure
-ggplot(pars_detect[pars_detect$par %in% c("dtrans","dcam"),],aes(x=par,y=estimate)) + geom_violin(fill='black') + theme_bw() + ggtitle("Detection Probability") + scale_x_discrete(labels=c("Camera","Transect"))
+ggplot(pars_detect[pars_detect$par %in% c("dtrans","dcam"),],aes(x=par,y=estimate)) + geom_violin(fill='black') + theme_bw() + ggtitle("Detection Probability") + scale_x_discrete(labels=c("Camera","Transect")) + facet_wrap(~species,ncol=3)
 ```
 
 ```{r,cache=FALSE,fig.height=5,fig.width=13}
@@ -944,7 +946,7 @@ species.mean<-merge(species.mean,indat[,colnames(indat) %in% c("jBird","jPlant",
 
 #get corolla sizes
 species.mean<-merge(species.mean,fl.morph,by.x="Iplant_Double", by.y="Group.1")
-ggplot(species.mean) + geom_density2d(aes(x=TotalCorolla,y=lambda,col=as.factor(Resource))) + theme_bw() + facet_wrap(~Hummingbird,scales="free")+ scale_color_discrete("Resources Availability",labels=c("Low","High")) + ggtitle("2D Density Plots")
+ggplot(species.mean) + geom_density2d(aes(x=TotalCorolla,y=lambda,col=as.factor(Resource))) + theme_bw() + facet_wrap(~Hummingbird,scales="free",ncol=3)+ scale_color_manual("Resources Availability",labels=c("Low","High"),values=c("Blue","Red")) + ggtitle("2D Density Plots")
 
 ggplot(species.mean) + geom_density2d(aes(x=TotalCorolla,y=lambda,col=Hummingbird)) + theme_bw() + facet_wrap(~Resource,scales="free") 
 

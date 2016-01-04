@@ -5,13 +5,13 @@ Ben Weinstein - Stony Brook University
 
 
 ```
-## [1] "Run Completed at 2016-01-01 20:34:48"
+## [1] "Run Completed at 2016-01-03 20:32:23"
 ```
 
 
 ```r
 #reload if needed
-load("Observed.Rdata")
+#load("Observed.Rdata")
 ```
 
 #Load in data
@@ -52,7 +52,7 @@ int[int$Iplant_Double=="Drymonia collegarum","Iplant_Double"]<-"Alloplectus tetr
 #Some reasonable level of presences, 25 points
 keep<-names(which(table(int$Hummingbird) > 25))
 
-int<-int[int$Hummingbird %in% keep & !int$Hummingbird %in% "Sparkling Violetear",]
+int<-int[int$Hummingbird %in% keep & !int$Hummingbird %in% c("Sparkling Violetear"),]
 
 m.dat<-droplevels(int[colnames(int) %in% c("ID","Video","Time","Hummingbird","Sex","TransectID","Transect_R","Iplant_Double","Pierce","DateP","Month","ele","Type")])
 
@@ -82,7 +82,7 @@ missingTraits<-int.FLlevels[!int.FLlevels %in% fl.morph$X]
 dath<-merge(dath,fl.morph, by.x="Iplant_Double",by.y="X")
 
 #Drop piercing events, since they don't represent correlation
-#dath<-dath[!dath$Pierce %in% c("y","Y"),]
+dath<-dath[!dath$Pierce %in% c("y","Y"),]
 ```
 
 ##Match Species to Morphology
@@ -409,7 +409,7 @@ for (x in 1:nrow(indat)){
   indat$Used_Flowers[x]<-byspecies%>% group_by(Date_F,Transect_R) %>% summarize(n=sum(Total_Flowers,na.rm=T)) %>% group_by(Transect_R) %>% summarize(mn=mean(n)) %>% summarize(F=sum(mn)) %>% .$F
   
   #just the abundance of that species
-  bys <-  byspecies[byspecies$Iplant_Double %in% sp,]
+  bys <-  bydate[bydate$Iplant_Double %in% sp,]
   indat$FlowerA[x] <-  bys %>% group_by(Date_F,Transect_R) %>% summarize(n=sum(Total_Flowers,na.rm=T)) %>% group_by(Transect_R) %>% summarize(mn=mean(n)) %>% summarize(F=sum(mn)) %>% .$F
 
 }
@@ -443,7 +443,7 @@ indat<-merge(indat,qthresh)
 indat$BUsed_Flowers<-(indat$Used_Flowers > indat$UThresh)*1
 
 
-fthresh<-indat %>% filter(Yobs >0) %>% group_by(Hummingbird) %>% summarize(FThresh=quantile(FlowerA,.5))
+fthresh<-indat %>% group_by(Hummingbird) %>% summarize(FThresh=quantile(FlowerA,.5))
 indat<-merge(indat,fthresh)
 indat$BFlowerA<-(indat$FlowerA > indat$FThresh)*1
 
@@ -662,10 +662,10 @@ writeLines(readLines("Bayesian/NmixturePoissonRagged2m.R"))
 ##     for (x in 1:Nobs){
 ##     
 ##     #Observation Process for cameras
-##     detect_cam[x]<-dcam * cam_surveys[x]
+##     detect_cam[x]<-dcam[Bird[x]] * cam_surveys[x]
 ## 
 ##     #Observation Process for transects
-##     detect_transect[x]<-dtrans * trans_surveys[x]
+##     detect_transect[x]<-dtrans[Bird[x]] * trans_surveys[x]
 ## 
 ##     Yobs_camera[x] ~ dbin(detect_cam[x],N[Bird[x],Plant[x],Time[x]])    
 ##     Yobs_transect[x] ~ dbin(detect_transect[x],N[Bird[x],Plant[x],Time[x]])    
@@ -681,13 +681,15 @@ writeLines(readLines("Bayesian/NmixturePoissonRagged2m.R"))
 ##     
 ##     }
 ##     
-##     #Detect priors
-##     dcam ~ dunif(0,1)
-##     dtrans ~ dunif(0,1)
+## 
 ## 
 ##     #Species level priors
 ##     
 ##     for (i in 1:Birds){
+##     #Detect priors
+##     dcam[i] ~ dunif(0,1)
+##     dtrans[i] ~ dunif(0,1)
+## 
 ##     alpha[i] ~ dnorm(intercept,tau_alpha)
 ##     beta1[i] ~ dnorm(gamma1,tau_beta1)    
 ##     beta2[i] ~ dnorm(gamma2,tau_beta2)    
@@ -705,7 +707,7 @@ writeLines(readLines("Bayesian/NmixturePoissonRagged2m.R"))
 ##     
 ##     # Group intercept variance
 ##     tau_alpha ~ dgamma(0.0001,0.0001)
-##     sigma_int<-pow(1/tau_alpha,0.5) 
+##     sigma_int<-pow(1/tau_alpha,2) 
 ##     
 ##     #Derived Quantity
 ##     
@@ -713,15 +715,15 @@ writeLines(readLines("Bayesian/NmixturePoissonRagged2m.R"))
 ##     
 ##     #Group Effect of traits
 ##     tau_beta1 ~ dgamma(0.0001,0.0001)
-##     sigma_slope1<-pow(1/tau_beta1,0.5)
+##     sigma_slope1<-pow(1/tau_beta1,.5)
 ##     
 ##     #Group Effect of Resources
 ##     tau_beta2 ~ dgamma(0.0001,0.0001)
-##     sigma_slope2<-pow(1/tau_beta2,0.5)
+##     sigma_slope2<-pow(1/tau_beta2,.5)
 ##     
 ##     #Group Effect of Resources * Traits
 ##     tau_beta3 ~ dgamma(0.0001,0.0001)
-##     sigma_slope3<-pow(1/tau_beta3,0.5)
+##     sigma_slope3<-pow(1/tau_beta3,.5)
 ## }
 ##     ",fill=TRUE)
 ## 
@@ -739,13 +741,13 @@ InitStage <- function(){
   initB<-as.numeric(matrix(nrow=Birds,ncol=1,data=0))
   initD<-as.numeric(matrix(nrow=Birds,ncol=1,data=.5))
 
-list(beta1=initB,beta2=initB,beta3=initB,alpha=rep(.5,Birds),intercept=0,tau_alpha=0.1,tau_beta1=0.1,tau_beta2=0.1,tau_beta3=0.1,gamma1=0,gamma2=0,gamma3=0,dtrans=0.5,dcam=0.5,N=initY)}
+list(beta1=initB,beta2=initB,beta3=initB,alpha=rep(.5,Birds),intercept=0,tau_alpha=0.1,tau_beta1=0.1,tau_beta2=0.1,tau_beta3=0.1,gamma1=0,gamma2=0,gamma3=0,dtrans=initD,dcam=initD,N=initY)}
 
 #Parameters to track
 ParsStage <- c("alpha","beta1","beta2","beta3","intercept","sigma_int","sigma_slope1","sigma_slope2","sigma_slope3","gamma1","gamma2","gamma3","dtrans","dcam")
 
 #MCMC options
-ni <- 80000  # number of draws from the posterior
+ni <- 60000  # number of draws from the posterior
 nt <- max(c(2,ni*.0001))  #thinning rate
 nb <- ni*.95 # number to discard for burn-in
 nc <- 2  # number of chains
@@ -795,7 +797,7 @@ ggplot(pars_detect[pars_detect$par %in% c("alpha","beta1"," beta2","beta3"),],ae
 <img src="figureObserved/unnamed-chunk-26-1.png" title="" alt="" style="display: block; margin: auto;" />
 
 ```r
-ggplot(pars_detect[pars_detect$par %in% c("dcam","dtrans"),],aes(x=Draw,y=estimate,col=as.factor(Chain))) + geom_line() + facet_wrap(~par,scale="free",ncol=1) + theme_bw() + labs(col="Chain") + ggtitle("Species Level")
+ggplot(pars_detect[pars_detect$par %in% c("dcam","dtrans"),],aes(x=Draw,y=estimate,col=as.factor(Chain))) + geom_line() + facet_wrap(species~par,scale="free",ncol=4) + theme_bw() + labs(col="Chain") + ggtitle("Species Level")
 ```
 
 <img src="figureObserved/unnamed-chunk-26-2.png" title="" alt="" style="display: block; margin: auto;" />
@@ -820,7 +822,7 @@ ggplot(pars_detect[pars_detect$par %in% c("alpha","beta1","beta2","beta3"),],aes
 
 ```r
 #Detection figure
-ggplot(pars_detect[pars_detect$par %in% c("dtrans","dcam"),],aes(x=par,y=estimate)) + geom_violin(fill='black') + theme_bw() + ggtitle("Detection Probability") + scale_x_discrete(labels=c("Camera","Transect"))
+ggplot(pars_detect[pars_detect$par %in% c("dtrans","dcam"),],aes(x=par,y=estimate)) + geom_violin(fill='black') + theme_bw() + ggtitle("Detection Probability") + scale_x_discrete(labels=c("Camera","Transect")) + facet_wrap(~species,ncol=3)
 ```
 
 <img src="figureObserved/unnamed-chunk-29-1.png" title="" alt="" style="display: block; margin: auto;" />
@@ -869,7 +871,7 @@ ggplot(data=predy,aes(x=x)) + geom_ribbon(aes(ymin=lower,ymax=upper),alpha=0.2,f
 
 ```r
 #Trajectories from posterior
-predH<-trajF(alpha=castdf$intercept,beta1=castdf$gamma1,x=indat[indat$BFlowerA==1,"Traitmatch"],resources=indat[indat$BFlowerA==1,"BFlowerA"],beta2=castdf$gamma2,beta3=castdf$gamma3,type='hdi')
+predH<-trajF(alpha=castdf$intercept,beta1=castdf$gamma1,x=indat[indat$BFlowerA==1,"Traitmatch"],resources=indat[indat$BFlowerA==1,"BFlowerA"],beta2=castdf$gamma2,beta3=castdf$gamma3,type='quantile')
 
 predL<-trajF(alpha=castdf$intercept,beta1=castdf$gamma1,x=indat[indat$BFlowerA==0,"Traitmatch"],resources=indat[indat$BFlowerA==0,"BFlowerA"],beta2=castdf$gamma2,beta3=castdf$gamma3,type='hdi')
 
@@ -1176,8 +1178,8 @@ gc()
 
 ```
 ##             used   (Mb) gc trigger   (Mb)   max used    (Mb)
-## Ncells   2042430  109.1    3205452  171.2    3205452   171.2
-## Vcells 281941143 2151.1  749834041 5720.8 1569217740 11972.2
+## Ncells   2034873  108.7    3886542  207.6    3886542   207.6
+## Vcells 274487625 2094.2  687891059 5248.2 1569389052 11973.5
 ```
 
 ```r
