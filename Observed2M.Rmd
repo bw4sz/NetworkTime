@@ -432,7 +432,7 @@ indat$BAll_Flowers<-(indat$All_Flowers > quantile(indat$All_Flowers,0.75))*1
  # as.numeric(str_split(x,"_")[[1]][1])})
 #indat$BAll_Flowers<-(mnth  %in% c(6,7,8,9,10))*1
 
-qthresh<-indat %>% group_by(Hummingbird) %>% summarize(UThresh=quantile(Used_Flowers,.5))
+qthresh<-indat %>% group_by(Hummingbird) %>% summarize(UThresh=quantile(Used_Flowers,.75))
 
 #save a copy in case you need it here
 tosave<-indat
@@ -447,9 +447,11 @@ indat$BFlowerA<-(indat$FlowerA > indat$FThresh)*1
 
 #visualize
 ggplot(indat,aes(y=Used_Flowers,x=as.factor(BUsed_Flowers))) + geom_boxplot() + facet_wrap(~Hummingbird,scales = "free",ncol=4) + theme(axis.text.x=element_text(angle=90,hjust=1,vjust=1))  + labs(x="Resource Availability") + ggtitle("Thresholds for Used Flowers Binary")
+```
 
+```{r}
 #need to correctly weight boxplots
-boxp<-list()
+boxp<-list() 
 for (x in 1:nrow(indat)){
  boxp[[x]]<- indat[rep(x,max(indat$Yobs[x],1)),]
 }
@@ -460,6 +462,19 @@ ggplot(weightb,aes(x=BAll_Flowers==1,y=Traitmatch,fill=Yobs>0)) + geom_boxplot()
 ggplot(weightb,aes(x=BUsed_Flowers==1,y=Traitmatch,fill=Yobs >0)) + geom_boxplot() + facet_wrap(~Hummingbird,ncol=4,scale="free") + labs(x="Resource Availability",fill="Visited") + scale_x_discrete(labels=c("Low","High")) + ggtitle("Used Flowers")
 
 ggplot(weightb,aes(x=BFlowerA==1,y=Traitmatch,fill=Yobs >0)) + geom_boxplot() + facet_wrap(~Hummingbird,ncol=4,scale="free") + labs(x="Resource Availability",fill="Visited") + scale_x_discrete(labels=c("Low","High")) + ggtitle("Individual Flowers")
+
+#View by Corolla Length and Bill Length
+weightb<-merge(weightb,fl.morph,by.x="Iplant_Double",by.y="Group.1")
+
+weightb<-merge(weightb,hum.morph,by.x="Hummingbird",by.y="English")
+
+ggplot(weightb,aes(y=TotalCorolla,x=Yobs>0,fill=as.factor(BUsed_Flowers))) + geom_boxplot() + scale_fill_manual(name="Resource Availability",labels=c("Low","High"),values=c("Blue","Red")) + ggtitle("Observed Niche Breadth: Used Flowers") + facet_wrap(~Hummingbird) + scale_x_discrete("Visited",labels=c("Unused","Used")) + geom_hline(aes(yintercept=Total_Culmen),linetype='dashed') + theme_bw()
+
+ggplot(weightb,aes(y=TotalCorolla,x=Yobs>0,fill=as.factor(BUsed_Flowers))) + geom_boxplot() + scale_fill_manual(name="Resource Availability",labels=c("Low","High"),values=c("Blue","Red")) + ggtitle("Observed Niche Breadth: Used Flowers") + facet_wrap(~Hummingbird) + scale_x_discrete("Visited",labels=c("Unused","Used")) + geom_hline(aes(yintercept=Total_Culmen),linetype='dashed') + theme_bw()
+
+ggsave("Figures/ObservedNicheBreadth.jpeg",height=8,width=8)
+
+ggplot(weightb,aes(y=Traitmatch,x=Yobs>0,fill=as.factor(BFlowerA))) + geom_boxplot() +   scale_fill_manual(name="Resource Abundance",labels=c("Low","High"),values=c("Blue","Red")) + ggtitle("Observed Niche Breadth: Flower Abundance") + facet_wrap(~Hummingbird,scales="free") + scale_x_discrete("Visited",labels=c("Unused","Used")) + theme_bw()
 
 ```
 
@@ -533,18 +548,7 @@ for (x in 1:length(splist)){
 file.remove(list.files(pattern="*.log"))
 ```
 
-#Exporatory Analysis
-
-Red =Transect
-Blue = Camera
-
-```{r}
-ggplot(indat,aes(x=Traitmatch)) + geom_point(aes(y=Camera),col='blue') + geom_point(aes(y=Transect),col='red') + stat_smooth(method="glm",family="poisson",aes(y=Transect),col='red') + stat_smooth(method="glm",family="poisson",aes(y=Camera),col='blue') + theme_bw() + ggtitle("Raw Data: Traits")
-
-ggplot(indat,aes(x=FlowerA)) + geom_point(aes(y=Camera),col='blue') + geom_point(aes(y=Transect),col='red') + stat_smooth(method="glm",family="poisson",aes(y=Transect),col='red') + stat_smooth(method="glm",family="poisson",aes(y=Camera),col='blue') + theme_bw()
-```
-
-###Sampling effort
+###Calculate Sampling effort
 
 ```{r}
 #At each data point there is a camera a transect or both
@@ -620,7 +624,7 @@ list(beta1=initB,beta2=initB,beta3=initB,alpha=rep(.5,Birds),intercept=0,tau_alp
 ParsStage <- c("alpha","beta1","beta2","beta3","intercept","sigma_int","sigma_slope1","sigma_slope2","sigma_slope3","gamma1","gamma2","gamma3","dtrans","dcam")
 
 #MCMC options
-ni <- 80000  # number of draws from the posterior
+ni <- 30000  # number of draws from the posterior
 nt <- max(c(2,ni*.0001))  #thinning rate
 nb <- ni*.95 # number to discard for burn-in
 nc <- 2  # number of chains
@@ -1024,7 +1028,7 @@ p + geom_point(size=.5,data=oplot,aes(y=mean,col=as.factor(BUsed_Flowers)))
 
 ```{r}
 gc()
-save.image("Observed.Rdata")
+#save.image("Observed.Rdata")
 ``` 
 
 
