@@ -5,7 +5,7 @@ Ben Weinstein - Stony Brook University
 
 
 ```
-## [1] "Run Completed at 2016-01-03 21:55:09"
+## [1] "Run Completed at 2016-01-04 00:34:23"
 ```
 
 
@@ -555,7 +555,7 @@ file.remove(list.files(pattern="*.log"))
 ```
 
 ```
-## [1] TRUE TRUE TRUE TRUE TRUE
+## [1] TRUE TRUE TRUE TRUE
 ```
 
 #Exporatory Analysis
@@ -747,7 +747,7 @@ list(beta1=initB,beta2=initB,beta3=initB,alpha=rep(.5,Birds),intercept=0,tau_alp
 ParsStage <- c("alpha","beta1","beta2","beta3","intercept","sigma_int","sigma_slope1","sigma_slope2","sigma_slope3","gamma1","gamma2","gamma3","dtrans","dcam")
 
 #MCMC options
-ni <- 70000  # number of draws from the posterior
+ni <- 80000  # number of draws from the posterior
 nt <- max(c(2,ni*.0001))  #thinning rate
 nb <- ni*.95 # number to discard for burn-in
 nc <- 2  # number of chains
@@ -872,9 +872,9 @@ ggplot(data=predy,aes(x=x)) + geom_ribbon(aes(ymin=lower,ymax=upper),alpha=0.2,f
 
 ```r
 #Trajectories from posterior
-predH<-trajF(alpha=castdf$intercept,beta1=castdf$gamma1,x=indat[indat$BFlowerA==1,"Traitmatch"],resources=indat[indat$BFlowerA==1,"BFlowerA"],beta2=castdf$gamma2,beta3=castdf$gamma3,type='quantile')
+predH<-trajF(alpha=castdf$intercept,beta1=castdf$gamma1,x=indat[indat$BFlowerA==1,"Traitmatch"],resources=indat[indat$BFlowerA==1,"scaledR"],beta2=castdf$gamma2,beta3=castdf$gamma3,type='quantile')
 
-predL<-trajF(alpha=castdf$intercept,beta1=castdf$gamma1,x=indat[indat$BFlowerA==0,"Traitmatch"],resources=indat[indat$BFlowerA==0,"BFlowerA"],beta2=castdf$gamma2,beta3=castdf$gamma3,type='hdi')
+predL<-trajF(alpha=castdf$intercept,beta1=castdf$gamma1,x=indat[indat$BFlowerA==0,"Traitmatch"],resources=indat[indat$BFlowerA==0,"scaledR"],beta2=castdf$gamma2,beta3=castdf$gamma3,type='hdi')
 
 predhl<-melt(list(High=predH,Low=predL),id.vars=colnames(predH))
 
@@ -952,8 +952,8 @@ for(d in 1:length(species.split)){
   #get data for those species
   billd<-indat[indat$jBird %in% index,]
 
-  sl<-trajF(alpha=x$alpha,beta1=x$beta1,beta2=x$beta2,beta3=x$beta3,resources=billd[billd$BFlowerA==0,"BFlowerA"],x=billd[billd$BFlowerA==0,"Traitmatch"],type='hdi')
-  sh<-trajF(alpha=x$alpha,beta1=x$beta1,beta2=x$beta2,beta3=x$beta3,resources=billd[billd$BFlowerA==1,"BFlowerA"],x=billd[billd$BFlowerA==1,"Traitmatch"],type='hdi')
+  sl<-trajF(alpha=x$alpha,beta1=x$beta1,beta2=x$beta2,beta3=x$beta3,resources=billd[billd$BFlowerA==0,"scaledR"],x=billd[billd$BFlowerA==0,"Traitmatch"],type='hdi')
+  sh<-trajF(alpha=x$alpha,beta1=x$beta1,beta2=x$beta2,beta3=x$beta3,resources=billd[billd$BFlowerA==1,"scaledR"],x=billd[billd$BFlowerA==1,"Traitmatch"],type='hdi')
   sm<-melt(list(High=sh,Low=sl),id.vars=colnames(sl))
   colnames(sm)[5]<-"Resources"
   species.traj[[d]]<-sm
@@ -1116,26 +1116,60 @@ species.traj<-lapply(species.split,function(dat){
 })
   
 species.traj<-rbind_all(species.traj)
+```
 
-species.mean<-species.traj %>% group_by(jBird,jPlant,jTime) %>% summarize(Traitmatch=unique(x),lambda=mean(y),Resource=unique(r))
+Mean Estimates for Corolla Sizes
+
+
+```r
+species.mean<-species.traj %>% group_by(jBird,jPlant,r) %>% summarize(Traitmatch=unique(x),lambda=mean(y))
 
 species.mean<-merge(species.mean,indat[,colnames(indat) %in% c("jBird","jPlant","jTime","Hummingbird","Iplant_Double")])
 
 #get corolla sizes
 species.mean<-merge(species.mean,fl.morph,by.x="Iplant_Double", by.y="Group.1")
-ggplot(species.mean) + geom_density2d(aes(x=TotalCorolla,y=lambda,col=as.factor(Resource))) + theme_bw() + facet_wrap(~Hummingbird,scales="free",ncol=3)+ scale_color_manual("Resources Availability",labels=c("Low","High"),values=c("Blue","Red")) + ggtitle("2D Density Plots")
+
+ggplot(species.mean) + geom_density2d(aes(x=TotalCorolla,y=lambda,col=Hummingbird)) + theme_bw() + facet_wrap(~r,scales="free") 
 ```
 
-<img src="figureObserved/unnamed-chunk-42-1.png" title="" alt="" style="display: block; margin: auto;" />
+<img src="figureObserved/unnamed-chunk-43-1.png" title="" alt="" style="display: block; margin: auto;" />
 
 ```r
-ggplot(species.mean) + geom_density2d(aes(x=TotalCorolla,y=lambda,col=Hummingbird)) + theme_bw() + facet_wrap(~Resource,scales="free") 
+#bill order
+ord<-hum.morph %>% arrange(Total_Culmen) %>% .$English
+species.mean$Hummingbird<-factor(species.mean$Hummingbird,levels=ord)
+
+#add level to hum.morph to match naming convention
+species.mean<-merge(species.mean,hum.morph[,c("English","Total_Culmen")],by.x="Hummingbird",by.y="English")
+
+p<-ggplot(species.mean,aes(x=TotalCorolla,y=lambda,col=as.factor(r))) + geom_line(size=.9) + geom_vline(aes(xintercept=Total_Culmen),linetype='dashed') + facet_wrap(~Hummingbird,ncol=3,scales="free_y")  + theme_bw() + ylab("Estimated Daily Interaction Rate") + scale_color_manual("Resource Availability",labels=c("Low","High"),values=c("Blue","Red")) + xlab("Flower Corolla Length (mm)") 
+p
 ```
 
-<img src="figureObserved/unnamed-chunk-42-2.png" title="" alt="" style="display: block; margin: auto;" />
+<img src="figureObserved/unnamed-chunk-43-2.png" title="" alt="" style="display: block; margin: auto;" />
 
 ```r
-fiveplot<-species.mean %>% group_by(Hummingbird,Resource) %>% summarize(min=min(TotalCorolla),max=max(TotalCorolla),mean=mean(TotalCorolla),median=quantile(TotalCorolla,0.5))
+ggsave("Figures/ResponseCurves.jpeg",height=6.5,width=9)
+```
+
+Density curves
+
+
+```r
+ggplot(species.mean) + geom_density2d(aes(x=TotalCorolla,y=lambda,col=as.factor(r))) + theme_bw() + facet_wrap(~Hummingbird,scales="free",ncol=3)+ scale_color_manual("Resources Availability",labels=c("Low","High"),values=c("Blue","Red")) + ggtitle("2D Density Plots") + geom_vline(aes(xintercept=Total_Culmen),linetype='dashed')
+```
+
+<img src="figureObserved/unnamed-chunk-44-1.png" title="" alt="" style="display: block; margin: auto;" />
+
+Try full posterior density plots.
+
+```r
+species.mean<-species.traj %>% group_by(jBird,jPlant,r) %>% summarize(Traitmatch=unique(x),lambda=mean(y),lambda_low=quantile(y,0.05),lambda_high=quantile(y,0.95))
+
+species.mean<-merge(species.mean,indat[,colnames(indat) %in% c("jBird","jPlant","jTime","Hummingbird","Iplant_Double")])
+
+#get corolla sizes
+species.mean<-merge(species.mean,fl.morph,by.x="Iplant_Double", by.y="Group.1")
 
 #bill order
 ord<-hum.morph %>% arrange(Total_Culmen) %>% .$English
@@ -1144,15 +1178,38 @@ species.mean$Hummingbird<-factor(species.mean$Hummingbird,levels=ord)
 #add level to hum.morph to match naming convention
 species.mean<-merge(species.mean,hum.morph[,c("English","Total_Culmen")],by.x="Hummingbird",by.y="English")
 
-p<-ggplot(species.mean,aes(x=TotalCorolla,y=lambda,col=as.factor(Resource))) + geom_line(size=.9) + geom_vline(aes(xintercept=Total_Culmen),linetype='dashed') + facet_wrap(~Hummingbird,ncol=3,scales="free_y")  + theme_bw() + ylab("Estimated Daily Interaction Rate") + scale_color_manual("Resource Availability",labels=c("Low","High"),values=c("Blue","Red")) + xlab("Flower Corolla Length (mm)") 
-p
+ggplot(species.mean) + geom_ribbon(alpha=0.2,aes(x=TotalCorolla,ymin=lambda_low,ymax=lambda_high,fill=as.factor(r))) + theme_bw() + facet_wrap(~Hummingbird,scales="free",ncol=3)+ scale_fill_manual("Resources Availability",labels=c("Low","High"),values=c("Blue","Red")) + ggtitle("Niche Breadth") + geom_vline(aes(xintercept=Total_Culmen),linetype='dashed') + geom_line(aes(x=TotalCorolla,y=lambda,fill=as.factor(r))) + ylab("Estimated Daily Intensity") + xlab("Corolla Length (mm)")
 ```
 
-<img src="figureObserved/unnamed-chunk-42-3.png" title="" alt="" style="display: block; margin: auto;" />
+<img src="figureObserved/unnamed-chunk-45-1.png" title="" alt="" style="display: block; margin: auto;" />
 
 ```r
-ggsave("Figures/ResponseCurves.jpeg",height=6.5,width=9)
+ggsave("Figures/NicheBreadth.jpeg",height=8,width=6)
 ```
+
+Standardized intensity of niche breadth
+
+
+```r
+sm<-split(species.mean,species.mean$Hummingbird,drop=T)
+sm<-lapply(sm,function(x){
+  x$lambda<-x$lambda/max(x$lambda)
+  x$lambda_low<-x$lambda_low/max(x$lambda_low)
+  x$lambda_high<-x$lambda_high/max(x$lambda_high)
+  return(x)
+})
+species.max<-rbind_all(sm)
+
+ggplot(species.max,aes(x=TotalCorolla,y=lambda,col=as.factor(r))) + geom_density2d() + theme_bw() + scale_color_manual("Resources Availability",labels=c("Low","High"),values=c("Blue","Red")) + scale_y_continuous(breaks=c(0,1),labels=c("Low","High")) + xlab("Flower Corolla Length") + ylab("Hummingbird Visitation")
+```
+
+<img src="figureObserved/unnamed-chunk-46-1.png" title="" alt="" style="display: block; margin: auto;" />
+
+```r
+ggplot(species.max,aes(x=TotalCorolla,y=lambda,col=as.factor(r))) + geom_point() + theme_bw() + scale_color_manual("Resources Availability",labels=c("Low","High"),values=c("Blue","Red")) + scale_y_continuous(breaks=c(0,1),labels=c("Low","High")) + xlab("Flower Corolla Length") + ylab("Hummingbird Visitation")
+```
+
+<img src="figureObserved/unnamed-chunk-46-2.png" title="" alt="" style="display: block; margin: auto;" />
 
 
 ```r
@@ -1170,7 +1227,7 @@ oplot<-oplot %>% group_by(Hummingbird,TotalCorolla,BFlowerA) %>% summarize(mean=
 p + geom_point(size=.5,data=oplot,aes(y=mean,col=as.factor(BFlowerA)))
 ```
 
-<img src="figureObserved/unnamed-chunk-43-1.png" title="" alt="" style="display: block; margin: auto;" />
+<img src="figureObserved/unnamed-chunk-47-1.png" title="" alt="" style="display: block; margin: auto;" />
 
 
 ```r
@@ -1179,8 +1236,8 @@ gc()
 
 ```
 ##             used   (Mb) gc trigger   (Mb)   max used    (Mb)
-## Ncells   2034850  108.7    3886542  207.6    3886542   207.6
-## Vcells 274479100 2094.2  687891123 5248.2 1569389109 11973.5
+## Ncells   2035598  108.8    3205452  171.2    3205452   171.2
+## Vcells 274839086 2096.9  667996643 5096.5 1467793313 11198.4
 ```
 
 ```r

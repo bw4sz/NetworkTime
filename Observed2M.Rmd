@@ -474,7 +474,7 @@ indat$jTime<-as.numeric(as.factor(indat$Time))
 indat$jID<-as.numeric(as.factor(indat$ID))
 
 #index resources
-resourceMatrix<-indat %>% group_by(jBird,jPlant,jTime) %>% summarize(v=unique(BFlowerA)) %>% acast(jBird ~ jPlant ~ jTime,value.var='v',fill=0)
+resourceMatrix<-indat %>% group_by(jBird,jPlant,jTime) %>% summarize(v=unique(BUsed_Flowers)) %>% acast(jBird ~ jPlant ~ jTime,value.var='v',fill=0)
 
 #bind to indat for later
 mr<-melt(resourceMatrix)
@@ -489,7 +489,7 @@ View species identity in resource splits.
 
 ```{r,fig.height=4,width=6}
 #Count of species in both time sets
-splist<-mindat %>% filter(value>0) %>% group_by(Hummingbird,Resource=BFlowerA) %>% distinct(Iplant_Double) %>% dplyr::select(Iplant_Double)
+splist<-mindat %>% filter(value>0) %>% group_by(Hummingbird,Resource=BUsed_Flowers) %>% distinct(Iplant_Double) %>% dplyr::select(Iplant_Double)
 
 #relevel text
 splist$Resource<-factor(as.factor(as.character(splist$Resource)),labels = c("Low","High"))
@@ -718,15 +718,15 @@ ggplot(data=predy,aes(x=x)) + geom_ribbon(aes(ymin=lower,ymax=upper),alpha=0.2,f
 ```{r,fig.height=6,fig.width=10}
 
 #Trajectories from posterior
-predH<-trajF(alpha=castdf$intercept,beta1=castdf$gamma1,x=indat[indat$BFlowerA==1,"Traitmatch"],resources=indat[indat$BFlowerA==1,"scaledR"],beta2=castdf$gamma2,beta3=castdf$gamma3,type='quantile')
+predH<-trajF(alpha=castdf$intercept,beta1=castdf$gamma1,x=indat[indat$BUsed_Flowers==1,"Traitmatch"],resources=indat[indat$BUsed_Flowers==1,"scaledR"],beta2=castdf$gamma2,beta3=castdf$gamma3,type='quantile')
 
-predL<-trajF(alpha=castdf$intercept,beta1=castdf$gamma1,x=indat[indat$BFlowerA==0,"Traitmatch"],resources=indat[indat$BFlowerA==0,"scaledR"],beta2=castdf$gamma2,beta3=castdf$gamma3,type='hdi')
+predL<-trajF(alpha=castdf$intercept,beta1=castdf$gamma1,x=indat[indat$BUsed_Flowers==0,"Traitmatch"],resources=indat[indat$BUsed_Flowers==0,"scaledR"],beta2=castdf$gamma2,beta3=castdf$gamma3,type='hdi')
 
 predhl<-melt(list(High=predH,Low=predL),id.vars=colnames(predH))
 
 colnames(predhl)[5]<-"BFlowerL"
 
-indat$BFlowerL<-factor(as.character(indat$BFlowerA))
+indat$BFlowerL<-factor(as.character(indat$BUsed_Flowers))
 levels(indat$BFlowerL)<-c("Low","High")
 
 ggplot(data=predhl,aes(x=x)) + geom_ribbon(aes(ymin=lower,ymax=upper,fill=BFlowerL),alpha=0.2)  + geom_line(aes(y=mean,col=BFlowerL),size=.8) + theme_bw() + ylab("Interactions") + xlab("Difference between Bill and Corolla Length") + geom_point(data=mindat,aes(x=Traitmatch,y=value))+ labs(fill="Resource Availability",col="Resource Availability") 
@@ -792,8 +792,8 @@ for(d in 1:length(species.split)){
   #get data for those species
   billd<-indat[indat$jBird %in% index,]
 
-  sl<-trajF(alpha=x$alpha,beta1=x$beta1,beta2=x$beta2,beta3=x$beta3,resources=billd[billd$BFlowerA==0,"scaledR"],x=billd[billd$BFlowerA==0,"Traitmatch"],type='hdi')
-  sh<-trajF(alpha=x$alpha,beta1=x$beta1,beta2=x$beta2,beta3=x$beta3,resources=billd[billd$BFlowerA==1,"scaledR"],x=billd[billd$BFlowerA==1,"Traitmatch"],type='hdi')
+  sl<-trajF(alpha=x$alpha,beta1=x$beta1,beta2=x$beta2,beta3=x$beta3,resources=billd[billd$BUsed_Flowers==0,"scaledR"],x=billd[billd$BUsed_Flowers==0,"Traitmatch"],type='hdi')
+  sh<-trajF(alpha=x$alpha,beta1=x$beta1,beta2=x$beta2,beta3=x$beta3,resources=billd[billd$BUsed_Flowers==1,"scaledR"],x=billd[billd$BUsed_Flowers==1,"Traitmatch"],type='hdi')
   sm<-melt(list(High=sh,Low=sl),id.vars=colnames(sl))
   colnames(sm)[5]<-"Resources"
   species.traj[[d]]<-sm
@@ -1013,13 +1013,13 @@ oplot<-merge(indatraw,fl.morph,by.x="Iplant_Double",by.y="Group.1")
 oplot<-merge(oplot,hum.morph[,c("English","Total_Culmen")],by.x="Hummingbird",by.y="English")
 
 #resource table
-tom<-indat %>% dplyr::select(Hummingbird,Iplant_Double,Time,BFlowerA) %>% distinct()
+tom<-indat %>% dplyr::select(Hummingbird,Iplant_Double,Time,BUsed_Flowers) %>% distinct()
 
 oplot<-merge(oplot,tom,by=c("Hummingbird","Iplant_Double","Time"))
 
-oplot<-oplot %>% group_by(Hummingbird,TotalCorolla,BFlowerA) %>% summarize(mean=mean(Yobs),lower=quantile(Yobs,0.05),high=quantile(Yobs,0.95))
+oplot<-oplot %>% group_by(Hummingbird,TotalCorolla,BUsed_Flowers) %>% summarize(mean=mean(Yobs),lower=quantile(Yobs,0.05),high=quantile(Yobs,0.95))
 
-p + geom_point(size=.5,data=oplot,aes(y=mean,col=as.factor(BFlowerA)))
+p + geom_point(size=.5,data=oplot,aes(y=mean,col=as.factor(BUsed_Flowers)))
 ```
 
 ```{r}
