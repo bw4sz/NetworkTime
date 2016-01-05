@@ -76,8 +76,8 @@ levels(flower.month$Transect_R)<-c("1300m - 1500m", "1500m - 1700m","1700m - 190
 #plot
 ggplot(flower.month,aes(x=Month.a,log(Flowers),col=High,shape=as.factor(Year))) + geom_point(size=3) + theme_bw()  + geom_smooth(aes(group=1)) + ylab("Flowers") + xlab("Month") + facet_wrap(~Transect_R,scales="free_y") + labs(shape="Year", y= "Log Available Flowers") + scale_x_discrete(breaks=month.abb[seq(1,12,2)]) + scale_color_manual(labels=c("Low","High"),values=c("black","red")) + labs(col="Resource Availability")
 
-ggsave("Figures/AvailableFlowers.jpg",dpi=600,units="in",width=7,height=6)
-ggsave("Figures/AvailableFlowers.svg",units="in",width=7,height=6)
+ggsave("Figures/AvailableFlowers.jpg",dpi=600,units="in",width=9,height=6)
+ggsave("Figures/AvailableFlowers.svg",units="in",width=9,height=6)
 
 ```
 

@@ -395,7 +395,6 @@ for (x in 1:nrow(indat)){
   
  #Species of flower
  sp <-  indat[x,"Iplant_Double"]
-
  
  #Filter by Date
  bydate<-full.fl[full.fl$Time %in% event_date,]
@@ -432,7 +431,7 @@ indat$BAll_Flowers<-(indat$All_Flowers > quantile(indat$All_Flowers,0.75))*1
  # as.numeric(str_split(x,"_")[[1]][1])})
 #indat$BAll_Flowers<-(mnth  %in% c(6,7,8,9,10))*1
 
-qthresh<-indat %>% group_by(Hummingbird) %>% summarize(UThresh=quantile(Used_Flowers,.75))
+qthresh<-indat %>% group_by(Hummingbird) %>% summarize(UThresh=mean(Used_Flowers))
 
 #save a copy in case you need it here
 tosave<-indat
@@ -441,12 +440,9 @@ indat<-merge(indat,qthresh)
 indat$BUsed_Flowers<-(indat$Used_Flowers > indat$UThresh)*1
 
 
-fthresh<-indat %>% group_by(Hummingbird) %>% summarize(FThresh=quantile(FlowerA,.75))
+fthresh<-indat %>% group_by(Hummingbird) %>% summarize(FThresh=mean(FlowerA))
 indat<-merge(indat,fthresh)
 indat$BFlowerA<-(indat$FlowerA > indat$FThresh)*1
-
-#visualize
-ggplot(indat,aes(y=Used_Flowers,x=as.factor(BUsed_Flowers))) + geom_boxplot() + facet_wrap(~Hummingbird,scales = "free",ncol=4) + theme(axis.text.x=element_text(angle=90,hjust=1,vjust=1))  + labs(x="Resource Availability") + ggtitle("Thresholds for Used Flowers Binary")
 ```
 
 ```{r}
@@ -457,25 +453,18 @@ for (x in 1:nrow(indat)){
 }
 weightb<-rbind_all(boxp)
 
-ggplot(weightb,aes(x=BAll_Flowers==1,y=Traitmatch,fill=Yobs>0)) + geom_boxplot() + facet_wrap(~Hummingbird,ncol=4,scale="free") + labs(x="Resource Availability",fill="Visited") + scale_x_discrete(labels=c("Low","High")) + ggtitle("All Flowers")
-
-ggplot(weightb,aes(x=BUsed_Flowers==1,y=Traitmatch,fill=Yobs >0)) + geom_boxplot() + facet_wrap(~Hummingbird,ncol=4,scale="free") + labs(x="Resource Availability",fill="Visited") + scale_x_discrete(labels=c("Low","High")) + ggtitle("Used Flowers")
-
-ggplot(weightb,aes(x=BFlowerA==1,y=Traitmatch,fill=Yobs >0)) + geom_boxplot() + facet_wrap(~Hummingbird,ncol=4,scale="free") + labs(x="Resource Availability",fill="Visited") + scale_x_discrete(labels=c("Low","High")) + ggtitle("Individual Flowers")
-
 #View by Corolla Length and Bill Length
 weightb<-merge(weightb,fl.morph,by.x="Iplant_Double",by.y="Group.1")
 
 weightb<-merge(weightb,hum.morph,by.x="Hummingbird",by.y="English")
 
-ggplot(weightb,aes(y=TotalCorolla,x=Yobs>0,fill=as.factor(BUsed_Flowers))) + geom_boxplot() + scale_fill_manual(name="Resource Availability",labels=c("Low","High"),values=c("Blue","Red")) + ggtitle("Observed Niche Breadth: Used Flowers") + facet_wrap(~Hummingbird) + scale_x_discrete("Visited",labels=c("Unused","Used")) + geom_hline(aes(yintercept=Total_Culmen),linetype='dashed') + theme_bw()
+ggplot(weightb,aes(y=TotalCorolla,x=Yobs>0,fill=as.factor(BAll_Flowers))) + geom_boxplot() + scale_fill_manual(name="Resource Availability",labels=c("Low","High"),values=c("Blue","Red")) + ggtitle("Observed Niche Breadth: All Flowers") + facet_wrap(~Hummingbird) + scale_x_discrete("Visited",labels=c("Unused","Used")) + geom_hline(aes(yintercept=Total_Culmen),linetype='dashed') + theme_bw() + ylab("Corolla Length")
 
 ggplot(weightb,aes(y=TotalCorolla,x=Yobs>0,fill=as.factor(BUsed_Flowers))) + geom_boxplot() + scale_fill_manual(name="Resource Availability",labels=c("Low","High"),values=c("Blue","Red")) + ggtitle("Observed Niche Breadth: Used Flowers") + facet_wrap(~Hummingbird) + scale_x_discrete("Visited",labels=c("Unused","Used")) + geom_hline(aes(yintercept=Total_Culmen),linetype='dashed') + theme_bw()
 
 ggsave("Figures/ObservedNicheBreadth.jpeg",height=8,width=8)
 
-ggplot(weightb,aes(y=Traitmatch,x=Yobs>0,fill=as.factor(BFlowerA))) + geom_boxplot() +   scale_fill_manual(name="Resource Abundance",labels=c("Low","High"),values=c("Blue","Red")) + ggtitle("Observed Niche Breadth: Flower Abundance") + facet_wrap(~Hummingbird,scales="free") + scale_x_discrete("Visited",labels=c("Unused","Used")) + theme_bw()
-
+ggplot(weightb,aes(y=TotalCorolla,x=Yobs>0,fill=as.factor(BFlowerA))) + geom_boxplot() + scale_fill_manual(name="Resource Availability",labels=c("Low","High"),values=c("Blue","Red")) + ggtitle("Observed Niche Breadth: Flower Abundance") + facet_wrap(~Hummingbird) + scale_x_discrete("Visited",labels=c("Unused","Used")) + geom_hline(aes(yintercept=Total_Culmen),linetype='dashed') + theme_bw()
 ```
 
 ```{r}
@@ -489,7 +478,7 @@ indat$jTime<-as.numeric(as.factor(indat$Time))
 indat$jID<-as.numeric(as.factor(indat$ID))
 
 #index resources
-resourceMatrix<-indat %>% group_by(jBird,jPlant,jTime) %>% summarize(v=unique(BUsed_Flowers)) %>% acast(jBird ~ jPlant ~ jTime,value.var='v',fill=0)
+resourceMatrix<-indat %>% group_by(jBird,jPlant,jTime) %>% summarize(v=unique(Used_Flowers)) %>% mutate(v=scale(v)) %>% acast(jBird ~ jPlant ~ jTime,value.var='v',fill=0)
 
 #bind to indat for later
 mr<-melt(resourceMatrix)
@@ -504,7 +493,7 @@ View species identity in resource splits.
 
 ```{r,fig.height=4,width=6}
 #Count of species in both time sets
-splist<-mindat %>% filter(value>0) %>% group_by(Hummingbird,Resource=BUsed_Flowers) %>% distinct(Iplant_Double) %>% dplyr::select(Iplant_Double)
+splist<-mindat %>% filter(value>0) %>% group_by(Hummingbird,Resource= BUsed_Flowers) %>% distinct(Iplant_Double) %>% dplyr::select(Iplant_Double)
 
 #relevel text
 splist$Resource<-factor(as.factor(as.character(splist$Resource)),labels = c("Low","High"))
@@ -624,7 +613,7 @@ list(beta1=initB,beta2=initB,beta3=initB,alpha=rep(.5,Birds),intercept=0,tau_alp
 ParsStage <- c("alpha","beta1","beta2","beta3","intercept","sigma_int","sigma_slope1","sigma_slope2","sigma_slope3","gamma1","gamma2","gamma3","dtrans","dcam")
 
 #MCMC options
-ni <- 30000  # number of draws from the posterior
+ni <- 50000  # number of draws from the posterior
 nt <- max(c(2,ni*.0001))  #thinning rate
 nb <- ni*.95 # number to discard for burn-in
 nc <- 2  # number of chains
@@ -722,15 +711,15 @@ ggplot(data=predy,aes(x=x)) + geom_ribbon(aes(ymin=lower,ymax=upper),alpha=0.2,f
 ```{r,fig.height=6,fig.width=10}
 
 #Trajectories from posterior
-predH<-trajF(alpha=castdf$intercept,beta1=castdf$gamma1,x=indat[indat$BUsed_Flowers==1,"Traitmatch"],resources=indat[indat$BUsed_Flowers==1,"scaledR"],beta2=castdf$gamma2,beta3=castdf$gamma3,type='quantile')
+predH<-trajF(alpha=castdf$intercept,beta1=castdf$gamma1,x=indat[indat$ BUsed_Flowers==1,"Traitmatch"],resources=indat[indat$ BUsed_Flowers==1,"scaledR"],beta2=castdf$gamma2,beta3=castdf$gamma3,type='quantile')
 
-predL<-trajF(alpha=castdf$intercept,beta1=castdf$gamma1,x=indat[indat$BUsed_Flowers==0,"Traitmatch"],resources=indat[indat$BUsed_Flowers==0,"scaledR"],beta2=castdf$gamma2,beta3=castdf$gamma3,type='hdi')
+predL<-trajF(alpha=castdf$intercept,beta1=castdf$gamma1,x=indat[indat$ BUsed_Flowers==0,"Traitmatch"],resources=indat[indat$ BUsed_Flowers==0,"scaledR"],beta2=castdf$gamma2,beta3=castdf$gamma3,type='hdi')
 
 predhl<-melt(list(High=predH,Low=predL),id.vars=colnames(predH))
 
 colnames(predhl)[5]<-"BFlowerL"
 
-indat$BFlowerL<-factor(as.character(indat$BUsed_Flowers))
+indat$BFlowerL<-factor(as.character(indat$ BUsed_Flowers))
 levels(indat$BFlowerL)<-c("Low","High")
 
 ggplot(data=predhl,aes(x=x)) + geom_ribbon(aes(ymin=lower,ymax=upper,fill=BFlowerL),alpha=0.2)  + geom_line(aes(y=mean,col=BFlowerL),size=.8) + theme_bw() + ylab("Interactions") + xlab("Difference between Bill and Corolla Length") + geom_point(data=mindat,aes(x=Traitmatch,y=value))+ labs(fill="Resource Availability",col="Resource Availability") 
@@ -796,8 +785,8 @@ for(d in 1:length(species.split)){
   #get data for those species
   billd<-indat[indat$jBird %in% index,]
 
-  sl<-trajF(alpha=x$alpha,beta1=x$beta1,beta2=x$beta2,beta3=x$beta3,resources=billd[billd$BUsed_Flowers==0,"scaledR"],x=billd[billd$BUsed_Flowers==0,"Traitmatch"],type='hdi')
-  sh<-trajF(alpha=x$alpha,beta1=x$beta1,beta2=x$beta2,beta3=x$beta3,resources=billd[billd$BUsed_Flowers==1,"scaledR"],x=billd[billd$BUsed_Flowers==1,"Traitmatch"],type='hdi')
+  sl<-trajF(alpha=x$alpha,beta1=x$beta1,beta2=x$beta2,beta3=x$beta3,resources=billd[billd$ BUsed_Flowers==0,"scaledR"],x=billd[billd$ BUsed_Flowers==0,"Traitmatch"],type='hdi')
+  sh<-trajF(alpha=x$alpha,beta1=x$beta1,beta2=x$beta2,beta3=x$beta3,resources=billd[billd$ BUsed_Flowers==1,"scaledR"],x=billd[billd$ BUsed_Flowers==1,"Traitmatch"],type='hdi')
   sm<-melt(list(High=sh,Low=sl),id.vars=colnames(sl))
   colnames(sm)[5]<-"Resources"
   species.traj[[d]]<-sm
@@ -821,7 +810,6 @@ ggsave("Figures/SpeciesRegression.jpeg",height=6,width=7)
 ##Species Level Interaction
 
 ```{r,fig.height=11,fig.width=10,eval=T}
-
 castdf<-dcast(pars_detect[pars_detect$par %in% c("beta1","beta2","beta3","alpha"),], species +Chain + Draw~par,value.var="estimate")
 
 #Turn to 
@@ -836,10 +824,10 @@ for(d in 1:length(species.split)){
   index<-unique(dat$species)
   
   #get data for those species
-  billd<-indat[indat$jBird %in% index,]
+  billd<-mindat[mindat$jBird %in% index,]
 
   #Calculate interaction effect
-  species.traj[[d]]<-intF(alpha=dat$alpha,beta1=dat$beta1,x=billd$Traitmatch,resources=billd$scaledR,beta2=dat$beta2,beta3=dat$beta3,type='hdi')
+  species.traj[[d]]<-intF(alpha=dat$alpha,beta1=dat$beta1,x=billd[billd$value > 0 & !is.na(billd$value),'Traitmatch'],resources=billd[billd$value > 0 & !is.na(billd$value),'scaledR'],beta2=dat$beta2,beta3=dat$beta3,type='hdi')
   
   }
 
@@ -963,7 +951,7 @@ species.mean$Hummingbird<-factor(species.mean$Hummingbird,levels=ord)
 #add level to hum.morph to match naming convention
 species.mean<-merge(species.mean,hum.morph[,c("English","Total_Culmen")],by.x="Hummingbird",by.y="English")
 
-p<-ggplot(species.mean,aes(x=TotalCorolla,y=lambda,col=as.factor(r))) + geom_line(size=.9) + geom_vline(aes(xintercept=Total_Culmen),linetype='dashed') + facet_wrap(~Hummingbird,ncol=3,scales="free_y")  + theme_bw() + ylab("Estimated Daily Interaction Rate") + scale_color_manual("Resource Availability",labels=c("Low","High"),values=c("Blue","Red")) + xlab("Flower Corolla Length (mm)") 
+p<-ggplot(species.mean,aes(x=TotalCorolla,y=lambda,col=as.factor(BUsed_Flowers))) + geom_line(size=.9) + geom_vline(aes(xintercept=Total_Culmen),linetype='dashed') + facet_wrap(~Hummingbird,ncol=3,scales="free_y")  + theme_bw() + ylab("Estimated Daily Interaction Rate") + scale_color_manual("Resource Availability",labels=c("Low","High"),values=c("Blue","Red")) + xlab("Flower Corolla Length (mm)") 
 p
 ggsave("Figures/ResponseCurves.jpeg",height=6.5,width=9)
 ```
@@ -971,14 +959,15 @@ ggsave("Figures/ResponseCurves.jpeg",height=6.5,width=9)
 Density curves
 
 ```{r}
-ggplot(species.mean) + geom_density2d(aes(x=TotalCorolla,y=lambda,col=as.factor(r))) + theme_bw() + facet_wrap(~Hummingbird,scales="free",ncol=3)+ scale_color_manual("Resources Availability",labels=c("Low","High"),values=c("Blue","Red")) + ggtitle("2D Density Plots") + geom_vline(aes(xintercept=Total_Culmen),linetype='dashed')
+ggplot(species.mean) + geom_density2d(aes(x=TotalCorolla,y=lambda,col=as.factor(BUsed_Flowers))) + theme_bw() + facet_wrap(~Hummingbird,scales="free",ncol=3)+ scale_color_manual("Resources Availability",labels=c("Low","High"),values=c("Blue","Red")) + ggtitle("2D Density Plots") + geom_vline(aes(xintercept=Total_Culmen),linetype='dashed')
 ```
 
-Try full posterior density plots.
+#Niche Breadth 
+
 ```{r}
 species.mean<-species.traj %>% group_by(jBird,jPlant,r) %>% summarize(Traitmatch=unique(x),lambda=mean(y),lambda_low=quantile(y,0.05),lambda_high=quantile(y,0.95))
 
-species.mean<-merge(species.mean,indat[,colnames(indat) %in% c("jBird","jPlant","jTime","Hummingbird","Iplant_Double")])
+species.mean<-merge(species.mean,indat[,colnames(indat) %in% c("jBird","jPlant","jTime","Hummingbird","Iplant_Double"," BUsed_Flowers")])
 
 #get corolla sizes
 species.mean<-merge(species.mean,fl.morph,by.x="Iplant_Double", by.y="Group.1")
@@ -991,7 +980,7 @@ species.mean$Hummingbird<-factor(species.mean$Hummingbird,levels=ord)
 species.mean<-merge(species.mean,hum.morph[,c("English","Total_Culmen")],by.x="Hummingbird",by.y="English")
 
 ggplot(species.mean) + geom_ribbon(alpha=0.2,aes(x=TotalCorolla,ymin=lambda_low,ymax=lambda_high,fill=as.factor(r))) + theme_bw() + facet_wrap(~Hummingbird,scales="free",ncol=3)+ scale_fill_manual("Resources Availability",labels=c("Low","High"),values=c("Blue","Red")) + ggtitle("Niche Breadth") + geom_vline(aes(xintercept=Total_Culmen),linetype='dashed') + geom_line(aes(x=TotalCorolla,y=lambda,fill=as.factor(r))) + ylab("Estimated Daily Intensity") + xlab("Corolla Length (mm)")
-ggsave("Figures/NicheBreadth.jpeg",height=8,width=6)
+ggsave("Figures/NicheBreadth.jpeg",height=6,width=9)
 ```
 
 Standardized intensity of niche breadth
@@ -1006,29 +995,12 @@ sm<-lapply(sm,function(x){
 })
 species.max<-rbind_all(sm)
 
-ggplot(species.max,aes(x=TotalCorolla,y=lambda,col=as.factor(r))) + geom_density2d() + theme_bw() + scale_color_manual("Resources Availability",labels=c("Low","High"),values=c("Blue","Red")) + scale_y_continuous(breaks=c(0,1),labels=c("Low","High")) + xlab("Flower Corolla Length") + ylab("Hummingbird Visitation")
-
-ggplot(species.max,aes(x=TotalCorolla,y=lambda,col=as.factor(r))) + geom_point() + theme_bw() + scale_color_manual("Resources Availability",labels=c("Low","High"),values=c("Blue","Red")) + scale_y_continuous(breaks=c(0,1),labels=c("Low","High")) + xlab("Flower Corolla Length") + ylab("Hummingbird Visitation")
-```
-
-```{r}
-#plot original data in a similiar fashion.
-oplot<-merge(indatraw,fl.morph,by.x="Iplant_Double",by.y="Group.1")
-oplot<-merge(oplot,hum.morph[,c("English","Total_Culmen")],by.x="Hummingbird",by.y="English")
-
-#resource table
-tom<-indat %>% dplyr::select(Hummingbird,Iplant_Double,Time,BUsed_Flowers) %>% distinct()
-
-oplot<-merge(oplot,tom,by=c("Hummingbird","Iplant_Double","Time"))
-
-oplot<-oplot %>% group_by(Hummingbird,TotalCorolla,BUsed_Flowers) %>% summarize(mean=mean(Yobs),lower=quantile(Yobs,0.05),high=quantile(Yobs,0.95))
-
-p + geom_point(size=.5,data=oplot,aes(y=mean,col=as.factor(BUsed_Flowers)))
+ggplot(species.max,aes(x=TotalCorolla,y=lambda,col=as.factor(BUsed_Flowers))) + geom_density2d() + theme_bw() + scale_color_manual("Resources Availability",labels=c("Low","High"),values=c("Blue","Red")) + scale_y_continuous(breaks=c(0,1),labels=c("Low","High")) + xlab("Flower Corolla Length") + ylab("Hummingbird Visitation")
 ```
 
 ```{r}
 gc()
-#save.image("Observed.Rdata")
+save.image("Observed.Rdata")
 ``` 
 
 

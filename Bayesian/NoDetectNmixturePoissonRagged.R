@@ -3,17 +3,11 @@ sink("Bayesian/NoDetectNmixturePoissonRagged.jags")
 
 cat("
     model {
-    #Compute intensity for each pair of birds and plants
-    for (i in 1:Birds){
-    for (j in 1:Plants){
-    for (k in 1:Times){
-    log(lambda[i,j,k])<-alpha[i] + beta1[i] * Traitmatch[i,j] + beta2[i] * resources[i,k] + beta3[i] * Traitmatch[i,j] * resources[i,k]
-    }
-    }
-    }
     
     for (x in 1:Nobs){
     
+    log(lambda[Bird[x],Plant[x],Time[x]])<-alpha[Bird[x]] + beta1[Bird[x]] * Traitmatch[Bird[x],Plant[x]] + beta2[Bird[x]] * resources[Bird[x],Time[x]] + beta3[Bird[x]] * Traitmatch[Bird[x],Plant[x]] * resources[Bird[x],Time[x]]
+
     # Covariates for true state   
     Yobs[x] ~ dpois(lambda[Bird[x],Plant[x],Time[x]])    
     
