@@ -1,7 +1,4 @@
 
-sink("Bayesian/NoDetectNmixturePoissonRagged.jags")
-
-cat("
     model {
 
     for (i in 1:Birds){
@@ -67,6 +64,4 @@ cat("
     fitnew<-sum(E.new[])
     
     }
-    ",fill=TRUE)
-
-sink()
+    

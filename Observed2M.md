@@ -5,7 +5,7 @@ Ben Weinstein - Stony Brook University
 
 
 ```
-## [1] "Run Completed at 2016-01-04 22:15:58"
+## [1] "Run Completed at 2016-01-05 21:07:21"
 ```
 
 
@@ -118,13 +118,13 @@ head(elevH)
 ```
 
 ```
-##                 Hummingbird  Low        m High Index
-## 1            Andean Emerald 1378 1378.632 1380     1
-## 2    White-whiskered Hermit 1331 1429.676 1621     1
-## 3    Stripe-throated Hermit 1360 1448.331 1513     1
-## 4         Crowned Woodnymph 1360 1523.477 2049     1
-## 5 Rufous-tailed Hummingbird 1370 1532.000 1862     3
-## 6  Wedge-billed Hummingbird 1331 1654.409 1995     3
+##                 Hummingbird  Low        m   High Index
+## 1            Andean Emerald 1378 1378.632 1380.0     1
+## 2    White-whiskered Hermit 1340 1437.032 1614.2     1
+## 3    Stripe-throated Hermit 1360 1453.342 1527.4     1
+## 4         Crowned Woodnymph 1360 1523.477 2049.0     1
+## 5 Rufous-tailed Hummingbird 1370 1532.000 1862.0     3
+## 6  Wedge-billed Hummingbird 1331 1624.850 2003.0     3
 ```
 
 ```r
@@ -456,47 +456,29 @@ for (x in 1:nrow(indat)){
 }
 weightb<-rbind_all(boxp)
 
-ggplot(weightb,aes(x=BAll_Flowers==1,y=Traitmatch,fill=Yobs>0)) + geom_boxplot() + facet_wrap(~Hummingbird,ncol=4,scale="free") + labs(x="Resource Availability",fill="Visited") + scale_x_discrete(labels=c("Low","High")) + ggtitle("All Flowers")
-```
-
-<img src="figureObserved/unnamed-chunk-19-1.png" title="" alt="" style="display: block; margin: auto;" />
-
-```r
-ggplot(weightb,aes(x=BUsed_Flowers==1,y=Traitmatch,fill=Yobs >0)) + geom_boxplot() + facet_wrap(~Hummingbird,ncol=4,scale="free") + labs(x="Resource Availability",fill="Visited") + scale_x_discrete(labels=c("Low","High")) + ggtitle("Used Flowers")
-```
-
-<img src="figureObserved/unnamed-chunk-19-2.png" title="" alt="" style="display: block; margin: auto;" />
-
-```r
-ggplot(weightb,aes(x=BFlowerA==1,y=Traitmatch,fill=Yobs >0)) + geom_boxplot() + facet_wrap(~Hummingbird,ncol=4,scale="free") + labs(x="Resource Availability",fill="Visited") + scale_x_discrete(labels=c("Low","High")) + ggtitle("Individual Flowers")
-```
-
-<img src="figureObserved/unnamed-chunk-19-3.png" title="" alt="" style="display: block; margin: auto;" />
-
-```r
 #View by Corolla Length and Bill Length
 weightb<-merge(weightb,fl.morph,by.x="Iplant_Double",by.y="Group.1")
 
 weightb<-merge(weightb,hum.morph,by.x="Hummingbird",by.y="English")
 
-ggplot(weightb,aes(y=TotalCorolla,x=Yobs>0,fill=as.factor(BUsed_Flowers))) + geom_boxplot() + scale_fill_manual(name="Resource Availability",labels=c("Low","High"),values=c("Blue","Red")) + ggtitle("Observed Niche Breadth: Used Flowers") + facet_wrap(~Hummingbird) + scale_x_discrete("Visited",labels=c("Unused","Used")) + geom_hline(aes(yintercept=Total_Culmen),linetype='dashed') + theme_bw() + ylab("Corolla Length")
+ggplot(weightb,aes(y=TotalCorolla,x=Yobs>0,fill=as.factor(BAll_Flowers))) + geom_boxplot() + scale_fill_manual(name="Resource Availability",labels=c("Low","High"),values=c("Blue","Red")) + ggtitle("Observed Niche Breadth: All Flowers") + facet_wrap(~Hummingbird) + scale_x_discrete("Visited",labels=c("Unused","Used")) + geom_hline(aes(yintercept=Total_Culmen),linetype='dashed') + theme_bw() + ylab("Corolla Length")
 ```
 
-<img src="figureObserved/unnamed-chunk-19-4.png" title="" alt="" style="display: block; margin: auto;" />
+<img src="figureObserved/unnamed-chunk-19-1.png" title="" alt="" style="display: block; margin: auto;" />
 
 ```r
 ggplot(weightb,aes(y=TotalCorolla,x=Yobs>0,fill=as.factor(BUsed_Flowers))) + geom_boxplot() + scale_fill_manual(name="Resource Availability",labels=c("Low","High"),values=c("Blue","Red")) + ggtitle("Observed Niche Breadth: Used Flowers") + facet_wrap(~Hummingbird) + scale_x_discrete("Visited",labels=c("Unused","Used")) + geom_hline(aes(yintercept=Total_Culmen),linetype='dashed') + theme_bw()
 ```
 
-<img src="figureObserved/unnamed-chunk-19-5.png" title="" alt="" style="display: block; margin: auto;" />
+<img src="figureObserved/unnamed-chunk-19-2.png" title="" alt="" style="display: block; margin: auto;" />
 
 ```r
 ggsave("Figures/ObservedNicheBreadth.jpeg",height=8,width=8)
 
-ggplot(weightb,aes(y=Traitmatch,x=Yobs>0,fill=as.factor(BFlowerA))) + geom_boxplot() +   scale_fill_manual(name="Resource Abundance",labels=c("Low","High"),values=c("Blue","Red")) + ggtitle("Observed Niche Breadth: Flower Abundance") + facet_wrap(~Hummingbird,scales="free") + scale_x_discrete("Visited",labels=c("Unused","Used")) + theme_bw()
+ggplot(weightb,aes(y=TotalCorolla,x=Yobs>0,fill=as.factor(BFlowerA))) + geom_boxplot() + scale_fill_manual(name="Resource Availability",labels=c("Low","High"),values=c("Blue","Red")) + ggtitle("Observed Niche Breadth: Flower Abundance") + facet_wrap(~Hummingbird) + scale_x_discrete("Visited",labels=c("Unused","Used")) + geom_hline(aes(yintercept=Total_Culmen),linetype='dashed') + theme_bw()
 ```
 
-<img src="figureObserved/unnamed-chunk-19-6.png" title="" alt="" style="display: block; margin: auto;" />
+<img src="figureObserved/unnamed-chunk-19-3.png" title="" alt="" style="display: block; margin: auto;" />
 
 
 ```r
@@ -510,7 +492,7 @@ indat$jTime<-as.numeric(as.factor(indat$Time))
 indat$jID<-as.numeric(as.factor(indat$ID))
 
 #index resources
-resourceMatrix<-indat %>% group_by(jBird,jPlant,jTime) %>% summarize(v=unique( BUsed_Flowers)) %>% acast(jBird ~ jPlant ~ jTime,value.var='v',fill=0)
+resourceMatrix<-indat %>% group_by(jBird,jPlant,jTime) %>% summarize(v=unique(BUsed_Flowers)) %>% acast(jBird ~ jPlant ~ jTime,value.var='v',fill=0)
 
 #bind to indat for later
 mr<-melt(resourceMatrix)
@@ -998,10 +980,10 @@ for(d in 1:length(species.split)){
   index<-unique(dat$species)
   
   #get data for those species
-  billd<-indat[indat$jBird %in% index,]
+  billd<-mindat[mindat$jBird %in% index,]
 
   #Calculate interaction effect
-  species.traj[[d]]<-intF(alpha=dat$alpha,beta1=dat$beta1,x=billd$Traitmatch,resources=billd$scaledR,beta2=dat$beta2,beta3=dat$beta3,type='hdi')
+  species.traj[[d]]<-intF(alpha=dat$alpha,beta1=dat$beta1,x=billd[billd$value > 0 & !is.na(billd$value),'Traitmatch'],resources=billd[billd$value > 0 & !is.na(billd$value),'scaledR'],beta2=dat$beta2,beta3=dat$beta3,type='hdi')
   
   }
 
@@ -1215,8 +1197,8 @@ gc()
 
 ```
 ##             used   (Mb) gc trigger   (Mb)   max used    (Mb)
-## Ncells   2025664  108.2    3886542  207.6    3886542   207.6
-## Vcells 275280606 2100.3  667996518 5096.5 1467793171 11198.4
+## Ncells   2026492  108.3    3886542  207.6    3886542   207.6
+## Vcells 351440228 2681.3  919825976 7017.8 1960979102 14961.1
 ```
 
 ```r

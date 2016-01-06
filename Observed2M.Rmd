@@ -478,7 +478,7 @@ indat$jTime<-as.numeric(as.factor(indat$Time))
 indat$jID<-as.numeric(as.factor(indat$ID))
 
 #index resources
-resourceMatrix<-indat %>% group_by(jBird,jPlant,jTime) %>% summarize(v=unique(Used_Flowers)) %>% mutate(v=scale(v)) %>% acast(jBird ~ jPlant ~ jTime,value.var='v',fill=0)
+resourceMatrix<-indat %>% group_by(jBird,jPlant,jTime) %>% summarize(v=unique(BUsed_Flowers)) %>% acast(jBird ~ jPlant ~ jTime,value.var='v',fill=0)
 
 #bind to indat for later
 mr<-melt(resourceMatrix)
@@ -951,7 +951,7 @@ species.mean$Hummingbird<-factor(species.mean$Hummingbird,levels=ord)
 #add level to hum.morph to match naming convention
 species.mean<-merge(species.mean,hum.morph[,c("English","Total_Culmen")],by.x="Hummingbird",by.y="English")
 
-p<-ggplot(species.mean,aes(x=TotalCorolla,y=lambda,col=as.factor(BUsed_Flowers))) + geom_line(size=.9) + geom_vline(aes(xintercept=Total_Culmen),linetype='dashed') + facet_wrap(~Hummingbird,ncol=3,scales="free_y")  + theme_bw() + ylab("Estimated Daily Interaction Rate") + scale_color_manual("Resource Availability",labels=c("Low","High"),values=c("Blue","Red")) + xlab("Flower Corolla Length (mm)") 
+p<-ggplot(species.mean,aes(x=TotalCorolla,y=lambda,col=as.factor(r))) + geom_line(size=.9) + geom_vline(aes(xintercept=Total_Culmen),linetype='dashed') + facet_wrap(~Hummingbird,ncol=3,scales="free_y")  + theme_bw() + ylab("Estimated Daily Interaction Rate") + scale_color_manual("Resource Availability",labels=c("Low","High"),values=c("Blue","Red")) + xlab("Flower Corolla Length (mm)") 
 p
 ggsave("Figures/ResponseCurves.jpeg",height=6.5,width=9)
 ```
@@ -959,7 +959,7 @@ ggsave("Figures/ResponseCurves.jpeg",height=6.5,width=9)
 Density curves
 
 ```{r}
-ggplot(species.mean) + geom_density2d(aes(x=TotalCorolla,y=lambda,col=as.factor(BUsed_Flowers))) + theme_bw() + facet_wrap(~Hummingbird,scales="free",ncol=3)+ scale_color_manual("Resources Availability",labels=c("Low","High"),values=c("Blue","Red")) + ggtitle("2D Density Plots") + geom_vline(aes(xintercept=Total_Culmen),linetype='dashed')
+ggplot(species.mean) + geom_density2d(aes(x=TotalCorolla,y=lambda,col=as.factor(r))) + theme_bw() + facet_wrap(~Hummingbird,scales="free",ncol=3)+ scale_color_manual("Resources Availability",labels=c("Low","High"),values=c("Blue","Red")) + ggtitle("2D Density Plots") + geom_vline(aes(xintercept=Total_Culmen),linetype='dashed')
 ```
 
 #Niche Breadth 
@@ -995,7 +995,7 @@ sm<-lapply(sm,function(x){
 })
 species.max<-rbind_all(sm)
 
-ggplot(species.max,aes(x=TotalCorolla,y=lambda,col=as.factor(BUsed_Flowers))) + geom_density2d() + theme_bw() + scale_color_manual("Resources Availability",labels=c("Low","High"),values=c("Blue","Red")) + scale_y_continuous(breaks=c(0,1),labels=c("Low","High")) + xlab("Flower Corolla Length") + ylab("Hummingbird Visitation")
+ggplot(species.max,aes(x=TotalCorolla,y=lambda,col=as.factor(r))) + geom_density2d() + theme_bw() + scale_color_manual("Resources Availability",labels=c("Low","High"),values=c("Blue","Red")) + scale_y_continuous(breaks=c(0,1),labels=c("Low","High")) + xlab("Flower Corolla Length") + ylab("Hummingbird Visitation")
 ```
 
 ```{r}
