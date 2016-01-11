@@ -759,4 +759,38 @@ registerDoSNOW(cl)
 nullframe<-foreach(x=1:1000,.packages=c("dplyr","reshape2")) %dopar% {nullc(indat)}
 stopCluster(cl)
 
+nullframe<-rbind_all(nullframe)
+```
+
+## Mean Trait-matching
+
+```{r}
+ggplot(data=nullframe[nullframe$Metric=="mean",],aes(x=Difference)) + geom_density(fill="black") + geom_vline(data=truedf[truedf$Metric=="mean",],aes(xintercept=Difference),linetype="dashed",col="red")+ facet_wrap(~Hummingbird,scales="free") + theme_bw()
+```
+
+Are those true distributions within reasonable confidence bands?
+
+```{r}
+sdat<-split(nullframe,nullframe$Metric)
+tstate<-sapply(sdat,function(d){
+  sp<-split(d,d$Hummingbird,drop=T)
+  l<-sapply(sp,function(y){
+    #true state
+    ts<-truedf[truedf$Hummingbird %in% unique(y$Hummingbird) & truedf$Metric %in% unique(y$Metric),"Difference"]
+    
+    f<-ecdf(y$Difference)
+    f(ts[[1]])
+  })
+})
+
+#melt for plotting
+mtstate<-melt(tstate)
+
+ord<-hum.morph %>% arrange(desc(Bill)) %>% select(English) %>% .$English
+
+mtstate$Var1<-factor(mtstate$Var1,levels=ord)
+
+#order by billsize
+ggplot(mtstate[mtstate$Var2 %in% c("mean","range"),],aes(x=Var1,y=Var2,fill=(value<0.5 | value > 0.95))) + geom_tile() + coord_flip() + labs(x="Hummingbird",y="Metric",fill="Difference between\nObserved and Null Distribution\n(alpha=0.05)")
+
 ```
