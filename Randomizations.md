@@ -5,7 +5,7 @@ Ben Weinstein - Stony Brook University
 
 
 ```
-## [1] "Run Completed at 2016-01-07 20:38:41"
+## [1] "Run Completed at 2016-01-10 23:28:39"
 ```
 
 
@@ -532,7 +532,7 @@ file.remove(list.files(pattern="*.log"))
 ```
 
 ```
-## [1] TRUE TRUE TRUE TRUE TRUE TRUE
+## [1] TRUE TRUE TRUE TRUE TRUE
 ```
 
 #View empirical distribution
@@ -653,10 +653,12 @@ tstate<-sapply(sdat,function(d){
 #melt for plotting
 mtstate<-melt(tstate)
 
-ggplot(mtstate,aes(x=Var1,y=Var2,fill=(value<0.05 | value > 0.95))) + geom_tile() + coord_flip() + labs(x="Hummingbird",y="Metric",fill="Difference between\nObserved and Null Distribution\n(alpha=0.05)")
-```
+ord<-hum.morph %>% arrange(desc(Bill)) %>% select(English) %>% .$English
 
-<img src="figureObserved/unnamed-chunk-29-1.png" title="" alt="" style="display: block; margin: auto;" />
+mtstate$Var1<-factor(mtstate$Var1,levels=ord)
+
+p<-ggplot(mtstate,aes(x=Var1,y=Var2,fill=(value<0.05 | value > 0.95))) + geom_tile() + coord_flip() + labs(x="Hummingbird",y="Metric",fill="Difference between\nObserved and Null Distribution\n(alpha=0.05)")
+```
 
 Conclusion: With few exceptions there is strong trait-matching compared to the available hummingbird resources. All hummingbirds differed in atleast one metric.
 
@@ -771,10 +773,12 @@ tstate<-sapply(sdat,function(d){
 #melt for plotting
 mtstate<-melt(tstate)
 
-ggplot(mtstate,aes(x=Var1,y=Var2,fill=(value<0.05 | value > 0.95))) + geom_tile() + coord_flip() + labs(x="Hummingbird",y="Metric",fill="Difference between\nObserved and Null Distribution\n(alpha=0.05)")
-```
+ord<-hum.morph %>% arrange(desc(Bill)) %>% select(English) %>% .$English
 
-<img src="figureObserved/unnamed-chunk-37-1.png" title="" alt="" style="display: block; margin: auto;" />
+mtstate$Var1<-factor(mtstate$Var1,levels=ord)
+
+p1<-ggplot(mtstate,aes(x=Var1,y=Var2,fill=(value<0.05 | value > 0.95))) + geom_tile() + coord_flip() + labs(x="Hummingbird",y="Metric",fill="Difference between\nObserved and Null Distribution\n(alpha=0.05)")
+```
 
 #Trait-matching during high and low resources.
 
@@ -842,4 +846,49 @@ cl<-makeCluster(10,"SOCK")
 registerDoSNOW(cl)
 nullframe<-foreach(x=1:1000,.packages=c("dplyr","reshape2")) %dopar% {nullc(indat)}
 stopCluster(cl)
+
+nullframe<-rbind_all(nullframe)
 ```
+
+## Mean Trait-matching
+
+
+```r
+ggplot(data=nullframe[nullframe$Metric=="mean",],aes(x=Difference)) + geom_density(fill="black") + geom_vline(data=truedf[truedf$Metric=="mean",],aes(xintercept=Difference),linetype="dashed",col="red")+ facet_wrap(~Hummingbird,scales="free") + theme_bw()
+```
+
+<img src="figureObserved/unnamed-chunk-40-1.png" title="" alt="" style="display: block; margin: auto;" />
+
+Are those true distributions within reasonable confidence bands?
+
+
+```r
+sdat<-split(nullframe,nullframe$Metric)
+tstate<-sapply(sdat,function(d){
+  sp<-split(d,d$Hummingbird,drop=T)
+  l<-sapply(sp,function(y){
+    #true state
+    ts<-truedf[truedf$Hummingbird %in% unique(y$Hummingbird) & truedf$Metric %in% unique(y$Metric),"Difference"]
+    
+    f<-ecdf(y$Difference)
+    f(ts[[1]])
+  })
+})
+
+#melt for plotting
+mtstate<-melt(tstate)
+
+ord<-hum.morph %>% arrange(desc(Bill)) %>% select(English) %>% .$English
+
+mtstate$Var1<-factor(mtstate$Var1,levels=ord)
+
+#order by billsize
+p2<-ggplot(mtstate[mtstate$Var2 %in% c("mean","range"),],aes(x=Var1,y=Var2,fill=(value<0.5 | value > 0.95))) + geom_tile() + coord_flip() + labs(x="Hummingbird",y="Metric",fill="Difference between\nObserved and Null Distribution\n(alpha=0.05)")
+```
+
+
+```r
+grid.arrange(p,p1,p2,ncol=1)
+```
+
+<img src="figureObserved/unnamed-chunk-42-1.png" title="" alt="" style="display: block; margin: auto;" />

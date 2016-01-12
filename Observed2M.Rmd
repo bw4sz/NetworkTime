@@ -249,23 +249,23 @@ indatlong[is.na(indatlong)]<-0
 #Only non-detections are real 0's, the rest are NA's and are removed.
 #Plants not surveyed in that time period
 #Hummingbirds not present at that elevation
-
-for(t in 1:dim(indatlong)[3]){
+  for (t in 1:dim(indatlong)[3])
   for(x in 1:dim(indatlong)[4]){
   
   #Remove non sampled plants 
-  a<-indatlong[,,t,x,]
-
-  #No observations at that plant
+  a<-indatlong[,,,x,]
+  
+  #IDs are unique to time periods.
+indatlong[,,which(!dimnames(indatlong)[[3]] %in% dimnames(indatlong)[[3]][t]),x,]<-NA
+  
+    #No observations at that plant
   toNA<-as.numeric(names(which(apply(a,2,sum)==0)))
   pres<-as.numeric(names(which(!apply(a,2,sum)==0)))
-  indatlong[,colnames(a) %in% toNA,t,x,]<-NA
+  indatlong[,colnames(a) %in% toNA,,x,]<-NA
 
   if(length(pres)==0){next} else {
-    #IDs are unique to time periods.
 
-    indatlong[,,which(!dimnames(indatlong)[[3]] %in% dimnames(indatlong)[[3]][t]),x,]<-NA
-    
+  
   #Get elevation point of that sampling event
   cam<-dimnames(indatlong)[[4]][x]
   camelev<-    indatraw %>% filter(ID==cam)  %>% .$Elev %>% mean()
@@ -278,14 +278,14 @@ for(t in 1:dim(indatlong)[3]){
         #if not in elev range, set to NA
         
         if(!((low < camelev) & (camelev < high))){
-            if(sum(indatlong[i,,t,x,],na.rm=T)>0){next}
+            if(sum(indatlong[i,,x,],na.rm=T)>0){next}
           #if you had a wandering individual outside range, allow interaction to occur.
-                indatlong[i,,t,x,]<-NA
+                indatlong[i,,,x,]<-NA
         }
       }
     }
   }
-}
+
 ### There can't be absences in days that weren't sampled.
 for (x in 1:dim(indatlong)[4]){
   cam<-indatlong[,,,x,]
@@ -300,17 +300,22 @@ for (x in 1:dim(indatlong)[4]){
 
 #melt and remove Na's
 indat<-melt(indatlong)
-indat<-indat[!is.na(indat$value),]
 
-colnames(indat)<-c("Bird","Plant","Time","ID","Day","Yobs")
+#get only absence data
+indat<-indat[indat$value %in% 0,]
+
+colnames(indat)<-c("Bird","Plant","Camera","Day","Yobs")
 ```
 
 ```{r}
-#remerge the time period data
-Timelookup<-indatraw %>% dplyr::select(ID,Transect_R,Survey_Type) %>% group_by(ID,Transect_R,Survey_Type) %>% distinct() %>% arrange(ID)
+#remerge the time period data for absences
+Timelookup<-indatraw %>% dplyr::select(Camera,Transect_R,Month,Survey_Type,Year,Day,DateP) %>% unique()
 
 #Get time information
-indat<-merge(indat,Timelookup,by=c("ID"))
+indat<-merge(indat,Timelookup,by=c("ID","Day"))
+
+#bind to presence data
+indat<-as.data.frame(rbind_all(list(indat,indatraw)))
 
 #Species names
 for (x in 1:nrow(indat)){

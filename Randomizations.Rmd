@@ -609,7 +609,11 @@ tstate<-sapply(sdat,function(d){
 #melt for plotting
 mtstate<-melt(tstate)
 
-ggplot(mtstate,aes(x=Var1,y=Var2,fill=(value<0.05 | value > 0.95))) + geom_tile() + coord_flip() + labs(x="Hummingbird",y="Metric",fill="Difference between\nObserved and Null Distribution\n(alpha=0.05)")
+ord<-hum.morph %>% arrange(desc(Bill)) %>% select(English) %>% .$English
+
+mtstate$Var1<-factor(mtstate$Var1,levels=ord)
+
+p<-ggplot(mtstate,aes(x=Var1,y=Var2,fill=(value<0.05 | value > 0.95))) + geom_tile() + coord_flip() + labs(x="Hummingbird",y="Metric",fill="Difference between\nObserved and Null Distribution\n(alpha=0.05)")
 ```
 
 Conclusion: With few exceptions there is strong trait-matching compared to the available hummingbird resources. All hummingbirds differed in atleast one metric.
@@ -699,7 +703,11 @@ tstate<-sapply(sdat,function(d){
 #melt for plotting
 mtstate<-melt(tstate)
 
-ggplot(mtstate,aes(x=Var1,y=Var2,fill=(value<0.05 | value > 0.95))) + geom_tile() + coord_flip() + labs(x="Hummingbird",y="Metric",fill="Difference between\nObserved and Null Distribution\n(alpha=0.05)")
+ord<-hum.morph %>% arrange(desc(Bill)) %>% select(English) %>% .$English
+
+mtstate$Var1<-factor(mtstate$Var1,levels=ord)
+
+p1<-ggplot(mtstate,aes(x=Var1,y=Var2,fill=(value<0.05 | value > 0.95))) + geom_tile() + coord_flip() + labs(x="Hummingbird",y="Metric",fill="Difference between\nObserved and Null Distribution\n(alpha=0.05)")
 ```
 
 #Trait-matching during high and low resources.
@@ -791,6 +799,10 @@ ord<-hum.morph %>% arrange(desc(Bill)) %>% select(English) %>% .$English
 mtstate$Var1<-factor(mtstate$Var1,levels=ord)
 
 #order by billsize
-ggplot(mtstate[mtstate$Var2 %in% c("mean","range"),],aes(x=Var1,y=Var2,fill=(value<0.5 | value > 0.95))) + geom_tile() + coord_flip() + labs(x="Hummingbird",y="Metric",fill="Difference between\nObserved and Null Distribution\n(alpha=0.05)")
+p2<-ggplot(mtstate[mtstate$Var2 %in% c("mean","range"),],aes(x=Var1,y=Var2,fill=(value<0.5 | value > 0.95))) + geom_tile() + coord_flip() + labs(x="Hummingbird",y="Metric",fill="Difference between\nObserved and Null Distribution\n(alpha=0.05)")
 
+```
+
+```{r}
+grid.arrange(p,p1,p2,ncol=1)
 ```

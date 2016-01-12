@@ -10,10 +10,9 @@ output:
   word_document: default
 ---
 
+
 ```{r,warning=FALSE,message=FALSE,echo=FALSE,cache=FALSE}
 library(reshape2)
-library(BEST)
-
 library(foreach)
 library(doSNOW)
 library(chron)
@@ -26,14 +25,15 @@ library(gridExtra)
 library(boot)
 library(picante)
 library(bipartite)
-library(VennDiagram)
 
-opts_chunk$set(message=FALSE,warning=FALSE,fig.width=10,fig.height=7,echo=TRUE,cache=F,fig.align='center',fig.path="figureObserved/")
+opts_chunk$set(message=FALSE,warning=FALSE,fig.width=5,fig.height=4,echo=TRUE,cache=F,fig.align='center',fig.path="figureObserved/")
+
+setwd("C:/Users/Ben/Documents/Occupy/")
 
 set.seed(3)
 #source functions
 
-source("Bayesian/BayesFunctions.R")
+source("Functions.R")
 ```
 
 ```{r,echo=F,cache=FALSE}
@@ -45,7 +45,7 @@ paste("Run Completed at",Sys.time())
 #load("Observed.Rdata")
 ```
 
-#Load in data
+#Observed dataset
 
 ```{r}
 #read in flower morphology data, comes from Nectar.R
@@ -66,9 +66,6 @@ hum.morph$English[hum.morph$English %in% "Green-crowned Woodnymph"]<-"Crowned Wo
 #Bring in Interaction Matrix
 int<-read.csv(paste(droppath,"Thesis/Maquipucuna_SantaLucia/Results/Network/HummingbirdInteractions.csv",sep=""),row.names=1)
 
-#one date error
-int[int$DateP %in% '2013-07-25',"Month"]<-7
-
 #Correct known taxonomic disagreements, atleast compared to traits
 int[int$Iplant_Double=="Alloplectus purpureus","Iplant_Double"]<-"Glossoloma purpureum"
 int[int$Iplant_Double=="Capanea affinis","Iplant_Double"]<-"Kohleria affinis"
@@ -76,10 +73,10 @@ int[int$Iplant_Double=="Columnea cinerea","Iplant_Double"]<-"Columnea mastersoni
 int[int$Iplant_Double=="Alloplectus teuscheri","Iplant_Double"]<-"Drymonia teuscheri"
 int[int$Iplant_Double=="Drymonia collegarum","Iplant_Double"]<-"Alloplectus tetragonoides"
 
-#Some reasonable level of presences, 25 points
-keep<-names(which(table(int$Hummingbird) > 25))
+#Some reasonable level of presences, 5 points
+keep<-names(which(table(int$Hummingbird) > 5))
 
-int<-int[int$Hummingbird %in% keep & !int$Hummingbird %in% c("Sparkling Violetear"),]
+int<-int[int$Hummingbird %in% keep,]
 
 m.dat<-droplevels(int[colnames(int) %in% c("ID","Video","Time","Hummingbird","Sex","TransectID","Transect_R","Iplant_Double","Pierce","DateP","Month","ele","Type")])
 
@@ -107,14 +104,13 @@ missingTraits<-int.FLlevels[!int.FLlevels %in% fl.morph$X]
 
 #print(paste("Missing Trait Information:",missingTraits))
 dath<-merge(dath,fl.morph, by.x="Iplant_Double",by.y="X")
-
-#Drop piercing events, since they don't represent correlation
-dath<-dath[!dath$Pierce %in% c("y","Y"),]
 ```
 
 ##Match Species to Morphology
 
 ```{r}
+dath<-droplevels(dath[dath$Hummingbird %in% keep,])
+
 #observed traitmatching
 traitmatchF<-abs(t(sapply(hum.morph$Bill,function(x){x-fl.morph$TotalCorolla})))
 
@@ -164,27 +160,6 @@ datph<-merge(dathp,elevH,by="Hummingbird")
 
 ```
 
-What elevation transect is each observation in?
-The camera data need to be inferred from the GPS point.
-
-```{r}
-#cut working best on data.frame
-datph<-as.data.frame(datph)
-
-#which elevation bin is each observation within
-labs<-paste(seq(1300,2500,200),seq(1500,2700,200),sep="_")
-
-#for the couple points that have 1290 elevation, round up to 300 for convienance
-datph$ele[datph$ele < 1300]<-1301
-datph$Transect_R[is.na(datph$Transect_R)]<-as.character(cut(datph[is.na(datph$Transect_R),]$ele,seq(1300,2700,200),labels=labs))
-
-#Elev for the transects is the midpoint
-tran_elev<-datph[datph$Survey_Type=='Transect',"Transect_R"]
-datph[datph$Survey_Type=='Transect',"ele"]<-sapply(tran_elev,function(x){
-  mean(as.numeric(str_split(x,"_")[[1]]))
-})
-```
-
 ### Summarize Observations
 
 ```{r}
@@ -195,21 +170,16 @@ noid<-datph[is.na(datph$ID),]
 
 id_topaste<-paste(noid$Transect_R,noid$DateP,"Transect",sep="_")
 datph[which(is.na(datph$ID)),"ID"]<-id_topaste
+  
+indatraw<- datph %>% group_by(Bird,Plant,ID,DateP) %>% summarize(Yobs=n(),Elev=mean(ele,na.rm=T),Transect_R=unique(Transect_R)) 
 
-#Create year month combination
-datph$Time<-paste(datph$Month,datph$Year,datph$Transect_R,sep="_")
+indatraw[order(indatraw$Yobs,decreasing=T),]
 
-#Label survey type
-datph$Survey_Type<-NA
-
-mt<-!is.na(datph$TransectID)*1
-datph$Survey_Type[mt==1]<-"Transect"
-datph$Survey_Type[!datph$Survey_Type %in% "Transect"]<-"Camera"
-
-indatraw<- datph %>% group_by(Hummingbird,Iplant_Double,Bird,Plant,ID,DateP,Survey_Type) %>% summarize(Yobs=n(),Month=unique(Month),Year=unique(Year),Elev=mean(ele,na.rm=T),Transect_R=unique(Transect_R))
+#add unique Camera and Transect ID
+indatraw$Time<-as.numeric(factor(indatraw$ID))
 
 #add day ID
-sdat<-split(indatraw,list(indatraw$ID),drop = T)
+sdat<-split(indatraw,list(indatraw$Time,indatraw$Plant),drop = T)
 
 sdat<-lapply(sdat,function(x){
   x<-droplevels(x)
@@ -219,11 +189,27 @@ sdat<-lapply(sdat,function(x){
 
 indatraw<-rbind_all(sdat)
 
+#add months and years
+indatraw$Month<-as.numeric(factor(months(strptime(indatraw$DateP,format="%Y-%m-%d")),levels=month.name))
+indatraw$Year<-years(indatraw$DateP)
+
 #Species names
 for (x in 1:nrow(indatraw)){
   indatraw$Hummingbird[x]<-as.character(elevH[elevH$Bird %in% indatraw$Bird[x],"Hummingbird"])
   indatraw$Iplant_Double[x]<-as.character(elevP[elevP$Plant %in% indatraw$Plant[x],"Iplant_Double"])
 }
+```
+
+What elevation transect is each observation in?
+The camera data need to be inferred from the GPS point.
+
+```{r}
+#cut working best on data.frame
+indatraw<-as.data.frame(indatraw)
+
+#which elevation bin is each observation within
+labs<-paste(seq(1300,2500,200),seq(1500,2700,200),sep="_")
+indatraw$Transect_R[is.na(indatraw$Transect_R)]<-as.character(cut(indatraw[is.na(indatraw$Transect_R),]$Elev,seq(1300,2700,200),labels=labs))
 ```
 
 ```{r}
@@ -237,8 +223,7 @@ colnames(traitmelt)<-c("Hummingbird","Iplant_Double","Traitmatch")
 We have more information than just the presences, given species elevation ranges, we have absences as well. Absences are birds that occur at the elevation of the plant sample, but were not recorded feeding on the flower.
 
 ```{r}
-indatlong<-acast(indatraw,Bird~Plant~ID~Day,value.var="Yobs")
-
+indatlong<-acast(indatraw,Bird~Plant~Time~Day,value.var="Yobs")
 indatlong[is.na(indatlong)]<-0
 ```
 
@@ -261,7 +246,7 @@ indatlong[is.na(indatlong)]<-0
 
   #Get elevation point of that sampling event
   cam<-dimnames(indatlong)[[3]][x]
-  camelev<-    indatraw %>% filter(ID==cam)  %>% .$Elev %>% mean()
+  camelev<-    indatraw %>% filter(Time==cam)  %>% .$Elev %>% mean()
   
   #for each hummingbird, was that camera within elevation?
   for(i in 1:dim(a)[1]){
@@ -293,17 +278,22 @@ for (x in 1:dim(indatlong)[3]){
 
 #melt and remove Na's
 indat<-melt(indatlong)
-indat<-indat[!is.na(indat$value),]
 
-colnames(indat)<-c("Bird","Plant","ID","Day","Yobs")
+#get only absence data
+indat<-indat[indat$value %in% 0,]
+
+colnames(indat)<-c("Bird","Plant","Time","Day","Yobs")
 ```
 
 ```{r}
-#remerge the time period data
-Timelookup<-indatraw %>% dplyr::select(ID,Transect_R,Survey_Type,Month,Year,Day,DateP) %>% group_by(ID,Transect_R,Survey_Type,Day,Month,Year,DateP) %>% distinct() %>% arrange(ID)
+#remerge the time period data for absences
+Timelookup<-indatraw %>% dplyr::select(Time,Transect_R,Month,Year,Day,DateP,ID) %>% unique()
 
 #Get time information
-indat<- merge(indat,Timelookup,by=c("ID","Day"))
+indat<-merge(indat,Timelookup,by=c("Time","Day"))
+
+#bind to presence data
+indat<-as.data.frame(rbind_all(list(indat,indatraw)))
 
 #Species names
 for (x in 1:nrow(indat)){
@@ -316,22 +306,11 @@ for (x in 1:nrow(indat)){
 indat<-merge(indat,traitmelt,by=c("Hummingbird","Iplant_Double"))
 ```
 
-Reformat index for jags.
-Jags needs a vector of input species 1:n with no breaks.
+Which species to evaluate? We need atleast some replicates to estimate detection rates. Remove the extremely rare species (less than 10 presences.)
 
 ```{r}
-#Easiest to work with jags as numeric ordinal values
-indat$Hummingbird<-as.factor(indat$Hummingbird)
-indat$Iplant_Double<-as.factor(indat$Iplant_Double)
-indat$jBird<-as.numeric(indat$Hummingbird)
-indat$jPlant<-as.numeric(indat$Iplant_Double)
-
-jagsIndexBird<-data.frame(Hummingbird=levels(indat$Hummingbird),jBird=1:length(levels(indat$Hummingbird)))
- 
-jagsIndexPlants<-data.frame(Iplant_Double=levels(indat$Iplant_Double),jPlant=1:length(levels(indat$Iplant_Double)))
-
-#Similiarly, the trait matrix needs to reflect this indexing.
-jTraitmatch<-traitmatchT[rownames(traitmatchT) %in% unique(indat$Hummingbird),colnames(traitmatchT) %in% unique(indat$Iplant_Double)]
+keep<-indat %>% group_by(Hummingbird) %>% filter(Yobs>0) %>% summarise(n=n()) %>% filter(n>10) %>% .$Hummingbird
+indat<-indat[indat$Hummingbird %in% keep,]
 ```
 
 #Resources at each point
@@ -377,7 +356,7 @@ slist<-int %>% group_by(Hummingbird,Iplant_Double) %>% distinct() %>% dplyr::sel
 full.fl$Date_F<-strptime(full.fl$Date_F,format="%Y-%m-%d")
 indat$DateP<-strptime(indat$DateP,format="%Y-%m-%d")
 
-cl<-makeCluster(20,"SOCK")
+cl<-makeCluster(10,"SOCK")
 registerDoSNOW(cl)
 
 df<-foreach(x=1:nrow(indat),.packages="dplyr") %dopar% {
