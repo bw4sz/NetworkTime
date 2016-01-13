@@ -7,6 +7,7 @@ cat("
     for (i in 1:Birds){
       for (j in 1:Plants){
         for (k in 1:Times){
+          #Process Model
               log(lambda[i,j,k])<-alpha[i] + beta1[i] * Traitmatch[i,j] + beta2[i] * resources[i,j,k] + beta3[i] * Traitmatch[i,j] * resources[i,j,k]
         }
       }
@@ -17,8 +18,6 @@ cat("
     # Covariates for observed state   
     Yobs[x] ~ dpois(lambda[Bird[x],Plant[x],Time[x]])    
     
-    #Process Modeel
-
     #Assess Model Fit
     
     #Fit discrepancy statistics

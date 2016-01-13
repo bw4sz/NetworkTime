@@ -1,13 +1,16 @@
 
-    model {
+sink("Bayesian/Poisson.jags")
 
+cat("
+    model {
+    
     for (i in 1:Birds){
-      for (j in 1:Plants){
-        for (k in 1:Times){
-          #Process Model
-              log(lambda[i,j,k])<-alpha[i] + beta1[i] * Traitmatch[i,j] + beta2[i] * resources[i,j,k] + beta3[i] * Traitmatch[i,j] * resources[i,j,k]
-        }
-      }
+    for (j in 1:Plants){
+    for (k in 1:Times){
+    #Process Model
+    log(lambda[i,j,k])<-alpha[i] + beta1[i] * Traitmatch[i,j] + beta2[i] * resources[i,j,k] + beta3[i] * Traitmatch[i,j] * resources[i,j,k]
+    }
+    }
     }
     
     for (x in 1:Nobs){
@@ -38,10 +41,10 @@
     gamma1~dnorm(0,0.0001)
     gamma2~dnorm(0,0.0001)
     gamma3~dnorm(0,0.0001)
-
+    
     #Intercept grouping
     intercept~dnorm(0,0.0001)
-
+    
     # Group intercept variance
     tau_alpha ~ dgamma(0.0001,0.0001)
     sigma_int<-pow(1/tau_alpha,0.5) 
@@ -63,4 +66,6 @@
     fitnew<-sum(E.new[])
     
     }
-    
+    ",fill=TRUE)
+
+sink()

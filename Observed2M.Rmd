@@ -13,7 +13,6 @@ output:
 ```{r,warning=FALSE,message=FALSE,echo=FALSE,cache=FALSE}
 library(reshape2)
 library(BEST)
-
 library(foreach)
 library(doSNOW)
 library(chron)
@@ -278,7 +277,7 @@ indatlong[,,which(!dimnames(indatlong)[[3]] %in% dimnames(indatlong)[[3]][t]),x,
         #if not in elev range, set to NA
         
         if(!((low < camelev) & (camelev < high))){
-            if(sum(indatlong[i,,x,],na.rm=T)>0){next}
+            if(sum(indatlong[i,,,x,],na.rm=T)>0){next}
           #if you had a wandering individual outside range, allow interaction to occur.
                 indatlong[i,,,x,]<-NA
         }
@@ -618,7 +617,7 @@ list(beta1=initB,beta2=initB,beta3=initB,alpha=rep(.5,Birds),intercept=0,tau_alp
 ParsStage <- c("alpha","beta1","beta2","beta3","intercept","sigma_int","sigma_slope1","sigma_slope2","sigma_slope3","gamma1","gamma2","gamma3","dtrans","dcam")
 
 #MCMC options
-ni <- 50000  # number of draws from the posterior
+ni <- 5000  # number of draws from the posterior
 nt <- max(c(2,ni*.0001))  #thinning rate
 nb <- ni*.95 # number to discard for burn-in
 nc <- 2  # number of chains

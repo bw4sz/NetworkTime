@@ -13,6 +13,8 @@ output:
 
 ```{r,warning=FALSE,message=FALSE,echo=FALSE,cache=FALSE}
 library(reshape2)
+library(VennDiagram)
+library(BEST)
 library(foreach)
 library(doSNOW)
 library(chron)
@@ -28,12 +30,10 @@ library(bipartite)
 
 opts_chunk$set(message=FALSE,warning=FALSE,fig.width=5,fig.height=4,echo=TRUE,cache=F,fig.align='center',fig.path="figureObserved/")
 
-setwd("C:/Users/Ben/Documents/Occupy/")
-
 set.seed(3)
 #source functions
 
-source("Functions.R")
+source("Bayesian/BayesFunctions.R")
 ```
 
 ```{r,echo=F,cache=FALSE}
@@ -334,7 +334,7 @@ flower.month$Month.a<-factor(month.abb[flower.month$Month],month.abb[c(1:12)])
 flower.month$Year<-as.factor(flower.month$Year)
 
 #get quantile for each transect
-thresh<-melt(group_by(flower.month,Transect_R) %>% summarize(Threshold=quantile(log(Flowers),0.5)) )
+thresh<-melt(group_by(flower.month,Transect_R) %>% summarize(Threshold=mean(Flowers)))
 flower.month<-merge(flower.month,thresh)
 flower.month$High<-log(flower.month$Flowers)>flower.month$value
 
@@ -448,6 +448,25 @@ ggsave("Figures/ObservedNicheBreadth.jpeg",height=8,width=8)
 ggplot(weightb,aes(y=TotalCorolla,x=Yobs>0,fill=as.factor(BFlowerA))) + geom_boxplot() + scale_fill_manual(name="Resource Availability",labels=c("Low","High"),values=c("Blue","Red")) + ggtitle("Observed Niche Breadth: Flower Abundance") + facet_wrap(~Hummingbird) + scale_x_discrete("Visited",labels=c("Unused","Used")) + geom_hline(aes(yintercept=Total_Culmen),linetype='dashed') + theme_bw()
 ```
 
+Reformat index for jags.
+Jags needs a vector of input species 1:n with no breaks.
+
+```{r}
+indat$Hummingbird<-as.factor(indat$Hummingbird)
+indat$Iplant_Double<-as.factor(indat$Iplant_Double)
+indat$jBird<-as.numeric(indat$Hummingbird)
+indat$jPlant<-as.numeric(indat$Iplant_Double)
+
+jagsIndexBird<-data.frame(Hummingbird=levels(indat$Hummingbird),jBird=1:length(levels(indat$Hummingbird)))
+ 
+jagsIndexPlants<-data.frame(Iplant_Double=levels(indat$Iplant_Double),jPlant=1:length(levels(indat$Iplant_Double)))
+
+#Similiarly, the trait matrix needs to reflect this indexing.
+jTraitmatch<-traitmatchT[rownames(traitmatchT) %in% unique(indat$Hummingbird),colnames(traitmatchT) %in% unique(indat$Iplant_Double)]
+
+write.csv(indat,"InputData/ObservedData.csv")
+```
+
 ```{r}
 #Combine resources with observed data
 #As matrix
@@ -456,7 +475,7 @@ indat<-droplevels(indat)
 indat$jID<-as.numeric(as.factor(indat$ID))
 
 #index resources
-resourceMatrix<- indat %>% group_by(jBird,jPlant,jID) %>% summarize(v=mean(FlowerA))%>% mutate(v=scale(v)) %>% acast(jBird ~ jPlant ~ jID,value.var='v',fill=0)
+resourceMatrix<- indat %>% group_by(jBird,jPlant,jID) %>% summarize(v=mean(BUsed_Flowers)) %>% acast(jBird ~ jPlant ~ jID,value.var='v',fill=0)
 
 #bind to indat for later
 mr<-melt(resourceMatrix)
@@ -750,7 +769,7 @@ species.traj[,c("Index")]<-colsplit(species.traj$L1,"\\.",c("Index"))
 spe<-merge(species.traj,jagsIndexBird,by.x="Index",by.y="jBird")
 
 #plot and compare to original data
-ggplot(data=spe,aes(x=x)) + geom_ribbon(aes(ymin=lower,ymax=upper,fill=Resources),alpha=0.2) + geom_line(aes(y=mean,col=Resources),size=.5) + theme_bw() + ylab("Occurrence Probability")+ xlab("Difference between Bill and Corolla Length") + facet_wrap(~Hummingbird,scales="free",ncol=3) + geom_point(data=indat,aes(x=Traitmatch,y=Yobs,shape=Survey_Type),size=1.5,alpha=.5)
+ggplot(data=spe,aes(x=x)) + geom_ribbon(aes(ymin=lower,ymax=upper,fill=Resources),alpha=0.2) + geom_line(aes(y=mean,col=Resources),size=.5) + theme_bw() + ylab("Occurrence Probability")+ xlab("Difference between Bill and Corolla Length") + facet_wrap(~Hummingbird,scales="free",ncol=3) + geom_point(data=indat,aes(x=Traitmatch,y=Yobs),size=1.5,alpha=.5)
 ggsave("Figures/SpeciesRegression.jpeg",height=6,width=7)
 
 ```
@@ -899,7 +918,7 @@ species.mean$Hummingbird<-factor(species.mean$Hummingbird,levels=ord)
 #add level to hum.morph to match naming convention
 species.mean<-merge(species.mean,hum.morph[,c("English","Total_Culmen")],by.x="Hummingbird",by.y="English")
 
-p<-ggplot(species.mean,aes(x=TotalCorolla,y=lambda,col=as.factor(BUsed_Flowers))) + geom_line(size=.9) + geom_vline(aes(xintercept=Total_Culmen),linetype='dashed') + facet_wrap(~Hummingbird,ncol=3,scales="free_y")  + theme_bw() + ylab("Estimated Daily Interaction Rate") + scale_color_manual("Resource Availability",labels=c("Low","High"),values=c("Blue","Red")) + xlab("Flower Corolla Length (mm)") 
+p<-ggplot(species.mean,aes(x=TotalCorolla,y=lambda,col=as.factor(r))) + geom_line(size=.9) + geom_vline(aes(xintercept=Total_Culmen),linetype='dashed') + facet_wrap(~Hummingbird,ncol=3,scales="free_y")  + theme_bw() + ylab("Estimated Daily Interaction Rate") + scale_color_manual("Resource Availability",labels=c("Low","High"),values=c("Blue","Red")) + xlab("Flower Corolla Length (mm)") 
 p
 ggsave("Figures/ResponseCurves.jpeg",height=6.5,width=9)
 ```
@@ -907,7 +926,7 @@ ggsave("Figures/ResponseCurves.jpeg",height=6.5,width=9)
 Density curves
 
 ```{r}
-ggplot(species.mean) + geom_density2d(aes(x=TotalCorolla,y=lambda,col=as.factor(BUsed_Flowers))) + theme_bw() + facet_wrap(~Hummingbird,scales="free",ncol=3)+ scale_color_manual("Resources Availability",labels=c("Low","High"),values=c("Blue","Red")) + ggtitle("2D Density Plots") + geom_vline(aes(xintercept=Total_Culmen),linetype='dashed')
+ggplot(species.mean) + geom_density2d(aes(x=TotalCorolla,y=lambda,col=as.factor(r))) + theme_bw() + facet_wrap(~Hummingbird,scales="free",ncol=3)+ scale_color_manual("Resources Availability",labels=c("Low","High"),values=c("Blue","Red")) + ggtitle("2D Density Plots") + geom_vline(aes(xintercept=Total_Culmen),linetype='dashed')
 ```
 
 #Niche Breadth 
