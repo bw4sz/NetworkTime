@@ -208,7 +208,7 @@ mt<-!is.na(datph$TransectID)*1
 datph$Survey_Type[mt==1]<-"Transect"
 datph$Survey_Type[!datph$Survey_Type %in% "Transect"]<-"Camera"
 
-indatraw<- datph %>% group_by(Hummingbird,Iplant_Double,Bird,Plant,Time,ID,DateP,Survey_Type) %>% summarize(Yobs=n(),Elev=mean(ele,na.rm=T),Transect_R=unique(Transect_R)) 
+indatraw<- datph %>% group_by(Hummingbird,Iplant_Double,Bird,Plant,Time,ID,DateP,Survey_Type) %>% summarize(Yobs=n(),Elev=mean(ele,na.rm=T),Transect_R=unique(Transect_R),Month=unique(Month),Year=unique(Year)) 
 
 #add day ID
 sdat<-split(indatraw,list(indatraw$ID),drop = T)
@@ -239,7 +239,7 @@ colnames(traitmelt)<-c("Hummingbird","Iplant_Double","Traitmatch")
 We have more information than just the presences, given species elevation ranges, we have absences as well. Absences are birds that occur at the elevation of the plant sample, but were not recorded feeding on the flower.
 
 ```{r}
-indatlong<-acast(indatraw,Bird~Plant~Time~ID~Day,value.var="Yobs")
+indatlong<-acast(indatraw,Bird~Plant~ID~Day,value.var="Yobs")
 
 indatlong[is.na(indatlong)]<-0
 ```
@@ -248,26 +248,22 @@ indatlong[is.na(indatlong)]<-0
 #Only non-detections are real 0's, the rest are NA's and are removed.
 #Plants not surveyed in that time period
 #Hummingbirds not present at that elevation
-  for (t in 1:dim(indatlong)[3])
-  for(x in 1:dim(indatlong)[4]){
+  for(x in 1:dim(indatlong)[3]){
   
   #Remove non sampled plants 
-  a<-indatlong[,,,x,]
+  a<-indatlong[,,x,]
   
-  #IDs are unique to time periods.
-indatlong[,,which(!dimnames(indatlong)[[3]] %in% dimnames(indatlong)[[3]][t]),x,]<-NA
-  
-    #No observations at that plant
+  #No observations at that plant
   toNA<-as.numeric(names(which(apply(a,2,sum)==0)))
   pres<-as.numeric(names(which(!apply(a,2,sum)==0)))
-  indatlong[,colnames(a) %in% toNA,,x,]<-NA
+  indatlong[,colnames(a) %in% toNA,x,]<-NA
 
   if(length(pres)==0){next} else {
+  #IDs are unique to time periods.
 
-  
   #Get elevation point of that sampling event
-  cam<-dimnames(indatlong)[[4]][x]
-  camelev<-    indatraw %>% filter(ID==cam)  %>% .$Elev %>% mean()
+  cam<-dimnames(indatlong)[[3]][x]
+  camelev<-indatraw %>% filter(ID==cam)  %>% .$Elev %>% mean()
   
   #for each hummingbird, was that camera within elevation?
   for(i in 1:dim(a)[1]){
@@ -277,38 +273,39 @@ indatlong[,,which(!dimnames(indatlong)[[3]] %in% dimnames(indatlong)[[3]][t]),x,
         #if not in elev range, set to NA
         
         if(!((low < camelev) & (camelev < high))){
-            if(sum(indatlong[i,,,x,],na.rm=T)>0){next}
+            if(sum(indatlong[i,,x,],na.rm=T)>0){next}
           #if you had a wandering individual outside range, allow interaction to occur.
-                indatlong[i,,,x,]<-NA
+                indatlong[i,,x,]<-NA
         }
       }
     }
   }
 
 ### There can't be absences in days that weren't sampled.
-for (x in 1:dim(indatlong)[4]){
-  cam<-indatlong[,,,x,]
-  for (y in 1:dim(cam)[4]){
-    sc<-sum(cam[,,,y],na.rm=T)
+for (x in 1:dim(indatlong)[3]){
+  cam<-indatlong[,,x,]
+  for (y in 1:dim(cam)[3]){
+    sc<-sum(cam[,,y],na.rm=T)
     if (sc ==0){
-      indatlong[,,,x,y]<-NA
+      indatlong[,,x,y]<-NA
     }
   }
 }
 
 
+#get only absence data
+
 #melt and remove Na's
 indat<-melt(indatlong)
 
-#get only absence data
 indat<-indat[indat$value %in% 0,]
 
-colnames(indat)<-c("Bird","Plant","Camera","Day","Yobs")
+colnames(indat)<-c("Bird","Plant","ID","Day","Yobs")
 ```
 
 ```{r}
 #remerge the time period data for absences
-Timelookup<-indatraw %>% dplyr::select(Camera,Transect_R,Month,Survey_Type,Year,Day,DateP) %>% unique()
+Timelookup<-indatraw %>% dplyr::select(ID,Transect_R,Month,Survey_Type,Year,Day,DateP,Time) %>% unique()
 
 #Get time information
 indat<-merge(indat,Timelookup,by=c("ID","Day"))
@@ -443,7 +440,6 @@ tosave<-indat
 indat<-merge(indat,qthresh)
 indat$BUsed_Flowers<-(indat$Used_Flowers > indat$UThresh)*1
 
-
 fthresh<-indat %>% group_by(Hummingbird) %>% summarize(FThresh=mean(FlowerA))
 indat<-merge(indat,fthresh)
 indat$BFlowerA<-(indat$FlowerA > indat$FThresh)*1
@@ -482,7 +478,7 @@ indat$jTime<-as.numeric(as.factor(indat$Time))
 indat$jID<-as.numeric(as.factor(indat$ID))
 
 #index resources
-resourceMatrix<-indat %>% group_by(jBird,jPlant,jTime) %>% summarize(v=unique(BUsed_Flowers)) %>% acast(jBird ~ jPlant ~ jTime,value.var='v',fill=0)
+resourceMatrix<-indat %>% group_by(jBird,jPlant,jTime) %>% summarize(v=unique(FlowerA)) %>% mutate(v=scale(v)) %>% acast(jBird ~ jPlant ~ jTime,value.var='v',fill=0)
 
 #bind to indat for later
 mr<-melt(resourceMatrix)
@@ -497,7 +493,7 @@ View species identity in resource splits.
 
 ```{r,fig.height=4,width=6}
 #Count of species in both time sets
-splist<-mindat %>% filter(value>0) %>% group_by(Hummingbird,Resource= BUsed_Flowers) %>% distinct(Iplant_Double) %>% dplyr::select(Iplant_Double)
+splist<-mindat %>% filter(value>0) %>% group_by(Hummingbird,Resource= BFlowerA) %>% distinct(Iplant_Double) %>% dplyr::select(Iplant_Double)
 
 #relevel text
 splist$Resource<-factor(as.factor(as.character(splist$Resource)),labels = c("Low","High"))
@@ -611,13 +607,13 @@ InitStage <- function(){
   initB<-as.numeric(matrix(nrow=Birds,ncol=1,data=0))
   initD<-as.numeric(matrix(nrow=Birds,ncol=1,data=.5))
 
-list(beta1=initB,beta2=initB,beta3=initB,alpha=rep(.5,Birds),intercept=0,tau_alpha=0.1,tau_beta1=0.1,tau_beta2=0.1,tau_beta3=0.1,gamma1=0,gamma2=0,gamma3=0,dtrans=initD,dcam=initD,N=initY)}
+list(beta1=initB,beta2=initB,beta3=initB,alpha=rep(.5,Birds),intercept=0,tau_alpha=0.1,tau_beta1=0.1,tau_beta2=0.1,tau_beta3=0.1,gamma1=0,gamma2=0,gamma3=0,N=initY)}
 
 #Parameters to track
 ParsStage <- c("alpha","beta1","beta2","beta3","intercept","sigma_int","sigma_slope1","sigma_slope2","sigma_slope3","gamma1","gamma2","gamma3","dtrans","dcam")
 
 #MCMC options
-ni <- 5000  # number of draws from the posterior
+ni <- 30000  # number of draws from the posterior
 nt <- max(c(2,ni*.0001))  #thinning rate
 nb <- ni*.95 # number to discard for burn-in
 nc <- 2  # number of chains
@@ -715,15 +711,15 @@ ggplot(data=predy,aes(x=x)) + geom_ribbon(aes(ymin=lower,ymax=upper),alpha=0.2,f
 ```{r,fig.height=6,fig.width=10}
 
 #Trajectories from posterior
-predH<-trajF(alpha=castdf$intercept,beta1=castdf$gamma1,x=indat[indat$ BUsed_Flowers==1,"Traitmatch"],resources=indat[indat$ BUsed_Flowers==1,"scaledR"],beta2=castdf$gamma2,beta3=castdf$gamma3,type='quantile')
+predH<-trajF(alpha=castdf$intercept,beta1=castdf$gamma1,x=indat[indat$ BFlowerA==1,"Traitmatch"],resources=indat[indat$ BFlowerA==1,"scaledR"],beta2=castdf$gamma2,beta3=castdf$gamma3,type='quantile')
 
-predL<-trajF(alpha=castdf$intercept,beta1=castdf$gamma1,x=indat[indat$ BUsed_Flowers==0,"Traitmatch"],resources=indat[indat$ BUsed_Flowers==0,"scaledR"],beta2=castdf$gamma2,beta3=castdf$gamma3,type='hdi')
+predL<-trajF(alpha=castdf$intercept,beta1=castdf$gamma1,x=indat[indat$ BFlowerA==0,"Traitmatch"],resources=indat[indat$ BFlowerA==0,"scaledR"],beta2=castdf$gamma2,beta3=castdf$gamma3,type='hdi')
 
 predhl<-melt(list(High=predH,Low=predL),id.vars=colnames(predH))
 
 colnames(predhl)[5]<-"BFlowerL"
 
-indat$BFlowerL<-factor(as.character(indat$ BUsed_Flowers))
+indat$BFlowerL<-factor(as.character(indat$ BFlowerA))
 levels(indat$BFlowerL)<-c("Low","High")
 
 ggplot(data=predhl,aes(x=x)) + geom_ribbon(aes(ymin=lower,ymax=upper,fill=BFlowerL),alpha=0.2)  + geom_line(aes(y=mean,col=BFlowerL),size=.8) + theme_bw() + ylab("Interactions") + xlab("Difference between Bill and Corolla Length") + geom_point(data=mindat,aes(x=Traitmatch,y=value))+ labs(fill="Resource Availability",col="Resource Availability") 
@@ -731,43 +727,6 @@ ggsave("Figures/AllRegression.jpeg",height=5,width=7)
 
 ```
 
-
-##Species Predictions
-
-```{r,fig.height=10,fig.width=11,eval=T}
-
-castdf<-dcast(pars_detect[pars_detect$par %in% c("beta1","beta2","beta3","alpha"),], species +Chain +Draw ~par ,value.var="estimate")
-
-#Turn to 
-castdf$species<-factor(castdf$species,levels=1:max(as.numeric(castdf$species)))
-
-species.split<-split(castdf,list(castdf$species),drop = T)
-
-species.traj<-list()
-
-for(d in 1:length(species.split)){
-  x<-species.split[[d]]
-  index<-unique(x$species)
-  
-  #get data for those species
-  billd<-indat[indat$jBird %in% index,]
-
-  #scale resources
-  species.traj[[d]]<-trajF(alpha=x$alpha,beta1=x$beta1,beta2=x$beta2,beta3=x$beta3,resources=billd$scaledR,x=billd$Traitmatch,type='hdi')
-  }
-
-names(species.traj)<-names(species.split)
-
-species.traj<-melt(species.traj,id.var=colnames(species.traj[[1]]))
-
-#split out names and model
-species.traj[,c("Index")]<-colsplit(species.traj$L1,"\\.",c("Index"))
-
-spe<-merge(species.traj,jagsIndexBird,by.x="Index",by.y="jBird")
-
-#plot and compare to original data
-ggplot(data=spe,aes(x=x)) + geom_ribbon(aes(ymin=lower,ymax=upper),alpha=0.2,fill='red') + geom_line(aes(y=mean),size=.5) + theme_bw() + ylab("Occurrence Probability")+ xlab("Difference between Bill and Corolla Length") + facet_wrap(~Hummingbird,scales="free",ncol=4) + geom_point(data=mindat,aes(x=Traitmatch,y=value,shape=variable),size=2.5) + labs(shape="Sampling Method")
-```
 
 ###Species Predictions: High and Low Availability
 
@@ -789,8 +748,8 @@ for(d in 1:length(species.split)){
   #get data for those species
   billd<-indat[indat$jBird %in% index,]
 
-  sl<-trajF(alpha=x$alpha,beta1=x$beta1,beta2=x$beta2,beta3=x$beta3,resources=billd[billd$ BUsed_Flowers==0,"scaledR"],x=billd[billd$ BUsed_Flowers==0,"Traitmatch"],type='hdi')
-  sh<-trajF(alpha=x$alpha,beta1=x$beta1,beta2=x$beta2,beta3=x$beta3,resources=billd[billd$ BUsed_Flowers==1,"scaledR"],x=billd[billd$ BUsed_Flowers==1,"Traitmatch"],type='hdi')
+  sl<-trajF(alpha=x$alpha,beta1=x$beta1,beta2=x$beta2,beta3=x$beta3,resources=billd[billd$ BFlowerA==0,"scaledR"],x=billd[billd$ BFlowerA==0,"Traitmatch"],type='hdi')
+  sh<-trajF(alpha=x$alpha,beta1=x$beta1,beta2=x$beta2,beta3=x$beta3,resources=billd[billd$ BFlowerA==1,"scaledR"],x=billd[billd$ BFlowerA==1,"Traitmatch"],type='hdi')
   sm<-melt(list(High=sh,Low=sl),id.vars=colnames(sl))
   colnames(sm)[5]<-"Resources"
   species.traj[[d]]<-sm
@@ -806,9 +765,9 @@ species.traj[,c("Index")]<-colsplit(species.traj$L1,"\\.",c("Index"))
 spe<-merge(species.traj,jagsIndexBird,by.x="Index",by.y="jBird")
 
 #plot and compare to original data
-ggplot(data=spe,aes(x=x)) + geom_ribbon(aes(ymin=lower,ymax=upper,fill=Resources),alpha=0.2) + geom_line(aes(y=mean,col=Resources),size=.5) + theme_bw() + ylab("Occurrence Probability")+ xlab("Difference between Bill and Corolla Length") + facet_wrap(~Hummingbird,scales="free",ncol=3) + geom_point(data=mindat,aes(x=Traitmatch,y=value,shape=variable),size=1.5,alpha=.5)
-ggsave("Figures/SpeciesRegression.jpeg",height=6,width=7)
+ggplot(data=spe,aes(x=x)) + geom_ribbon(aes(ymin=lower,ymax=upper,fill=Resources),alpha=0.2) + geom_line(aes(y=mean,col=Resources),size=.5) + theme_bw() + ylab("Occurrence Probability")+ xlab("Difference between Bill and Corolla Length") + facet_wrap(~Hummingbird,scales="free") + geom_point(data=mindat,aes(x=Traitmatch,y=value,shape=variable),size=1.5,alpha=.75)
 
+ggsave("Figures/SpeciesRegression.jpeg",height=6,width=7) 
 ```
 
 ##Species Level Interaction
@@ -942,7 +901,7 @@ Mean Estimates for Corolla Sizes
 ```{r}
 species.mean<-species.traj %>% group_by(jBird,jPlant,r) %>% summarize(Traitmatch=unique(x),lambda=mean(y))
 
-species.mean<-merge(species.mean,indat[,colnames(indat) %in% c("jBird","jPlant","jTime","Hummingbird","Iplant_Double")])
+species.mean<-merge(species.mean,indat[,colnames(indat) %in% c("jBird","jPlant","jTime","Hummingbird","Iplant_Double","BFlowerA")])
 
 #get corolla sizes
 species.mean<-merge(species.mean,fl.morph,by.x="Iplant_Double", by.y="Group.1")
@@ -955,7 +914,7 @@ species.mean$Hummingbird<-factor(species.mean$Hummingbird,levels=ord)
 #add level to hum.morph to match naming convention
 species.mean<-merge(species.mean,hum.morph[,c("English","Total_Culmen")],by.x="Hummingbird",by.y="English")
 
-p<-ggplot(species.mean,aes(x=TotalCorolla,y=lambda,col=as.factor(r))) + geom_line(size=.9) + geom_vline(aes(xintercept=Total_Culmen),linetype='dashed') + facet_wrap(~Hummingbird,ncol=3,scales="free_y")  + theme_bw() + ylab("Estimated Daily Interaction Rate") + scale_color_manual("Resource Availability",labels=c("Low","High"),values=c("Blue","Red")) + xlab("Flower Corolla Length (mm)") 
+p<-ggplot(species.mean,aes(x=TotalCorolla,y=lambda,col=as.factor(BFlowerA))) + geom_line(size=.9) + geom_vline(aes(xintercept=Total_Culmen),linetype='dashed') + facet_wrap(~Hummingbird,ncol=3,scales="free_y")  + theme_bw() + ylab("Estimated Daily Interaction Rate") + scale_color_manual("Resource Availability",labels=c("Low","High"),values=c("Blue","Red")) + xlab("Flower Corolla Length (mm)") 
 p
 ggsave("Figures/ResponseCurves.jpeg",height=6.5,width=9)
 ```
@@ -971,7 +930,7 @@ ggplot(species.mean) + geom_density2d(aes(x=TotalCorolla,y=lambda,col=as.factor(
 ```{r}
 species.mean<-species.traj %>% group_by(jBird,jPlant,r) %>% summarize(Traitmatch=unique(x),lambda=mean(y),lambda_low=quantile(y,0.05),lambda_high=quantile(y,0.95))
 
-species.mean<-merge(species.mean,indat[,colnames(indat) %in% c("jBird","jPlant","jTime","Hummingbird","Iplant_Double"," BUsed_Flowers")])
+species.mean<-merge(species.mean,indat[,colnames(indat) %in% c("jBird","jPlant","jTime","Hummingbird","Iplant_Double"," BFlowerA")])
 
 #get corolla sizes
 species.mean<-merge(species.mean,fl.morph,by.x="Iplant_Double", by.y="Group.1")
@@ -1000,6 +959,34 @@ sm<-lapply(sm,function(x){
 species.max<-rbind_all(sm)
 
 ggplot(species.max,aes(x=TotalCorolla,y=lambda,col=as.factor(r))) + geom_density2d() + theme_bw() + scale_color_manual("Resources Availability",labels=c("Low","High"),values=c("Blue","Red")) + scale_y_continuous(breaks=c(0,1),labels=c("Low","High")) + xlab("Flower Corolla Length") + ylab("Hummingbird Visitation")
+```
+
+#Model Criticism
+
+##Residuals
+
+```{r,eval=T}
+chisq<-function(o,e){(o-e)^2/(e+0.5)}
+
+spres<-split(species.mean,list(species.mean$Hummingbird,species.mean$Iplant_Double,species.mean$r),drop = T)
+
+residuals<-lapply(spres,function(x){
+obs<-indat %>% filter(Hummingbird %in% x$Hummingbird,Iplant_Double %in% x$Iplant_Double,BFlowerA %in% x$r)
+
+resids<-c(sapply(na.exclude(c(obs$Camera,obs$Transect)),function(y){
+  chisq(o=x$lambda,e=y)
+}))
+
+out<-data.frame(chisq=resids,Traitmatch=unique(x$Traitmatch),Hummingbird=unique(x$Hummingbird),Iplant_Double=unique(x$Iplant_Double),r=unique(x$r))
+return(out)
+})
+
+resdf<-rbind_all(residuals)
+ggplot(resdf,aes(x=Traitmatch,y=chisq,col=as.factor(r))) + geom_point() + facet_wrap(~Hummingbird,scales="free") + labs(col="Resource Availability")
+
+ggplot(resdf,aes(x=as.factor(r),y=chisq,fill=as.factor(r))) + geom_boxplot() + facet_wrap(~Hummingbird,scale="free")
+
+resdf %>% group_by(Hummingbird,r) %>% summarize(mean=mean(chisq)) %>% arrange(r) %>% as.data.frame()
 ```
 
 ```{r}

@@ -41,13 +41,18 @@ cat("
     }
     
 
-
     #Species level priors
     
     for (i in 1:Birds){
-    #Detect priors
-    dcam[i] ~ dunif(0,1)
-    dtrans[i] ~ dunif(0,1)
+    #Detect priors, logit transformed
+
+    #For Cameras
+    logit(dcam[i]) <- dcam_logit[i]
+    dcam_logit[i] ~ dnorm(dprior_cam,tau_dcam)
+
+    #For Transects
+    logit(dtrans[i]) <- dtrans_logit[i]
+    dtrans_logit[i] ~ dnorm(dprior_trans,tau_dtrans)
 
     alpha[i] ~ dnorm(intercept,tau_alpha)
     beta1[i] ~ dnorm(gamma1,tau_beta1)    
@@ -64,14 +69,22 @@ cat("
     #Intercept grouping
     intercept~dnorm(0,0.0001)
     
+    #Detection group prior
+    dprior_cam ~ dnorm(0,0.5)
+    dprior_trans ~ dnorm(0,0.5)
+
     # Group intercept variance
     tau_alpha ~ dgamma(0.0001,0.0001)
     sigma_int<-pow(1/tau_alpha,2) 
     
-    #Derived Quantity
+    #Group effect detect camera
+    tau_dcam ~ dunif(0,10)
+    sigma_dcam<-pow(1/tau_dcam,.5)
     
-    #Slope variance, turning precision to sd
-    
+    #Group effect detect camera
+    tau_dtrans ~ dunif(0,10)
+    sigma_dtrans<-pow(1/tau_dtrans,.5)
+
     #Group Effect of traits
     tau_beta1 ~ dgamma(0.0001,0.0001)
     sigma_slope1<-pow(1/tau_beta1,.5)

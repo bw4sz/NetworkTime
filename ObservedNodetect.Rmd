@@ -218,99 +218,12 @@ traitmelt<-melt(traitmatchT)
 colnames(traitmelt)<-c("Hummingbird","Iplant_Double","Traitmatch")
 ```
 
-##Absences - accounting for non-detection
-
-We have more information than just the presences, given species elevation ranges, we have absences as well. Absences are birds that occur at the elevation of the plant sample, but were not recorded feeding on the flower.
-
 ```{r}
-indatlong<-acast(indatraw,Bird~Plant~Time~Day,value.var="Yobs")
-indatlong[is.na(indatlong)]<-0
-```
+keep<-indatraw %>% group_by(Hummingbird) %>% filter(Yobs>0) %>% summarise(n=n()) %>% filter(n>10) %>% .$Hummingbird
+indat<-indatraw[indatraw$Hummingbird %in% keep,]
 
-```{r}
-#Only non-detections are real 0's, the rest are NA's and are removed.
-#Plants not surveyed in that time period
-#Hummingbirds not present at that elevation
-
-  for(x in 1:dim(indatlong)[3]){
-  
-  #Remove non sampled plants 
-  a<-indatlong[,,x,]
-
-  #No observations at that plant
-  toNA<-as.numeric(names(which(apply(a,2,sum)==0)))
-  pres<-as.numeric(names(which(!apply(a,2,sum)==0)))
-  indatlong[,colnames(a) %in% toNA,x,]<-NA
-
-  if(length(pres)==0){next} else {
-
-  #Get elevation point of that sampling event
-  cam<-dimnames(indatlong)[[3]][x]
-  camelev<-    indatraw %>% filter(Time==cam)  %>% .$Elev %>% mean()
-  
-  #for each hummingbird, was that camera within elevation?
-  for(i in 1:dim(a)[1]){
-      low<-elevH[elevH$Bird == rownames(a)[i],"Low"]
-      high<-elevH[elevH$Bird == rownames(a)[i],"High"]
-        
-        #if not in elev range, set to NA
-        
-        if(!((low < camelev) & (camelev < high))){
-            if(sum(indatlong[i,,x,],na.rm=T)>0){next}
-          #if you had a wandering individual outside range, allow interaction to occur.
-                indatlong[i,,x,]<-NA
-        }
-      }
-    }
-  }
-
-### There can't be absences in days that weren't sampled.
-for (x in 1:dim(indatlong)[3]){
-  cam<-indatlong[,,x,]
-  for (y in 1:dim(cam)[3]){
-    sc<-sum(cam[,,y],na.rm=T)
-    if (sc ==0){
-      indatlong[,,x,y]<-NA
-    }
-  }
-}
-
-
-#melt and remove Na's
-indat<-melt(indatlong)
-
-#get only absence data
-indat<-indat[indat$value %in% 0,]
-
-colnames(indat)<-c("Bird","Plant","Time","Day","Yobs")
-```
-
-```{r}
-#remerge the time period data for absences
-Timelookup<-indatraw %>% dplyr::select(Time,Transect_R,Month,Year,Day,DateP,ID) %>% unique()
-
-#Get time information
-indat<-merge(indat,Timelookup,by=c("Time","Day"))
-
-#bind to presence data
-indat<-as.data.frame(rbind_all(list(indat,indatraw)))
-
-#Species names
-for (x in 1:nrow(indat)){
-  indat$Hummingbird[x]<-as.character(elevH[elevH$Bird %in% indat$Bird[x],"Hummingbird"])
-  indat$Iplant_Double[x]<-as.character(elevP[elevP$Plant %in% indat$Plant[x],"Iplant_Double"])
-}
-
-#Get trait information
-#match the traits
-indat<-merge(indat,traitmelt,by=c("Hummingbird","Iplant_Double"))
-```
-
-Which species to evaluate? We need atleast some replicates to estimate detection rates. Remove the extremely rare species (less than 10 presences.)
-
-```{r}
-keep<-indat %>% group_by(Hummingbird) %>% filter(Yobs>0) %>% summarise(n=n()) %>% filter(n>10) %>% .$Hummingbird
-indat<-indat[indat$Hummingbird %in% keep,]
+#Log transform records
+indat$LYobs<-log(indat$Yobs)
 ```
 
 #Resources at each point
@@ -336,7 +249,7 @@ flower.month$Year<-as.factor(flower.month$Year)
 #get quantile for each transect
 thresh<-melt(group_by(flower.month,Transect_R) %>% summarize(Threshold=mean(Flowers)))
 flower.month<-merge(flower.month,thresh)
-flower.month$High<-log(flower.month$Flowers)>flower.month$value
+flower.month$High<-flower.month$Flowers>flower.month$value
 
 #fix the levels
 levels(flower.month$Transect_R)<-c("1300m - 1500m", "1500m - 1700m","1700m - 1900m","1900m - 2100m","2100m - 2300m","2300m - 2500m")
@@ -475,13 +388,14 @@ indat<-droplevels(indat)
 indat$jID<-as.numeric(as.factor(indat$ID))
 
 #index resources
-resourceMatrix<- indat %>% group_by(jBird,jPlant,jID) %>% summarize(v=mean(BUsed_Flowers)) %>% acast(jBird ~ jPlant ~ jID,value.var='v',fill=0)
+resourceMatrix<- indat %>% group_by(jBird,jPlant,jID) %>% summarize(v=unique(BUsed_Flowers)) %>% acast(jBird ~ jPlant ~ jID,value.var='v',fill=0)
 
 #bind to indat for later
 mr<-melt(resourceMatrix)
 colnames(mr)<-c("jBird","jPlant","jID","scaledR")
 indat<-merge(indat,mr,by=c("jBird","jPlant","jID"))
 
+indat<-merge(indat,traitmelt,by=c("Hummingbird","Iplant_Double"))
 ```
 
 View species identity in resource splits.
@@ -532,13 +446,11 @@ for (x in 1:length(splist)){
 file.remove(list.files(pattern="*.log"))
 ```
 
-
 #Hierarchical Occupancy Model
 
 For hummingbird species i feeding on plant species j observed at time k and sampling event d. 
 
 $$ YTransect_{i,j,k,d} \sim B(N_{i,j,k},\omega_{Transect}) $$
-
 
 $$ Yobs_{i,j,k} \sim Pois(\lambda_{i,j,k}) $$
 $$ log(\lambda_{i,j,k}) = \alpha_i + \beta_{1,i} * Traitmatch_{i,j} + \beta_{2,i} *Resources_k + \beta_{3,i} * Traitmatch_{i,j} * Resources_k $$
@@ -575,10 +487,10 @@ $$\sigma_{slope3} = \sqrt[2]{\frac{1}{\tau_{\beta_3}}}$$
 ```{r,eval=T,strip.white=T}
 
 #Source model
-source("Bayesian/NoDetectNmixturePoissonRagged.R")
+source("Bayesian/LogN.R")
 
 #print model
-writeLines(readLines("Bayesian/NoDetectNmixturePoissonRagged.R"))
+writeLines(readLines("Bayesian/LogN.R"))
 
 #Input Data
 Dat <- c('Yobs','Birds','Bird','Plant','Time','Plants','Times','resources','Nobs','Traitmatch',"Day","Days")
@@ -586,7 +498,7 @@ Dat <- c('Yobs','Birds','Bird','Plant','Time','Plants','Times','resources','Nobs
 #Inits
 InitStage <- function(){
   #A blank Y matrix - all present
-  initY<-array(dim=c(Birds,Plants,Times),30)
+  initY<-array(dim=c(Birds,Plants,Times),5)
   initB<-as.numeric(matrix(nrow=Birds,ncol=1,data=0))
 
 list(beta1=initB,beta2=initB,beta3=initB,alpha=rep(.5,Birds),intercept=0,tau_alpha=0.1,tau_beta1=0.1,tau_beta2=0.1,tau_beta3=0.1,gamma1=0,gamma2=0,gamma3=0)}
@@ -595,14 +507,14 @@ list(beta1=initB,beta2=initB,beta3=initB,alpha=rep(.5,Birds),intercept=0,tau_alp
 ParsStage <- c("alpha","beta1","beta2","beta3","intercept","sigma_int","sigma_slope1","sigma_slope2","sigma_slope3","gamma1","gamma2","gamma3")
 
 #MCMC options
-ni <- 60000  # number of draws from the posterior
+ni <- 10000  # number of draws from the posterior
 nt <- max(c(2,ni*.0001))  #thinning rate
 nb <- ni*.95 # number to discard for burn-in
 nc <- 2  # number of chains
 
 #Jags
 
-  Yobs = indat$Yobs
+  Yobs = indat$LYobs
   Birds=max(indat$jBird)
   Day=indat$Day
   Days=max(indat$Day)
@@ -615,7 +527,7 @@ nc <- 2  # number of chains
   Nobs=nrow(indat)
   Traitmatch=jTraitmatch
 
-  m2<-do.call(jags.parallel,list(Dat,InitStage,ParsStage,model.file="Bayesian/NoDetectNmixturePoissonRagged.jags",n.thin=nt, n.iter=ni,n.burnin=nb,n.chains=nc))
+  m2<-do.call(jags.parallel,list(Dat,InitStage,ParsStage,model.file="Bayesian/LogN.jags",n.thin=nt, n.iter=ni,n.burnin=nb,n.chains=nc))
 ```
 
 ```{r,eval=F}
@@ -660,7 +572,7 @@ Hold resource relationship at 0, what does trait-matching look like?
 
 ```{r,fig.width=9,fig.height=7}
 #Trajectories from posterior
-predy<-trajF(alpha=castdf$intercept,beta1=castdf$gamma1,x=indat$Traitmatch,resources=indat$scaledR,beta2=0,beta3=0,type='hdi')
+predy<-trajLog(alpha=castdf$intercept,beta1=castdf$gamma1,x=indat$Traitmatch,resources=indat$scaledR,beta2=0,beta3=0,type='hdi')
 
 ggplot(data=predy,aes(x=x)) + geom_ribbon(aes(ymin=lower,ymax=upper),alpha=0.1,fill="red")  + geom_line(aes(y=mean),size=.5,col="red",linetype="dashed") + theme_bw() + ylab("Interactions") + xlab("Difference between Bill and Corolla Length") + geom_point(data=indat,aes(x=Traitmatch,y=Yobs))
 ```

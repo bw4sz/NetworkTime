@@ -114,18 +114,18 @@ dath<-dath[!dath$Pierce %in% c("y","Y"),]
 ##Match Species to Morphology
 
 ```{r}
-#observed traitmatching
-traitmatchF<-t(sapply(hum.morph$Bill,function(x){x-fl.morph$TotalCorolla}))
+#observed TotalCorollaing
+TotalCorollaF<-t(sapply(hum.morph$Bill,function(x){x-fl.morph$TotalCorolla}))
 
-rownames(traitmatchF)<-hum.morph$English
-colnames(traitmatchF)<-fl.morph$Group.1
+rownames(TotalCorollaF)<-hum.morph$English
+colnames(TotalCorollaF)<-fl.morph$Group.1
 ```
 
 ```{r}
 #match names #Round to 2 decimals #Convert to cm for winbugs, avoids numerical underflow
-traitmatchT<-round(traitmatchF[rownames(traitmatchF) %in% dath$Hummingbird,colnames(traitmatchF) %in% dath$Iplant_Double],2)/10
+TotalCorollaT<-round(TotalCorollaF[rownames(TotalCorollaF) %in% dath$Hummingbird,colnames(TotalCorollaF) %in% dath$Iplant_Double],2)/10
 
-traitmatchT<-traitmatchT[sort(rownames(traitmatchT)),sort(colnames(traitmatchT))]
+TotalCorollaT<-TotalCorollaT[sort(rownames(TotalCorollaT)),sort(colnames(TotalCorollaT))]
 ```
 
 ##Elevation ranges
@@ -218,13 +218,12 @@ sdat<-lapply(sdat,function(x){
 })
 
 indatraw<-rbind_all(sdat)
-
 ```
 
 ```{r}
 #match the traits
-traitmelt<-melt(traitmatchT)
-colnames(traitmelt)<-c("Hummingbird","Iplant_Double","Traitmatch")
+traitmelt<-melt(TotalCorollaT)
+colnames(traitmelt)<-c("Hummingbird","Iplant_Double","TotalCorolla")
 ```
 
 ##Absences - accounting for non-detection
@@ -340,7 +339,7 @@ jagsIndexBird<-data.frame(Hummingbird=levels(indat$Hummingbird),jBird=1:length(l
 jagsIndexPlants<-data.frame(Iplant_Double=levels(indat$Iplant_Double),jPlant=1:length(levels(indat$Iplant_Double)))
 
 #Similiarly, the trait matrix needs to reflect this indexing.
-jTraitmatch<-traitmatchT[rownames(traitmatchT) %in% unique(indat$Hummingbird),colnames(traitmatchT) %in% unique(indat$Iplant_Double)]
+jTotalCorolla<-TotalCorollaT[rownames(TotalCorollaT) %in% unique(indat$Hummingbird),colnames(TotalCorollaT) %in% unique(indat$Iplant_Double)]
 ```
 
 #Resources at each point
@@ -529,14 +528,10 @@ ggplot(indat,aes(x=TotalCorolla,fill=State)) + geom_density(alpha=.5) + facet_wr
 
 The dashed line if the bill length of the species.
 
-##Traitmatching
-
-Same data, just taking the abs value from the distributions to the dotted line. Plot resource distribution regardless of resources.
-
 ```{r}
-ggplot(indat,aes(x=Traitmatch,fill=State)) + geom_density(alpha=.5) + facet_wrap(~Hummingbird,scales="free") + theme_bw() 
+ggplot(indat,aes(x=TotalCorolla,fill=State)) + geom_density(alpha=.5) + facet_wrap(~Hummingbird,scales="free") + theme_bw() 
 
-true_state<- indat %>% filter(State=="Used") %>% group_by(Hummingbird) %>% summarize(mean=mean(Traitmatch),sd=sd(Traitmatch),min=min(Traitmatch),max=max(Traitmatch)) %>% mutate(range=abs(min-max))
+true_state<- indat %>% filter(State=="Used") %>% group_by(Hummingbird) %>% summarize(mean=mean(TotalCorolla),sd=sd(TotalCorolla),min=min(TotalCorolla),max=max(TotalCorolla)) %>% mutate(range=abs(min-max))
 
 mtruestate<-melt(true_state,measure.vars=c("mean","sd","min","max","range"))
 ```
@@ -550,7 +545,7 @@ This is most common definition of specialization.
 ```{r}
 nullc<-function(indat){
   indat$State<-sample(indat$State)
-null_state<- indat %>% filter(State=="Used") %>% group_by(Hummingbird) %>% summarize(mean=mean(Traitmatch),sd=sd(Traitmatch),min=min(Traitmatch),max=max(Traitmatch)) %>% mutate(range=abs(min-max))
+null_state<- indat %>% filter(State=="Used") %>% group_by(Hummingbird) %>% summarize(mean=mean(TotalCorolla),sd=sd(TotalCorolla),min=min(TotalCorolla),max=max(TotalCorolla)) %>% mutate(range=abs(min-max))
 
   return(null_state)
 }
@@ -569,31 +564,31 @@ nullframe<-melt(nullframe,id.vars=c("Hummingbird"))
 ## Mean Trait-matching
 
 ```{r}
-ggplot(nullframe[nullframe$variable=="mean",],aes(x=value)) + geom_density(fill="black") + geom_vline(data=mtruestate[mtruestate$variable=="mean",],aes(xintercept=value),linetype="dashed",col="red") + facet_wrap(~Hummingbird,scales="free") + theme_bw()
+ggplot(nullframe[nullframe$variable=="mean",],aes(x=value)) + geom_density(fill="black",alpha=.2) + geom_vline(data=mtruestate[mtruestate$variable=="mean",],aes(xintercept=value),linetype="dashed",col="red",size=1) + facet_wrap(~Hummingbird,scales="free") + theme_bw() + geom_vline(data=b,aes(xintercept=Bill),size=1)
 ```
 
 ## SD Trait-matching
 
 ```{r}
-ggplot(nullframe[nullframe$variable=="sd",],aes(x=value)) + geom_density(fill="black") + geom_vline(data=mtruestate[mtruestate$variable=="sd",],aes(xintercept=value),linetype="dashed",col="red") + facet_wrap(~Hummingbird,scales="free") + theme_bw()
+ggplot(nullframe[nullframe$variable=="sd",],aes(x=value)) + geom_density(fill="black",alpha=.2) + geom_vline(data=mtruestate[mtruestate$variable=="sd",],aes(xintercept=value),linetype="dashed",col="red") + facet_wrap(~Hummingbird,scales="free") + theme_bw()
 ```
 
 ## Min Trait-matching
 Recalling that trait-matching is a distance, so min trait-matching is the closest distance, maximum matching.
 
 ```{r}
-ggplot(nullframe[nullframe$variable=="min",],aes(x=value)) + geom_density(fill="black") + geom_vline(data=mtruestate[mtruestate$variable=="min",],aes(xintercept=value),linetype="dashed",col="red") + facet_wrap(~Hummingbird,scales="free") + theme_bw()
+ggplot(nullframe[nullframe$variable=="min",],aes(x=value)) + geom_density(fill="black",alpha=.2) + geom_vline(data=mtruestate[mtruestate$variable=="min",],aes(xintercept=value),linetype="dashed",col="red") + facet_wrap(~Hummingbird,scales="free") + theme_bw()
 ```
 
 ## Max Trait-matching
 
 ```{r}
-ggplot(nullframe[nullframe$variable=="max",],aes(x=value)) + geom_density(fill="black") + geom_vline(data=mtruestate[mtruestate$variable=="max",],aes(xintercept=value),linetype="dashed",col="red") + facet_wrap(~Hummingbird,scales="free") + theme_bw()
+ggplot(nullframe[nullframe$variable=="max",],aes(x=value)) + geom_density(fill="black",alpha=.2) + geom_vline(data=mtruestate[mtruestate$variable=="max",],aes(xintercept=value),linetype="dashed",col="red") + facet_wrap(~Hummingbird,scales="free") + theme_bw()
 ```
 
 ## Range Trait-matching
 ```{r}
-ggplot(nullframe[nullframe$variable=="range",],aes(x=value)) + geom_density(fill="black") + geom_vline(data=mtruestate[mtruestate$variable=="range",],aes(xintercept=value),linetype="dashed",col="red") + facet_wrap(~Hummingbird,scales="free") + theme_bw()
+ggplot(nullframe[nullframe$variable=="range",],aes(x=value)) + geom_density(fill="black",alpha=.2) + geom_vline(data=mtruestate[mtruestate$variable=="range",],aes(xintercept=value),linetype="dashed",col="red") + facet_wrap(~Hummingbird,scales="free") + theme_bw()
 ```
 
 Are those true distributions within reasonable confidence bands?
@@ -620,6 +615,21 @@ mtstate$Var1<-factor(mtstate$Var1,levels=ord)
 p<-ggplot(mtstate,aes(x=Var1,y=Var2,fill=(value<0.05 | value > 0.95))) + geom_tile() + coord_flip() + labs(x="Hummingbird",y="Metric",fill="Difference between\nObserved and Null Distribution\n(alpha=0.05)") + ggtitle("Used versus Background")
 ```
 
+## Plot the background and color by randomization
+
+```{r}
+ggplot(indat,aes(x=TotalCorolla,fill=State)) + geom_density(alpha=.5) + facet_wrap(~Hummingbird,scales="free") + theme_bw() + geom_vline(data=b,aes(xintercept=Bill),linetype="dashed",col='red',size=1) + labs(x="Flower Corolla Length (mm)") + scale_fill_manual(values=c("grey90","black"),labels=c("Background","Visited"))
+ggsave("Figures/Background_all.jpeg",width=9,height=5,dpi=300)
+```
+
+
+#Is there greater trait-matching when expected given the availability of corolla lengths
+
+```{r}
+p
+```
+
+
 Conclusion: With few exceptions there is strong trait-matching compared to the available hummingbird resources. All hummingbirds differed in atleast one metric.
 
 
@@ -627,13 +637,12 @@ Conclusion: With few exceptions there is strong trait-matching compared to the a
 
 ## Is the distribution of corollas different from background when you consider seasonal variation in flower abundance?
 
-
 ```{r}
-ggplot(indat[indat$State=="Used",],aes(x=Traitmatch,fill=as.factor(BUsed_Flowers))) + geom_density(alpha=.5) + facet_wrap(~Hummingbird,scales="free") + theme_bw() + scale_fill_manual("Resource Availability",labels=c("Low","High"),values=c("Red","Black")) + ggtitle("Used Flowers") 
+ggplot(indat[indat$State=="Used",],aes(x=TotalCorolla,fill=as.factor(BUsed_Flowers))) + geom_density(alpha=.5) + facet_wrap(~Hummingbird,scales="free") + theme_bw() + scale_fill_manual("Resource Availability",labels=c("Low","High"),values=c("Red","Black")) + ggtitle("Used Flowers") 
 
-ggplot(indat[indat$State=="Unused",],aes(x=Traitmatch,fill=as.factor(BUsed_Flowers))) + geom_density(alpha=.5) + facet_wrap(~Hummingbird,scales="free") + theme_bw() + scale_fill_manual("Resource Availability",labels=c("Low","High"),values=c("Red","Black")) + ggtitle("Unused Flowers") 
+ggplot(indat[indat$State=="Unused",],aes(x=TotalCorolla,fill=as.factor(BUsed_Flowers))) + geom_density(alpha=.5) + facet_wrap(~Hummingbird,scales="free") + theme_bw() + scale_fill_manual("Resource Availability",labels=c("Low","High"),values=c("Red","Black")) + ggtitle("Unused Flowers") 
 
-true_state<- indat %>% filter(State=="Used",BUsed_Flowers==1) %>% group_by(Hummingbird) %>% summarize(mean=mean(Traitmatch),sd=sd(Traitmatch),min=min(Traitmatch),max=max(Traitmatch)) %>% mutate(range=abs(min-max))
+true_state<- indat %>% filter(State=="Used",BUsed_Flowers==1) %>% group_by(Hummingbird) %>% summarize(mean=mean(TotalCorolla),sd=sd(TotalCorolla),min=min(TotalCorolla),max=max(TotalCorolla)) %>% mutate(range=abs(min-max))
 
 mtruestate<-melt(true_state,measure.vars=c("mean","sd","min","max","range"))
 ```
@@ -645,7 +654,7 @@ nullc<-function(indat){
   indat$State<-sample(indat$State)
   
   #Calculate null
-  null_state<-indat %>% filter(State=="Used",BUsed_Flowers==1) %>% group_by(Hummingbird) %>% summarize(mean=mean(Traitmatch),sd=sd(Traitmatch),min=min(Traitmatch),max=max(Traitmatch)) %>% mutate(range=abs(min-max))
+  null_state<-indat %>% filter(State=="Used",BUsed_Flowers==1) %>% group_by(Hummingbird) %>% summarize(mean=mean(TotalCorolla),sd=sd(TotalCorolla),min=min(TotalCorolla),max=max(TotalCorolla)) %>% mutate(range=abs(min-max))
 
   return(null_state)
 }
@@ -664,31 +673,31 @@ nullframe<-melt(nullframe,id.vars=c("Hummingbird"))
 ## Mean Trait-matching
 
 ```{r}
-ggplot(nullframe[nullframe$variable=="mean",],aes(x=value)) + geom_density(fill="black") + geom_vline(data=mtruestate[mtruestate$variable=="mean",],aes(xintercept=value),linetype="dashed",col="red") + facet_wrap(~Hummingbird,scales="free") + theme_bw()
+ggplot(nullframe[nullframe$variable=="mean",],aes(x=value)) + geom_density(fill="black",alpha=.2) + geom_vline(data=mtruestate[mtruestate$variable=="mean",],aes(xintercept=value),linetype="dashed",col="red") + facet_wrap(~Hummingbird,scales="free") + theme_bw()
 ```
 
 ## SD Trait-matching
 
 ```{r}
-ggplot(nullframe[nullframe$variable=="sd",],aes(x=value)) + geom_density(fill="black") + geom_vline(data=mtruestate[mtruestate$variable=="sd",],aes(xintercept=value),linetype="dashed",col="red") + facet_wrap(~Hummingbird,scales="free") + theme_bw()
+ggplot(nullframe[nullframe$variable=="sd",],aes(x=value)) + geom_density(fill="black",alpha=.2) + geom_vline(data=mtruestate[mtruestate$variable=="sd",],aes(xintercept=value),linetype="dashed",col="red") + facet_wrap(~Hummingbird,scales="free") + theme_bw()
 ```
 
 ## Min Trait-matching
 Recalling that trait-matching is a distance, so min trait-matching is the closest distance, maximum matching.
 
 ```{r}
-ggplot(nullframe[nullframe$variable=="min",],aes(x=value)) + geom_density(fill="black") + geom_vline(data=mtruestate[mtruestate$variable=="min",],aes(xintercept=value),linetype="dashed",col="red") + facet_wrap(~Hummingbird,scales="free") + theme_bw()
+ggplot(nullframe[nullframe$variable=="min",],aes(x=value)) + geom_density(fill="black",alpha=.2) + geom_vline(data=mtruestate[mtruestate$variable=="min",],aes(xintercept=value),linetype="dashed",col="red") + facet_wrap(~Hummingbird,scales="free") + theme_bw()
 ```
 
 ## Max Trait-matching
 
 ```{r}
-ggplot(nullframe[nullframe$variable=="max",],aes(x=value)) + geom_density(fill="black") + geom_vline(data=mtruestate[mtruestate$variable=="max",],aes(xintercept=value),linetype="dashed",col="red") + facet_wrap(~Hummingbird,scales="free") + theme_bw()
+ggplot(nullframe[nullframe$variable=="max",],aes(x=value)) + geom_density(fill="black",alpha=.2) + geom_vline(data=mtruestate[mtruestate$variable=="max",],aes(xintercept=value),linetype="dashed",col="red") + facet_wrap(~Hummingbird,scales="free") + theme_bw()
 ```
 
 ## Range Trait-matching
 ```{r}
-ggplot(nullframe[nullframe$variable=="range",],aes(x=value)) + geom_density(fill="black") + geom_vline(data=mtruestate[mtruestate$variable=="range",],aes(xintercept=value),linetype="dashed",col="red") + facet_wrap(~Hummingbird,scales="free") + theme_bw()
+ggplot(nullframe[nullframe$variable=="range",],aes(x=value)) + geom_density(fill="black",alpha=.2) + geom_vline(data=mtruestate[mtruestate$variable=="range",],aes(xintercept=value),linetype="dashed",col="red") + facet_wrap(~Hummingbird,scales="free") + theme_bw()
 ```
 
 Are those true distributions within reasonable confidence bands?
@@ -720,11 +729,11 @@ p1<-ggplot(mtstate,aes(x=Var1,y=Var2,fill=(value<0.05 | value > 0.95))) + geom_t
 Do the distributions of corollas used differ in resource periods, given the background in each time period?
 
 ```{r}
-ggplot(indat[indat$State=="Used",],aes(x=Traitmatch,fill=as.factor(BUsed_Flowers))) + geom_density(alpha=.5) + facet_wrap(~Hummingbird,scales="free") + theme_bw() + scale_fill_manual("Resource Availability",labels=c("Low","High"),values=c("Red","Black")) + ggtitle("Used Flowers") 
+ggplot(indat[indat$State=="Used",],aes(x=TotalCorolla,fill=as.factor(BUsed_Flowers))) + geom_density(alpha=.5) + facet_wrap(~Hummingbird,scales="free") + theme_bw() + scale_fill_manual("Resource Availability",labels=c("Low","High"),values=c("Red","Black")) + ggtitle("Used Flowers") 
 
-ggplot(indat[indat$State=="Unused",],aes(x=Traitmatch,fill=as.factor(BUsed_Flowers))) + geom_density(alpha=.5) + facet_wrap(~Hummingbird,scales="free") + theme_bw() + scale_fill_manual("Resource Availability",labels=c("Low","High"),values=c("Red","Black")) + ggtitle("Unused Flowers") 
+ggplot(indat[indat$State=="Unused",],aes(x=TotalCorolla,fill=as.factor(BUsed_Flowers))) + geom_density(alpha=.5) + facet_wrap(~Hummingbird,scales="free") + theme_bw() + scale_fill_manual("Resource Availability",labels=c("Low","High"),values=c("Red","Black")) + ggtitle("Unused Flowers") 
 
-true_state<- indat %>% filter(State=="Used") %>% group_by(Hummingbird,BUsed_Flowers) %>% summarize(mean=mean(Traitmatch),sd=sd(Traitmatch),min=min(Traitmatch),max=max(Traitmatch)) %>% mutate(range=abs(min-max))
+true_state<- indat %>% filter(State=="Used") %>% group_by(Hummingbird,BUsed_Flowers) %>% summarize(mean=mean(TotalCorolla),sd=sd(TotalCorolla),min=min(TotalCorolla),max=max(TotalCorolla)) %>% mutate(range=abs(min-max))
 
 mtruestate<-melt(true_state,measure.vars=c("mean","sd","min","max","range"))
 
@@ -750,7 +759,7 @@ nullc<-function(indat){
   
   #Calculate null
   null_state<-
-true_state<- indat %>% filter(State=="Used") %>% group_by(Hummingbird,BUsed_Flowers) %>% summarize(mean=mean(Traitmatch),sd=sd(Traitmatch),min=min(Traitmatch),max=max(Traitmatch)) %>% mutate(range=abs(min-max))
+true_state<- indat %>% filter(State=="Used") %>% group_by(Hummingbird,BUsed_Flowers) %>% summarize(mean=mean(TotalCorolla),sd=sd(TotalCorolla),min=min(TotalCorolla),max=max(TotalCorolla)) %>% mutate(range=abs(min-max))
 
 mtruestate<-melt(true_state,measure.vars=c("mean","sd","min","max","range"))
 
@@ -778,7 +787,13 @@ nullframe<-rbind_all(nullframe)
 ## Mean Trait-matching
 
 ```{r}
-ggplot(data=nullframe[nullframe$Metric=="mean",],aes(x=Difference)) + geom_density(fill="black") + geom_vline(data=truedf[truedf$Metric=="mean",],aes(xintercept=Difference),linetype="dashed",col="red")+ facet_wrap(~Hummingbird,scales="free") + theme_bw()
+ggplot(data=nullframe[nullframe$Metric=="mean",],aes(x=Difference)) + geom_density(fill="black",alpha=.2) + geom_vline(data=truedf[truedf$Metric=="mean",],aes(xintercept=Difference),linetype="dashed",col="red")+ facet_wrap(~Hummingbird,scales="free") + theme_bw() + ggtitle("Is the mean trait-matching different in high and low periods")
+```
+
+## Range of Trait-matching
+
+```{r}
+ggplot(data=nullframe[nullframe$Metric=="range",],aes(x=Difference)) + geom_density(fill="black",alpha=.2) + geom_vline(data=truedf[truedf$Metric=="range",],aes(xintercept=Difference),linetype="dashed",col="red")+ facet_wrap(~Hummingbird,scales="free") + theme_bw() + ggtitle("Is the range trait-matching different in high and low periods")
 ```
 
 Are those true distributions within reasonable confidence bands?

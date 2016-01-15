@@ -5,7 +5,7 @@ Ben Weinstein - Stony Brook University
 
 
 ```
-## [1] "Run Completed at 2016-01-05 21:07:21"
+## [1] "Run Completed at 2016-01-14 17:24:38"
 ```
 
 
@@ -120,10 +120,10 @@ head(elevH)
 ```
 ##                 Hummingbird  Low        m   High Index
 ## 1            Andean Emerald 1378 1378.632 1380.0     1
-## 2    White-whiskered Hermit 1340 1437.032 1614.2     1
-## 3    Stripe-throated Hermit 1360 1453.342 1527.4     1
-## 4         Crowned Woodnymph 1360 1523.477 2049.0     1
-## 5 Rufous-tailed Hummingbird 1370 1532.000 1862.0     3
+## 2    White-whiskered Hermit 1340 1437.024 1614.2     1
+## 3    Stripe-throated Hermit 1360 1455.084 1527.4     1
+## 4         Crowned Woodnymph 1360 1523.420 2049.0     1
+## 5 Rufous-tailed Hummingbird 1370 1531.929 1862.0     3
 ## 6  Wedge-billed Hummingbird 1331 1624.850 2003.0     3
 ```
 
@@ -196,7 +196,7 @@ mt<-!is.na(datph$TransectID)*1
 datph$Survey_Type[mt==1]<-"Transect"
 datph$Survey_Type[!datph$Survey_Type %in% "Transect"]<-"Camera"
 
-indatraw<- datph %>% group_by(Hummingbird,Iplant_Double,Bird,Plant,Time,ID,DateP,Survey_Type) %>% summarize(Yobs=n(),Elev=mean(ele,na.rm=T),Transect_R=unique(Transect_R)) 
+indatraw<- datph %>% group_by(Hummingbird,Iplant_Double,Bird,Plant,Time,ID,DateP,Survey_Type) %>% summarize(Yobs=n(),Elev=mean(ele,na.rm=T),Transect_R=unique(Transect_R),Month=unique(Month),Year=unique(Year)) 
 
 #add day ID
 sdat<-split(indatraw,list(indatraw$ID),drop = T)
@@ -229,7 +229,7 @@ We have more information than just the presences, given species elevation ranges
 
 
 ```r
-indatlong<-acast(indatraw,Bird~Plant~Time~ID~Day,value.var="Yobs")
+indatlong<-acast(indatraw,Bird~Plant~ID~Day,value.var="Yobs")
 
 indatlong[is.na(indatlong)]<-0
 ```
@@ -239,26 +239,22 @@ indatlong[is.na(indatlong)]<-0
 #Only non-detections are real 0's, the rest are NA's and are removed.
 #Plants not surveyed in that time period
 #Hummingbirds not present at that elevation
-
-for(t in 1:dim(indatlong)[3]){
-  for(x in 1:dim(indatlong)[4]){
+  for(x in 1:dim(indatlong)[3]){
   
   #Remove non sampled plants 
-  a<-indatlong[,,t,x,]
-
+  a<-indatlong[,,x,]
+  
   #No observations at that plant
   toNA<-as.numeric(names(which(apply(a,2,sum)==0)))
   pres<-as.numeric(names(which(!apply(a,2,sum)==0)))
-  indatlong[,colnames(a) %in% toNA,t,x,]<-NA
+  indatlong[,colnames(a) %in% toNA,x,]<-NA
 
   if(length(pres)==0){next} else {
-    #IDs are unique to time periods.
+  #IDs are unique to time periods.
 
-    indatlong[,,which(!dimnames(indatlong)[[3]] %in% dimnames(indatlong)[[3]][t]),x,]<-NA
-    
   #Get elevation point of that sampling event
-  cam<-dimnames(indatlong)[[4]][x]
-  camelev<-    indatraw %>% filter(ID==cam)  %>% .$Elev %>% mean()
+  cam<-dimnames(indatlong)[[3]][x]
+  camelev<-indatraw %>% filter(ID==cam)  %>% .$Elev %>% mean()
   
   #for each hummingbird, was that camera within elevation?
   for(i in 1:dim(a)[1]){
@@ -268,40 +264,54 @@ for(t in 1:dim(indatlong)[3]){
         #if not in elev range, set to NA
         
         if(!((low < camelev) & (camelev < high))){
-            if(sum(indatlong[i,,t,x,],na.rm=T)>0){next}
+            if(sum(indatlong[i,,x,],na.rm=T)>0){next}
           #if you had a wandering individual outside range, allow interaction to occur.
-                indatlong[i,,t,x,]<-NA
+                indatlong[i,,x,]<-NA
         }
       }
     }
   }
-}
+
 ### There can't be absences in days that weren't sampled.
-for (x in 1:dim(indatlong)[4]){
-  cam<-indatlong[,,,x,]
-  for (y in 1:dim(cam)[4]){
-    sc<-sum(cam[,,,y],na.rm=T)
+for (x in 1:dim(indatlong)[3]){
+  cam<-indatlong[,,x,]
+  for (y in 1:dim(cam)[3]){
+    sc<-sum(cam[,,y],na.rm=T)
     if (sc ==0){
-      indatlong[,,,x,y]<-NA
+      indatlong[,,x,y]<-NA
     }
   }
 }
 
 
+
+#get only absence data
+for(x in 1:dim(indatlong)[1]){
+  for (y in 1:dim(indatlong)[2]){
+    if(sum(indatlong[x,y,,],na.rm=T)==0){
+      indatlong[x,y,,]<-NA
+    }
+  }
+}
+
 #melt and remove Na's
 indat<-melt(indatlong)
-indat<-indat[!is.na(indat$value),]
 
-colnames(indat)<-c("Bird","Plant","Time","ID","Day","Yobs")
+indat<-indat[indat$value %in% 0,]
+
+colnames(indat)<-c("Bird","Plant","ID","Day","Yobs")
 ```
 
 
 ```r
-#remerge the time period data
-Timelookup<-indatraw %>% dplyr::select(ID,Transect_R,Survey_Type) %>% group_by(ID,Transect_R,Survey_Type) %>% distinct() %>% arrange(ID)
+#remerge the time period data for absences
+Timelookup<-indatraw %>% dplyr::select(ID,Transect_R,Month,Survey_Type,Year,Day,DateP,Time) %>% unique()
 
 #Get time information
-indat<-merge(indat,Timelookup,by=c("ID"))
+indat<-merge(indat,Timelookup,by=c("ID","Day"))
+
+#bind to presence data
+indat<-as.data.frame(rbind_all(list(indat,indatraw)))
 
 #Species names
 for (x in 1:nrow(indat)){
@@ -440,7 +450,6 @@ tosave<-indat
 
 indat<-merge(indat,qthresh)
 indat$BUsed_Flowers<-(indat$Used_Flowers > indat$UThresh)*1
-
 
 fthresh<-indat %>% group_by(Hummingbird) %>% summarize(FThresh=mean(FlowerA))
 indat<-merge(indat,fthresh)
@@ -666,13 +675,18 @@ writeLines(readLines("Bayesian/NmixturePoissonRagged2m.R"))
 ##     }
 ##     
 ## 
-## 
 ##     #Species level priors
 ##     
 ##     for (i in 1:Birds){
-##     #Detect priors
-##     dcam[i] ~ dunif(0,1)
-##     dtrans[i] ~ dunif(0,1)
+##     #Detect priors, logit transformed
+## 
+##     #For Cameras
+##     logit(dcam[i]) <- dcam_logit[i]
+##     dcam_logit[i] ~ dnorm(dprior_cam,tau_dcam)
+## 
+##     #For Transects
+##     logit(dtrans[i]) <- dtrans_logit[i]
+##     dtrans_logit[i] ~ dnorm(dprior_trans,tau_dtrans)
 ## 
 ##     alpha[i] ~ dnorm(intercept,tau_alpha)
 ##     beta1[i] ~ dnorm(gamma1,tau_beta1)    
@@ -689,14 +703,22 @@ writeLines(readLines("Bayesian/NmixturePoissonRagged2m.R"))
 ##     #Intercept grouping
 ##     intercept~dnorm(0,0.0001)
 ##     
+##     #Detection group prior
+##     dprior_cam ~ dnorm(0,0.5)
+##     dprior_trans ~ dnorm(0,0.5)
+## 
 ##     # Group intercept variance
 ##     tau_alpha ~ dgamma(0.0001,0.0001)
 ##     sigma_int<-pow(1/tau_alpha,2) 
 ##     
-##     #Derived Quantity
+##     #Group effect detect camera
+##     tau_dcam ~ dunif(0,10)
+##     sigma_dcam<-pow(1/tau_dcam,.5)
 ##     
-##     #Slope variance, turning precision to sd
-##     
+##     #Group effect detect camera
+##     tau_dtrans ~ dunif(0,10)
+##     sigma_dtrans<-pow(1/tau_dtrans,.5)
+## 
 ##     #Group Effect of traits
 ##     tau_beta1 ~ dgamma(0.0001,0.0001)
 ##     sigma_slope1<-pow(1/tau_beta1,.5)
@@ -725,13 +747,13 @@ InitStage <- function(){
   initB<-as.numeric(matrix(nrow=Birds,ncol=1,data=0))
   initD<-as.numeric(matrix(nrow=Birds,ncol=1,data=.5))
 
-list(beta1=initB,beta2=initB,beta3=initB,alpha=rep(.5,Birds),intercept=0,tau_alpha=0.1,tau_beta1=0.1,tau_beta2=0.1,tau_beta3=0.1,gamma1=0,gamma2=0,gamma3=0,dtrans=initD,dcam=initD,N=initY)}
+list(beta1=initB,beta2=initB,beta3=initB,alpha=rep(.5,Birds),intercept=0,tau_alpha=0.1,tau_beta1=0.1,tau_beta2=0.1,tau_beta3=0.1,gamma1=0,gamma2=0,gamma3=0,N=initY)}
 
 #Parameters to track
 ParsStage <- c("alpha","beta1","beta2","beta3","intercept","sigma_int","sigma_slope1","sigma_slope2","sigma_slope3","gamma1","gamma2","gamma3","dtrans","dcam")
 
 #MCMC options
-ni <- 50000  # number of draws from the posterior
+ni <- 70000  # number of draws from the posterior
 nt <- max(c(2,ni*.0001))  #thinning rate
 nb <- ni*.95 # number to discard for burn-in
 nc <- 2  # number of chains
@@ -1190,15 +1212,34 @@ ggplot(species.max,aes(x=TotalCorolla,y=lambda,col=as.factor(r))) + geom_density
 
 <img src="figureObserved/unnamed-chunk-46-1.png" title="" alt="" style="display: block; margin: auto;" />
 
+#Model Criticism
+
+##Residuals
+
+
+```r
+chisq<-function(o,e){(o-e)^2/(e+0.5)}
+
+spres<-split(species.mean,list(species.mean$Hummingbird,species.mean$Iplant_Double,species.mean$r),drop = T)
+
+obs<-indat %>% filter(Hummingbird %in% x$Hummingbird,Iplant_Double %in% x$Iplant_Double,BUsed_Flowers %in% x$r)
+
+resids<-c(sapply(na.exclude(c(obs$Camera,obs$Transect)),function(y){
+  chisq(o=x$lambda,e=y)
+}))
+
+data.frame(chisq=resids,Hummigbird=unique(x$Hummingbird),Iplant_Double=unique(x$Iplant_Double),r=unique(x$r))
+```
+
 
 ```r
 gc()
 ```
 
 ```
-##             used   (Mb) gc trigger   (Mb)   max used    (Mb)
-## Ncells   2026492  108.3    3886542  207.6    3886542   207.6
-## Vcells 351440228 2681.3  919825976 7017.8 1960979102 14961.1
+##            used  (Mb) gc trigger  (Mb) max used  (Mb)
+## Ncells  1933985 103.3    3205452 171.2  3205452 171.2
+## Vcells 35171537 268.4   73658852 562.0 73658451 562.0
 ```
 
 ```r
