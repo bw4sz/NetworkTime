@@ -742,4 +742,4 @@ Regardless of identity, does the community converge on a corolla length, what is
 
 ```{r}
 ggplot(indat[indat$State=="Used",],aes(fill=as.factor(BUsed_Flowers),x=TotalCorolla)) + geom_density(alpha=.75)+ scale_fill_manual("Resource Availability",values = c("grey90","black")) + theme_bw() + geom_vline(xintercept=c(16.23,19.78),linetype="dashed")
-ggsave("Figures/AllCorollas.svg",height=5,width=5)
+ggsave("Figures/AllCorollas.svg",height=4,width=6)
