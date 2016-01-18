@@ -758,7 +758,9 @@ ss<-data.frame(Hummingbird=c("Booted Racket-tail","Brown Inca","Buff-tailed Coro
 indat<-merge(indat,ss,by=c("Hummingbird"))
 
 ggplot(indat[indat$State=="Used" ,],aes(x=TotalCorolla,fill=as.factor(BUsed_Flowers))) + geom_density(alpha=.7) + facet_wrap(~Hummingbird,scales="free",ncol=3) + theme_bw() + scale_fill_manual("Resource Availability",labels=c("Low","High"),values=c("Red","Black")) + ggtitle("Visited Flowers") + geom_vline(data=b,aes(xintercept=Bill),linetype="dashed",size=1,col='red') + scale_fill_manual("Resource Availability",values=c("grey90","black"),labels=c("Low","High")) + xlab("Flower Corolla Length (mm)")
-ggsave("Figures/ChangeCorolla.svg",height=7,width=6)
+ggsave("Figures/ChangeCorolla.svg",height=7,width=9)
+ggsave("Figures/ChangeCorolla.jpeg",height=7,width=9)
+
 ```
 
 
