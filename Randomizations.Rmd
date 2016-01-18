@@ -643,8 +643,11 @@ Do they expand, contract, or shift?
 ```{r}
 ggplot(indat[indat$State=="Used",],aes(x=TotalCorolla,fill=as.factor(BUsed_Flowers))) + geom_density(alpha=.7) + facet_wrap(~Hummingbird,scales="free",ncol=3) + theme_bw() + scale_fill_manual("Resource Availability",labels=c("Low","High"),values=c("Red","Black")) + ggtitle("Visited Flowers") + geom_vline(data=b,aes(xintercept=Bill),linetype="dashed",size=1,col='red') + scale_fill_manual("Resource Availability",values=c("grey90","black"),labels=c("Low","High")) + xlab("Flower Corolla Length (mm)")
 ggsave("Figures/UsedEmprical.jpeg",dpi=300,width=7.5,height=6)
+```
 
-true_state<- indat %>% filter(State=="Used") %>% group_by(Hummingbird,BUsed_Flowers) %>% summarize(mean=mean(TotalCorolla),sd=sd(TotalCorolla),min=min(TotalCorolla),max=max(TotalCorolla)) %>% mutate(range=abs(min-max))
+##True state of trait-matching among high and low periods.
+```{r}
+true_state<- indat %>% filter(State=="Used") %>% group_by(Hummingbird,BUsed_Flowers) %>% summarize(mean=mean(Traitmatch),sd=sd(Traitmatch),min=min(Traitmatch),max=max(Traitmatch)) %>% mutate(range=abs(min-max))
 
 mtruestate<-melt(true_state,measure.vars=c("mean","sd","min","max","range"))
 
@@ -659,6 +662,7 @@ diffdf<-lapply(splt,function(x){
 truedf<-rbind_all(diffdf)
 ```
 
+##Randomization of trait-matching 
 ```{r}
 #Define randomization function
 
@@ -670,7 +674,7 @@ nullc<-function(indat){
   
   #Calculate null
   null_state<-
-true_state<- indat %>% filter(State=="Used") %>% group_by(Hummingbird,BUsed_Flowers) %>% summarize(mean=mean(TotalCorolla),sd=sd(TotalCorolla),min=min(TotalCorolla),max=max(TotalCorolla)) %>% mutate(range=abs(min-max))
+true_state<- indat %>% filter(State=="Used") %>% group_by(Hummingbird,BUsed_Flowers) %>% summarize(mean=mean(Traitmatch),sd=sd(Traitmatch),min=min(Traitmatch),max=max(Traitmatch)) %>% mutate(range=abs(min-max))
 
 mtruestate<-melt(true_state,measure.vars=c("mean","sd","min","max","range"))
 
@@ -689,7 +693,7 @@ null_state<-rbind_all(diffdf)
 
 cl<-makeCluster(10,"SOCK")
 registerDoSNOW(cl)
-nullframe<-foreach(x=1:1000,.packages=c("dplyr","reshape2")) %dopar% {nullc(indat)}
+nullframe<-foreach(x=1:10000,.packages=c("dplyr","reshape2")) %dopar% {nullc(indat)}
 stopCluster(cl)
 
 nullframe<-rbind_all(nullframe)
@@ -698,7 +702,7 @@ nullframe<-rbind_all(nullframe)
 ## Mean Trait-matching
 
 ```{r}
-ggplot(data=nullframe[nullframe$Metric=="mean",],aes(x=Difference)) + geom_density(fill="black",alpha=.2) + geom_vline(data=truedf[truedf$Metric=="mean",],aes(xintercept=Difference),linetype="dashed",col="red")+ facet_wrap(~Hummingbird,scales="free") + theme_bw() + ggtitle("Is the mean trait-matching different in high and low periods")
+ggplot(data=nullframe[nullframe$Metric=="mean",],aes(x=Difference)) + geom_density(fill="black",alpha=.2) + geom_vline(data=truedf[truedf$Metric=="mean",],aes(xintercept=Difference),linetype="dashed",col="red")+ facet_wrap(~Hummingbird,scales="free") + theme_bw() + ggtitle("Is the mean corolla length different in high and low periods")
 ```
 
 ## Range of Trait-matching
@@ -741,5 +745,20 @@ grid.arrange(p,p2,ncol=1)
 Regardless of identity, does the community converge on a corolla length, what is the space used in each time period
 
 ```{r}
-ggplot(indat[indat$State=="Used",],aes(fill=as.factor(BUsed_Flowers),x=TotalCorolla)) + geom_density(alpha=.75)+ scale_fill_manual("Resource Availability",values = c("grey90","black")) + theme_bw() + geom_vline(xintercept=c(16.23,19.78),linetype="dashed")
+ggplot(indat[indat$State=="Used",],aes(fill=as.factor(BUsed_Flowers),x=TotalCorolla)) + geom_density(alpha=.75)+ scale_fill_manual("Resource Availability",values = c("grey90","black"),labels=c("Low","High")) + theme_bw() + geom_vline(xintercept=c(16.23,19.78),linetype="dashed")
 ggsave("Figures/AllCorollas.svg",height=4,width=6)
+```
+
+
+Replot emprical distribution under coded for exapnsion, shift away, shift towards, null.
+
+```{r}
+ss<-data.frame(Hummingbird=c("Booted Racket-tail","Brown Inca","Buff-tailed Coronet","Collared Inca","Crowned Woodnymph","Fawn-breasted Brilliant","Gorgeted Sunangel","Green-fronted Lancebill","Purple-bibbed Whitetip","Speckled Hummingbird","Stripe-throated Hermit","Tawny-bellied Hermit","Violet-tailed Sylph","White-whiskered Hermit"),mean_code=c("No Shift","Shift Away","No Shift","No Shift","No Shift","Shift Towards","No Shift","No Shift","No Shift","No Shift","No Shift","Shift Away","Shift Towards","Shift Away"),range_code=c("No Change","Expansion","Expansion","Contraction","Expansion","No Change","No Change","No Change","No Change","No Change","No Change","Expansion","No Change","Expansion"))
+
+indat<-merge(indat,ss,by=c("Hummingbird"))
+
+ggplot(indat[indat$State=="Used" ,],aes(x=TotalCorolla,fill=as.factor(BUsed_Flowers))) + geom_density(alpha=.7) + facet_wrap(~Hummingbird,scales="free",ncol=3) + theme_bw() + scale_fill_manual("Resource Availability",labels=c("Low","High"),values=c("Red","Black")) + ggtitle("Visited Flowers") + geom_vline(data=b,aes(xintercept=Bill),linetype="dashed",size=1,col='red') + scale_fill_manual("Resource Availability",values=c("grey90","black"),labels=c("Low","High")) + xlab("Flower Corolla Length (mm)")
+ggsave("Figures/ChangeCorolla.svg",height=7,width=6)
+```
+
+
