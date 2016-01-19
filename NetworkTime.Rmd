@@ -208,7 +208,7 @@ levels(nsub$Metric)<-c("Nestedness","Connectance","Niche Overlap")
 
 ggplot(nsub,aes(x=HL,y=True)) + geom_boxplot() + facet_wrap(~Metric,scales="free")  + scale_x_discrete("Resource Availability",labels=c("Low","High"))  + ylab("value")
 
-ggsave("Figures/Boxplot_ResourcesSubset.jpeg",height=4,width=6,dpi=300,units="in")
+ggsave("Figures/Boxplot_ResourcesSubset.jpeg",height=4,width=8,dpi=300,units="in")
 ggsave("Figures/Boxplot_ResourcesSubset.svg")
 
 p<-ggplot(network.fl,aes(log(Flowers),y=True,shape=as.factor(Year))) + geom_point(aes(size=N)) + facet_wrap(~Metric,scale="free")  + geom_smooth(aes(group=1),method="lm") + theme_bw() + labs(col="Month",shape="Year",size="Interactions") + geom_text(aes(label=month.abb[Month]),hjust=-0.25,size=3) + scale_size_continuous(range=c(2.5,5),"Observations") + labs(x="Log Available Resources") + ylab("Score")
