@@ -38,15 +38,13 @@ setwd(gitpath)
 
 opts_chunk$set(message=FALSE,warning=FALSE,fig.height=9,fig.width=13,echo=FALSE,cache=TRUE,cache.path = 'NetworkTime_cache/', fig.path='figure/')
 
-#so urce bayes functions
-source("Bayesian/BayesFunctions.R")
 ```
 
 ************
 
 ```{r}
 #load data if needed
-load("NetworkTime.Rdata")
+#load("NetworkTime.Rdata")
 ```
 
 
