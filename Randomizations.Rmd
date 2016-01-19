@@ -31,8 +31,6 @@ opts_chunk$set(message=FALSE,warning=FALSE,fig.width=9,fig.height=7,echo=TRUE,ca
 
 set.seed(3)
 #source functions
-
-source("Bayesian/BayesFunctions.R")
 ```
 
 ```{r,echo=F,cache=FALSE}
@@ -41,7 +39,7 @@ paste("Run Completed at",Sys.time())
 
 ```{r}
 #reload if needed
-#load("Observed.Rdata")
+#load("Randomization.Rdata")
 ```
 
 #Load in data
@@ -223,7 +221,7 @@ indatraw<-rbind_all(sdat)
 ```{r}
 #match the traits
 traitmelt<-melt(TotalCorollaT)
-colnames(traitmelt)<-c("Hummingbird","Iplant_Double","TotalCorolla")
+colnames(traitmelt)<-c("Hummingbird","Iplant_Double","Traitmatch")
 ```
 
 ##Absences - accounting for non-detection
@@ -442,7 +440,7 @@ indat$BAll_Flowers<-(indat$All_Flowers > quantile(indat$All_Flowers,0.75))*1
  # as.numeric(str_split(x,"_")[[1]][1])})
 #indat$BAll_Flowers<-(mnth  %in% c(6,7,8,9,10))*1
 
-qthresh<-indat %>% group_by(Hummingbird) %>% summarize(UThresh=mean(Used_Flowers))
+qthresh<-indat %>% group_by(Hummingbird) %>% summarize(UThresh=quantile(Used_Flowers,0.75))
 
 #save a copy in case you need it here
 tosave<-indat
@@ -757,10 +755,18 @@ ss<-data.frame(Hummingbird=c("Booted Racket-tail","Brown Inca","Buff-tailed Coro
 
 indat<-merge(indat,ss,by=c("Hummingbird"))
 
-ggplot(indat[indat$State=="Used" ,],aes(x=TotalCorolla,fill=as.factor(BUsed_Flowers))) + geom_density(alpha=.7) + facet_wrap(~Hummingbird,scales="free",ncol=3) + theme_bw() + scale_fill_manual("Resource Availability",labels=c("Low","High"),values=c("Red","Black")) + ggtitle("Visited Flowers") + geom_vline(data=b,aes(xintercept=Bill),linetype="dashed",size=1,col='red') + scale_fill_manual("Resource Availability",values=c("grey90","black"),labels=c("Low","High")) + xlab("Flower Corolla Length (mm)")
+#Order by bill length
+
+indat$Hummingbird<-factor(indat$Hummingbird,levels=as.character(b[order(b$Bill),]$Hummingbird))
+
+ggplot(indat[ ,],aes(x=TotalCorolla,fill=State)) + geom_density(alpha=.7) + facet_wrap(BUsed_Flowers~Hummingbird,scales="free",ncol=3) + theme_bw() + scale_fill_manual("Resource Availability",labels=c("Low","High"),values=c("Red","Black")) + ggtitle("Visited Flowers") + geom_vline(data=b,aes(xintercept=Bill),linetype="dashed",size=1,col='red') + scale_fill_manual("",values=c("grey90","black"),labels=c("Non-visited","Visited")) + xlab("Flower Corolla Length (mm)")
 ggsave("Figures/ChangeCorolla.svg",height=7,width=9)
 ggsave("Figures/ChangeCorolla.jpeg",height=7,width=9)
 
 ```
 
 
+Save image
+```{r}
+save.image("Randomization.Rdata")
+```
