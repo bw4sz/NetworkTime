@@ -520,7 +520,12 @@ According to the transects
 ```{r}
 full.morph<-merge(full.fl,fl.morph,by.x="Iplant_Double",by.y="Group.1")
 
-ggplot(full.morph,aes(x=as.factor(Month),fill=as.factor(Year),y=TotalCorolla)) + geom_boxplot() + labs(fill="Year",y="Corolla Length (mm)",x="Month") + stat_smooth(aes(group=1))
+#turn month into abreviation
+full.morph$MonthA<-sapply(full.morph$Month,function(x){
+  return(month.abb[x])
+})
+full.morph$MonthA<-factor(full.morph$MonthA,levels=month.abb)
+ggplot(full.morph,aes(x=MonthA,fill=as.factor(Year),y=TotalCorolla)) + geom_boxplot() + labs(fill="Year",y="Corolla Length (mm)",x="Month") 
 ggsave("Figures/CorollaAvailability.jpg",dpi=300,height=5,width=6)
 ```
 
