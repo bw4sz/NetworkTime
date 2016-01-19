@@ -513,6 +513,38 @@ file.remove(list.files(pattern="*.log"))
 
 #View empirical distribution
 
+#Distribtuion of corolla lengths over time
+
+According to the transects
+
+```{r}
+full.morph<-merge(full.fl,fl.morph,by.x="Iplant_Double",by.y="Group.1")
+
+ggplot(full.morph,aes(x=as.factor(Month),fill=as.factor(Year),y=TotalCorolla)) + geom_boxplot() + labs(fill="Year",y="Corolla Length (mm)",x="Month") + stat_smooth(aes(group=1))
+ggsave("Figures/CorollaAvailability.jpg",dpi=300,height=5,width=6)
+```
+
+Corolla Selection compared to available lengths
+```{r}
+
+bm<-m.datH %>% dplyr::select(TotalCorolla,Month,Year,Iplant_Double,Hummingbird) %>% mutate(Type='Bird')
+
+#need to remove background points that don't have species occurrences.
+
+tm<-merge(bm,full.morph,by=c("Month","Year"))
+
+#make sure
+tm$Month<-factor(tm$Month,levels=1:12)
+bm$Month<-factor(bm$Month,levels=1:12)
+
+#replace with month names
+levels(tm$Month)<-month.abb
+levels(bm$Month)<-month.abb
+
+ggplot() + geom_boxplot(data=bm,aes(x=Month,y=TotalCorolla),col='red',fill='red',alpha=.6) + stat_smooth(data=bm,aes(x=Month,group=1,y=TotalCorolla),fill='red',col='red')+ facet_wrap(~Hummingbird,ncol=4) + theme_bw()+ geom_boxplot(data=tm,aes(x=as.factor(Month),y=TotalCorolla.y),fill='black',alpha=.1)+ labs(fill="Year",y="Corolla Length (mm)",x="Month")+stat_smooth(data=tm,aes(group=1,x=Month,y=TotalCorolla.y),col='black',size=1) 
+```
+
+
 ## Corolla Lengths
 
 ```{r}
