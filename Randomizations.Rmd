@@ -582,7 +582,7 @@ The dashed line if the bill length of the species.
 ```{r}
 ggplot(indat,aes(x=TotalCorolla,fill=State)) + geom_density(alpha=.5) + facet_wrap(~Hummingbird,scales="free") + theme_bw() 
 
-true_state<- indat %>% filter(State=="Used") %>% group_by(Hummingbird) %>% summarize(mean=mean(TotalCorolla)) %>% mutate(range=abs(min(TotalCorolla)-max(TotalCorolla)))
+true_state<- indat %>% filter(State=="Used") %>% group_by(Hummingbird) %>% summarize(mean=mean(TotalCorolla),range=abs(min(TotalCorolla)-max(TotalCorolla)))
 
 mtruestate<-melt(true_state,measure.vars=c("mean","range"))
 ```
@@ -596,7 +596,7 @@ This is most common definition of specialization.
 ```{r}
 nullc<-function(indat){
   indat$State<-sample(indat$State)
-null_state<- indat %>% filter(State=="Used") %>% group_by(Hummingbird) %>% summarize(mean=mean(TotalCorolla)) %>% mutate(range=abs(max(TotalCorolla)-min(TotalCorolla)))
+null_state<- indat %>% filter(State=="Used") %>% group_by(Hummingbird) %>% summarize(mean=mean(TotalCorolla),range=abs(max(TotalCorolla)-min(TotalCorolla)))
 
   return(null_state)
 }
@@ -664,8 +664,6 @@ p
 
 Conclusion: With few exceptions there is strong trait-matching compared to the available hummingbird resources. All hummingbirds differed in atleast one metric.
 
-
-
 #Randomization II
 
 Do the distributions of corollas used differ in resource periods, given the background in each time period?
@@ -679,7 +677,7 @@ ggsave("Figures/UsedEmprical.jpeg",dpi=300,width=7.5,height=6)
 
 ##True state of trait-matching among high and low periods.
 ```{r}
-true_state<- indat %>% filter(State=="Used") %>% group_by(Hummingbird,Availability) %>% summarize(mean=mean(Traitmatch),sd=sd(Traitmatch),min=min(Traitmatch),max=max(Traitmatch)) %>% mutate(range=abs(min-max))
+true_state<- indat %>% filter(State=="Used") %>% group_by(Hummingbird,Availability) %>% summarize(mean=mean(Traitmatch),range=abs(max(TotalCorolla)-min(TotalCorolla))) 
 
 mtruestate<-melt(true_state,measure.vars=c("mean","range"))
 
