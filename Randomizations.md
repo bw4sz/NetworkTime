@@ -5,7 +5,7 @@ Ben Weinstein - Stony Brook University
 
 
 ```
-## [1] "Run Completed at 2016-01-19 18:21:13"
+## [1] "Run Completed at 2016-01-21 13:35:44"
 ```
 
 
@@ -360,7 +360,7 @@ flower.month$Month.a<-factor(month.abb[flower.month$Month],month.abb[c(1:12)])
 flower.month$Year<-as.factor(flower.month$Year)
 
 #get quantile for each transect
-thresh<-melt(group_by(flower.month,Transect_R) %>% summarize(Threshold=quantile(Flowers,0.75)) )
+thresh<-melt(group_by(flower.month) %>% summarize(Threshold=quantile(Flowers,0.66)) )
 flower.month<-merge(flower.month,thresh)
 flower.month$High<-flower.month$Flowers>flower.month$value
 
@@ -387,7 +387,7 @@ slist<-int %>% group_by(Hummingbird,Iplant_Double) %>% distinct() %>% dplyr::sel
 full.fl$Date_F<-strptime(full.fl$Date_F,format="%Y-%m-%d")
 indat$DateP<-strptime(indat$DateP,format="%Y-%m-%d")
 
-cl<-makeCluster(10,"SOCK")
+cl<-makeCluster(2,"SOCK")
 registerDoSNOW(cl)
 
 df<-foreach(x=1:nrow(indat),.packages="dplyr") %dopar% {
@@ -445,8 +445,6 @@ indat$DateP<-as.character(indat$DateP)
 levels(flower.month$Transect_R)<-levels(as.factor(indat$Transect_R))
 
 #Average the two transects per month
-mflower<-
-  
   flt<-flower.month %>% group_by(Transect_R,Month,Year) %>% summarize(Flowers=mean(Flowers)) %>% group_by(Transect_R) %>% summarize(thresh=quantile(Flowers,0.75))
 
 mflower<-flower.month %>% group_by(Transect_R,Month,Year) %>% summarize(Flowers=mean(Flowers))
@@ -458,10 +456,12 @@ mflower$Availability<-(mflower$Flowers>mflower$thresh)*1
 indat<-merge(indat,mflower,by=c("Month","Year","Transect_R"))
 
 
-#mnth<-sapply(indat$Time,function(x){
- # as.numeric(str_split(x,"_")[[1]][1])})
-#indat$BAll_Flowers<-(mnth  %in% c(6,7,8,9,10))*1
+ggplot(mflower,aes(x=factor(Availability),y=Flowers,fill=Transect_R)) + geom_boxplot() + labs(x="Resource Availability")
+```
 
+<img src="figureObserved/unnamed-chunk-18-1.png" title="" alt="" style="display: block; margin: auto;" />
+
+```r
 qthresh<-indat %>% group_by(Hummingbird) %>% summarize(UThresh=quantile(Used_Flowers,0.75))
 
 #save a copy in case you need it here
@@ -550,7 +550,7 @@ file.remove(list.files(pattern="*.log"))
 ```
 
 ```
-## [1] TRUE TRUE TRUE TRUE
+##  [1] TRUE TRUE TRUE TRUE TRUE TRUE TRUE TRUE TRUE TRUE TRUE
 ```
 
 #View empirical distribution
@@ -568,36 +568,19 @@ full.morph$MonthA<-sapply(full.morph$Month,function(x){
   return(month.abb[x])
 })
 full.morph$MonthA<-factor(full.morph$MonthA,levels=month.abb)
-ggplot(full.morph,aes(x=MonthA,fill=as.factor(Year),y=TotalCorolla)) + geom_boxplot() + labs(fill="Year",y="Corolla Length (mm)",x="Month") 
+
+flower.month$MonthA<-flower.month$Month.a
+full.morph<-merge(full.morph,mflower,by=c("Month","Year","Transect_R"))
+
+#
+ggplot(full.morph,aes(x=MonthA,fill=as.factor(Year),y=TotalCorolla)) + geom_boxplot() + labs(fill="Year",y="Corolla Length (mm)",x=NULL) + scale_fill_manual(values=c("grey60","grey40","grey10")) + theme_bw() 
 ```
 
 <img src="figureObserved/unnamed-chunk-21-1.png" title="" alt="" style="display: block; margin: auto;" />
 
 ```r
-ggsave("Figures/CorollaAvailability.jpg",dpi=300,height=5,width=6)
+ggsave("Figures/CorollaAvailability.jpg",dpi=300,height=5,width=7)
 ```
-
-Corolla Selection compared to available lengths
-
-```r
-bm<-indat %>% dplyr::select(TotalCorolla,Month,Year,Iplant_Double,Hummingbird) %>% mutate(Type='Bird')
-
-#need to remove background points that don't have species occurrences.
-
-tm<-merge(bm,full.morph,by=c("Month","Year"))
-
-#make sure
-tm$Month<-factor(tm$Month,levels=1:12)
-bm$Month<-factor(bm$Month,levels=1:12)
-
-#replace with month names
-levels(tm$Month)<-month.abb
-levels(bm$Month)<-month.abb
-
-ggplot() + geom_boxplot(data=bm,aes(x=Month,y=TotalCorolla),col='red',fill='red',alpha=.6) + stat_smooth(data=bm,aes(x=Month,group=1,y=TotalCorolla),fill='red',col='red')+ facet_wrap(~Hummingbird,ncol=4) + theme_bw()+ geom_boxplot(data=tm,aes(x=as.factor(Month),y=TotalCorolla.y),fill='black',alpha=.1)+ labs(fill="Year",y="Corolla Length (mm)",x="Month")+stat_smooth(data=tm,aes(group=1,x=Month,y=TotalCorolla.y),col='black',size=1) 
-```
-
-<img src="figureObserved/unnamed-chunk-22-1.png" title="" alt="" style="display: block; margin: auto;" />
 
 ## Corolla Lengths
 
@@ -608,10 +591,10 @@ indat$State<-(indat$Yobs>0)*1
 indat$State<-factor(indat$State,labels = c("Unused","Used"))
 
 b<-indat %>% group_by(Hummingbird) %>% summarise(Bill=unique(Bill))
-ggplot(indat,aes(x=TotalCorolla,fill=State)) + geom_density(alpha=.5) + facet_wrap(~Hummingbird,scales="free") + theme_bw() + geom_vline(dataa=b,aes(xintercept=Bill),linetype="dashed")
+ggplot(indat,aes(x=TotalCorolla,fill=State)) + geom_density(alpha=.5) + facet_wrap(~Hummingbird,scales="free") + theme_bw() + geom_vline(data=b,aes(xintercept=Bill),linetype="dashed")
 ```
 
-<img src="figureObserved/unnamed-chunk-23-1.png" title="" alt="" style="display: block; margin: auto;" />
+<img src="figureObserved/unnamed-chunk-22-1.png" title="" alt="" style="display: block; margin: auto;" />
 
 The dashed line if the bill length of the species.
 
@@ -620,7 +603,7 @@ The dashed line if the bill length of the species.
 ggplot(indat,aes(x=TotalCorolla,fill=State)) + geom_density(alpha=.5) + facet_wrap(~Hummingbird,scales="free") + theme_bw() 
 ```
 
-<img src="figureObserved/unnamed-chunk-24-1.png" title="" alt="" style="display: block; margin: auto;" />
+<img src="figureObserved/unnamed-chunk-23-1.png" title="" alt="" style="display: block; margin: auto;" />
 
 ```r
 true_state<- indat %>% filter(State=="Used") %>% group_by(Hummingbird) %>% summarize(mean=mean(TotalCorolla),range=abs(min(TotalCorolla)-max(TotalCorolla)))
@@ -661,7 +644,7 @@ nullframe<-melt(nullframe,id.vars=c("Hummingbird"))
 ggplot(nullframe[nullframe$variable=="mean",],aes(x=value)) + geom_density(fill="black",alpha=.2) + geom_vline(data=mtruestate[mtruestate$variable=="mean",],aes(xintercept=value),linetype="dashed",col="red",size=1) + facet_wrap(~Hummingbird,scales="free") + theme_bw() + geom_vline(data=b,aes(xintercept=Bill),size=1)
 ```
 
-<img src="figureObserved/unnamed-chunk-26-1.png" title="" alt="" style="display: block; margin: auto;" />
+<img src="figureObserved/unnamed-chunk-25-1.png" title="" alt="" style="display: block; margin: auto;" />
 
 ## Range Trait-matching
 
@@ -669,7 +652,7 @@ ggplot(nullframe[nullframe$variable=="mean",],aes(x=value)) + geom_density(fill=
 ggplot(nullframe[nullframe$variable=="range",],aes(x=value)) + geom_density(fill="black",alpha=.2) + geom_vline(data=mtruestate[mtruestate$variable=="range",],aes(xintercept=value),linetype="dashed",col="red") + facet_wrap(~Hummingbird,scales="free") + theme_bw()
 ```
 
-<img src="figureObserved/unnamed-chunk-27-1.png" title="" alt="" style="display: block; margin: auto;" />
+<img src="figureObserved/unnamed-chunk-26-1.png" title="" alt="" style="display: block; margin: auto;" />
 
 Are those true distributions within reasonable confidence bands?
 
@@ -703,7 +686,7 @@ p<-ggplot(mtstate,aes(x=Var1,y=Var2,fill=(value<0.05 | value > 0.95))) + geom_ti
 ggplot(indat,aes(x=TotalCorolla,fill=State)) + geom_density(alpha=.5) + facet_wrap(~Hummingbird,scales="free",ncol=3) + theme_bw() + geom_vline(data=b,aes(xintercept=Bill),linetype="dashed",col='red',size=1) + labs(x="Flower Corolla Length (mm)") + scale_fill_manual(values=c("grey90","black"),labels=c("Non-visited","Visited"))
 ```
 
-<img src="figureObserved/unnamed-chunk-29-1.png" title="" alt="" style="display: block; margin: auto;" />
+<img src="figureObserved/unnamed-chunk-28-1.png" title="" alt="" style="display: block; margin: auto;" />
 
 ```r
 ggsave("Figures/Background_all.jpeg",width=7.5,height=6.5,dpi=300)
@@ -717,7 +700,7 @@ ggsave("Figures/Background_all.jpeg",width=7.5,height=6.5,dpi=300)
 p
 ```
 
-<img src="figureObserved/unnamed-chunk-30-1.png" title="" alt="" style="display: block; margin: auto;" />
+<img src="figureObserved/unnamed-chunk-29-1.png" title="" alt="" style="display: block; margin: auto;" />
 
 
 Conclusion: With few exceptions there is strong trait-matching compared to the available hummingbird resources. All hummingbirds differed in atleast one metric.
@@ -733,7 +716,7 @@ Do they expand, contract, or shift?
 ggplot(indat[indat$State=="Used",],aes(x=TotalCorolla,fill=as.factor(Availability))) + geom_density(alpha=.7) + facet_wrap(~Hummingbird,scales="free",ncol=3) + theme_bw() + scale_fill_manual("Resource Availability",labels=c("Low","High"),values=c("Red","Black")) + ggtitle("Visited Flowers") + geom_vline(data=b,aes(xintercept=Bill),linetype="dashed",size=1,col='red') + scale_fill_manual("Resource Availability",values=c("grey90","black"),labels=c("Low","High")) + xlab("Flower Corolla Length (mm)")
 ```
 
-<img src="figureObserved/unnamed-chunk-31-1.png" title="" alt="" style="display: block; margin: auto;" />
+<img src="figureObserved/unnamed-chunk-30-1.png" title="" alt="" style="display: block; margin: auto;" />
 
 ```r
 ggsave("Figures/UsedEmprical.jpeg",dpi=300,width=7.5,height=6)
@@ -787,7 +770,7 @@ null_state<-rbind_all(diffdf)
   return(null_state)
 }
 
-cl<-makeCluster(10,"SOCK")
+cl<-makeCluster(2,"SOCK")
 registerDoSNOW(cl)
 nullframe<-foreach(x=1:10000,.packages=c("dplyr","reshape2")) %dopar% {nullc(indat)}
 stopCluster(cl)
@@ -802,7 +785,7 @@ nullframe<-rbind_all(nullframe)
 ggplot(data=nullframe[nullframe$Metric=="mean",],aes(x=Difference)) + geom_density(fill="black",alpha=.2) + geom_vline(data=truedf[truedf$Metric=="mean",],aes(xintercept=Difference),linetype="dashed",col="red")+ facet_wrap(~Hummingbird,scales="free") + theme_bw() + ggtitle("Is the mean corolla length different in high and low periods")
 ```
 
-<img src="figureObserved/unnamed-chunk-34-1.png" title="" alt="" style="display: block; margin: auto;" />
+<img src="figureObserved/unnamed-chunk-33-1.png" title="" alt="" style="display: block; margin: auto;" />
 
 ## Range of Trait-matching
 
@@ -811,7 +794,7 @@ ggplot(data=nullframe[nullframe$Metric=="mean",],aes(x=Difference)) + geom_densi
 ggplot(data=nullframe[nullframe$Metric=="range",],aes(x=Difference)) + geom_density(fill="black",alpha=.2) + geom_vline(data=truedf[truedf$Metric=="range",],aes(xintercept=Difference),linetype="dashed",col="red")+ facet_wrap(~Hummingbird,scales="free") + theme_bw() + ggtitle("Is the range trait-matching different in high and low periods")
 ```
 
-<img src="figureObserved/unnamed-chunk-35-1.png" title="" alt="" style="display: block; margin: auto;" />
+<img src="figureObserved/unnamed-chunk-34-1.png" title="" alt="" style="display: block; margin: auto;" />
 
 Are those true distributions within reasonable confidence bands?
 
@@ -845,7 +828,7 @@ p2<-ggplot(mtstate[mtstate$Var2 %in% c("mean","range"),],aes(x=Var1,y=Var2,fill=
 grid.arrange(p,p2,ncol=1)
 ```
 
-<img src="figureObserved/unnamed-chunk-37-1.png" title="" alt="" style="display: block; margin: auto;" />
+<img src="figureObserved/unnamed-chunk-36-1.png" title="" alt="" style="display: block; margin: auto;" />
 
 Regardless of identity, does the community converge on a corolla length, what is the space used in each time period
 
@@ -854,14 +837,14 @@ Regardless of identity, does the community converge on a corolla length, what is
 ggplot(indat[indat$State=="Used",],aes(fill=as.factor(Availability),x=TotalCorolla)) + geom_density(alpha=.75)+ scale_fill_manual("Resource Availability",values = c("grey90","black"),labels=c("Low","High")) + theme_bw() + geom_vline(xintercept=c(16.23,19.78),linetype="dashed")
 ```
 
-<img src="figureObserved/unnamed-chunk-38-1.png" title="" alt="" style="display: block; margin: auto;" />
+<img src="figureObserved/unnamed-chunk-37-1.png" title="" alt="" style="display: block; margin: auto;" />
 
 ```r
 ggsave("Figures/AllCorollas.svg",height=4,width=6)
 ```
 
 
-Replot emprical distribution under coded for exapnsion, shift away, shift towards, null.
+Replot empirical distribution under coded for exapnsion, shift away, shift towards, null.
 
 
 ```r
@@ -874,16 +857,56 @@ indat<-merge(indat,ss,by=c("Hummingbird"))
 indat$Hummingbird<-factor(indat$Hummingbird,levels=as.character(b[order(b$Bill),]$Hummingbird))
 keep<-c("Tawny-bellied Hermit","White-whiskered Hermit","Brown Inca","Violet-tailed Sylph")
 
-ggplot(indat[indat$Hummingbird %in% keep,],aes(x=TotalCorolla,fill=State)) + geom_density(alpha=.7) + facet_grid(Availability~Hummingbird,scales="free") + theme_bw() + scale_fill_manual("Resource Availability",labels=c("Low","High"),values=c("Red","Black")) + ggtitle("Visited Flowers") + geom_vline(data=b[b$Hummingbird %in% keep,],aes(xintercept=Bill),linetype="dashed",size=1,col='red') + scale_fill_manual("",values=c("grey90","black"),labels=c("Non-visited","Visited")) + xlab("Flower Corolla Length (mm)")
+#loop through plots, by bill length.
+b$Billc<-cut(b$Bill,breaks=c(0,20,35,60),labels=c("Short Bill","Medium Bill","Long Bill"))
+
+b[b$Hummingbird %in% "Brown Inca","Billc"]<-"Long Bill"
+
+indat<-merge(indat,b[,!colnames(b) %in% "Bill"])
+
+#try general plot
+ggplot(indat[indat$State=="Used",],aes(x=TotalCorolla,fill=as.factor(Availability))) + geom_density(alpha=.7) + facet_wrap(~Hummingbird,scale="free_y",nrow=3) + theme_bw()   + geom_vline(data=b,aes(xintercept=Bill),linetype="dashed",size=1,col='red') + labs(x=NULL) + scale_fill_manual("Resource Availability",values=c("grey90","black"),labels=c("Low","High"),guide="none") + scale_x_continuous(limits=c(0,60),breaks=c(20,40,60)) + theme(plot.margin=unit(c(.25,.25,0.1,0.1),"cm"))
+```
+
+<img src="figureObserved/unnamed-chunk-38-1.png" title="" alt="" style="display: block; margin: auto;" />
+
+
+```r
+#loop through plots
+p<-list()
+
+#do we have enough senses.
+m<-melt(table(indat$State,indat$Hummingbird,indat$Availability))
+
+#take out fawn breasted brilliant
+indat<-indat[!indat$Hummingbird %in% "Fawn-breasted Brilliant",]
+#split data
+
+sindat<-split(indat,indat$Billc)
+
+#vectors of titles
+for (x in 1:length(sindat)){
+  j<-sindat[[x]]
+  p[[x]]<-ggplot(j[j$State=="Used",],aes(x=TotalCorolla,fill=as.factor(Availability))) + geom_density(alpha=.7) + facet_wrap(~Hummingbird,scale="free_y",nrow=1) + theme_bw()   + geom_vline(aes(xintercept=Bill),linetype="dashed",size=1,col='red') + labs(x=NULL) + scale_fill_manual("Resource Availability",values=c("grey90","black"),labels=c("Low","High"),guide="none") + scale_x_continuous(limits=c(0,60),breaks=c(0,20,40,60)) + theme(plot.margin=unit(c(.6,.6,0.1,0.1),"cm"))
+}
+
+#just add legend to last one.
+p[[3]]<-p[[3]]+theme(legend.position='bottom') + scale_fill_manual("Resource Availability",values=c("grey90","black"),labels=c("Low","High"))
+svg("Figures/ChangeCorolla_used.svg",height=8,width=10)
+grid.arrange(p[[1]],p[[2]],p[[3]],heights=c(0.3,.3,0.4))
+dev.off()
+```
+
+```
+## png 
+##   2
+```
+
+```r
+grid.arrange(p[[1]],p[[2]],p[[3]],heights=c(0.3,.3,0.4))
 ```
 
 <img src="figureObserved/unnamed-chunk-39-1.png" title="" alt="" style="display: block; margin: auto;" />
-
-```r
-ggsave("Figures/ChangeCorolla.svg",height=7,width=9)
-ggsave("Figures/ChangeCorolla.jpeg",height=7,width=9)
-```
-
 
 Save image
 
