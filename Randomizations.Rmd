@@ -364,7 +364,7 @@ flower.month$Month.a<-factor(month.abb[flower.month$Month],month.abb[c(1:12)])
 flower.month$Year<-as.factor(flower.month$Year)
 
 #get quantile for each transect
-thresh<-melt(group_by(flower.month,Transect_R) %>% summarize(Threshold=quantile(Flowers,0.75)) )
+thresh<-melt(group_by(flower.month) %>% summarize(Threshold=quantile(Flowers,0.66)) )
 flower.month<-merge(flower.month,thresh)
 flower.month$High<-flower.month$Flowers>flower.month$value
 
@@ -441,8 +441,6 @@ indat$DateP<-as.character(indat$DateP)
 levels(flower.month$Transect_R)<-levels(as.factor(indat$Transect_R))
 
 #Average the two transects per month
-mflower<-
-  
   flt<-flower.month %>% group_by(Transect_R,Month,Year) %>% summarize(Flowers=mean(Flowers)) %>% group_by(Transect_R) %>% summarize(thresh=quantile(Flowers,0.75))
 
 mflower<-flower.month %>% group_by(Transect_R,Month,Year) %>% summarize(Flowers=mean(Flowers))
@@ -454,9 +452,7 @@ mflower$Availability<-(mflower$Flowers>mflower$thresh)*1
 indat<-merge(indat,mflower,by=c("Month","Year","Transect_R"))
 
 
-#mnth<-sapply(indat$Time,function(x){
- # as.numeric(str_split(x,"_")[[1]][1])})
-#indat$BAll_Flowers<-(mnth  %in% c(6,7,8,9,10))*1
+ggplot(mflower,aes(x=factor(Availability),y=Flowers,fill=Transect_R)) + geom_boxplot() + labs(x="Resource Availability")
 
 qthresh<-indat %>% group_by(Hummingbird) %>% summarize(UThresh=quantile(Used_Flowers,0.75))
 
@@ -543,8 +539,13 @@ full.morph$MonthA<-sapply(full.morph$Month,function(x){
   return(month.abb[x])
 })
 full.morph$MonthA<-factor(full.morph$MonthA,levels=month.abb)
-ggplot(full.morph,aes(x=MonthA,fill=as.factor(Year),y=TotalCorolla)) + geom_boxplot() + labs(fill="Year",y="Corolla Length (mm)",x="Month") 
-ggsave("Figures/CorollaAvailability.jpg",dpi=300,height=5,width=6)
+
+flower.month$MonthA<-flower.month$Month.a
+full.morph<-merge(full.morph,mflower,by=c("Month","Year","Transect_R"))
+
+#
+ggplot(full.morph,aes(x=MonthA,col=factor(Availability),fill=as.factor(Year),y=TotalCorolla)) + geom_boxplot() + labs(fill="Year",y="Corolla Length (mm)",x=NULL) + scale_fill_manual(values=c("grey60","grey40","grey10")) + theme_bw() + scale_color_manual("Resource Availability",labels=c("Low","High"),values=c("black","red"))
+ggsave("Figures/CorollaAvailability.jpg",dpi=300,height=5,width=7)
 ```
 
 Corolla Selection compared to available lengths
@@ -780,7 +781,7 @@ ggsave("Figures/AllCorollas.svg",height=4,width=6)
 ```
 
 
-Replot emprical distribution under coded for exapnsion, shift away, shift towards, null.
+Replot empirical distribution under coded for exapnsion, shift away, shift towards, null.
 
 ```{r}
 ss<-data.frame(Hummingbird=c("Booted Racket-tail","Brown Inca","Buff-tailed Coronet","Collared Inca","Crowned Woodnymph","Fawn-breasted Brilliant","Gorgeted Sunangel","Green-fronted Lancebill","Purple-bibbed Whitetip","Speckled Hummingbird","Stripe-throated Hermit","Tawny-bellied Hermit","Violet-tailed Sylph","White-whiskered Hermit"),mean_code=c("No Shift","Shift Away","No Shift","No Shift","No Shift","Shift Towards","No Shift","No Shift","No Shift","No Shift","No Shift","Shift Away","Shift Towards","Shift Away"),range_code=c("No Change","Expansion","Expansion","Contraction","Expansion","No Change","No Change","No Change","No Change","No Change","No Change","Expansion","No Change","Expansion"))
@@ -792,13 +793,49 @@ indat<-merge(indat,ss,by=c("Hummingbird"))
 indat$Hummingbird<-factor(indat$Hummingbird,levels=as.character(b[order(b$Bill),]$Hummingbird))
 keep<-c("Tawny-bellied Hermit","White-whiskered Hermit","Brown Inca","Violet-tailed Sylph")
 
-ggplot(indat[indat$Hummingbird %in% keep,],aes(x=TotalCorolla,fill=State)) + geom_density(alpha=.7) + facet_grid(Availability~Hummingbird,scales="free") + theme_bw() + scale_fill_manual("Resource Availability",labels=c("Low","High"),values=c("Red","Black")) + ggtitle("Visited Flowers") + geom_vline(data=b[b$Hummingbird %in% keep,],aes(xintercept=Bill),linetype="dashed",size=1,col='red') + scale_fill_manual("",values=c("grey90","black"),labels=c("Non-visited","Visited")) + xlab("Flower Corolla Length (mm)")
+#loop through plots, by bill length.
+b$Billc<-cut(b$Bill,breaks=c(0,20,32,60),labels=c("Short Bill","Medium Bill","Long Bill"))
 
+#try general plot
+ggplot(indat[indat$State=="Used",],aes(x=TotalCorolla,fill=as.factor(Availability))) + geom_density(alpha=.7) + facet_wrap(~Hummingbird,scale="free_y",nrow=3) + theme_bw()   + geom_vline(aes(xintercept=Bill.x),linetype="dashed",size=1,col='red') + labs(x=NULL) + scale_fill_manual("Resource Availability",values=c("grey90","black"),labels=c("Low","High"),guide="none") + scale_x_continuous(limits=c(0,60),breaks=c(20,40,60)) + theme(plot.margin=unit(c(.25,.25,0.1,0.1),"cm"))
+
+indat<-merge(indat,b,by="Hummingbird")
+sindat<-split(indat,indat$Billc)
+
+```
+
+```{r}
+#loop through plots
+p<-list()
+
+#vectors of titles
+for (x in 1:length(sindat)){
+  p[[x]]<-ggplot(sindat[[x]],aes(x=TotalCorolla,fill=State)) + geom_density(alpha=.7) + facet_grid(Availability~Hummingbird) + theme_bw()  + geom_vline(aes(xintercept=Bill.x),linetype="dashed",size=1,col='red') + scale_fill_manual("",values=c("grey90","black"),labels=c("Non-visited","Visited"),guide="none") + labs(x=NULL)
+}
+
+do.call(grid.arrange,p)
 ggsave("Figures/ChangeCorolla.svg",height=7,width=9)
 ggsave("Figures/ChangeCorolla.jpeg",height=7,width=9)
 
 ```
 
+```{r}
+#loop through plots
+p<-list()
+
+#vectors of titles
+for (x in 1:length(sindat)){
+  j<-sindat[[x]]
+  p[[x]]<-ggplot(j[j$State=="Used",],aes(x=TotalCorolla,fill=as.factor(Availability))) + geom_density(alpha=.7) + facet_wrap(~Hummingbird,scale="free_y",nrow=1) + theme_bw()   + geom_vline(aes(xintercept=Bill.x),linetype="dashed",size=1,col='red') + labs(x=NULL) + scale_fill_manual("Resource Availability",values=c("grey90","black"),labels=c("Low","High"),guide="none") + scale_x_continuous(limits=c(0,60),breaks=c(20,40,60)) + theme(plot.margin=unit(c(.25,.25,0.1,0.1),"cm"))
+}
+
+#just add legend to last one.
+p[[3]]<-p[[3]]+theme(legend.position='bottom') + scale_fill_manual("Resource Availability",values=c("grey90","black"),labels=c("Low","High"))
+grid.arrange(p[[1]],p[[2]],p[[3]],heights=c(0.3,.3,0.4))
+ggsave("Figures/ChangeCorolla_used.svg",height=7,width=9)
+ggsave("Figures/ChangeCorolla_used.jpeg",height=7,width=9)
+
+```
 
 Save image
 

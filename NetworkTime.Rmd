@@ -65,7 +65,7 @@ flower.month$Month.a<-factor(month.abb[flower.month$Month],month.abb[c(1:12)])
 flower.month$Year<-as.factor(flower.month$Year)
 
 #get quantile for each transect
-thresh<-melt(group_by(flower.month,Transect_R) %>% summarize(Threshold=quantile(Flowers,0.75)) )
+thresh<-melt(group_by(flower.month,Transect_R) %>% summarize(Threshold=quantile(Flowers,0.66)) )
 flower.month<-merge(flower.month,thresh)
 flower.month$High<-flower.month$Flowers>flower.month$value
 
