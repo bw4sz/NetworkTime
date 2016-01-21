@@ -651,7 +651,6 @@ nullc<-function(indat){
   indat$State<-sample(indat$State)
   
   #Calculate null
-  null_state<-
 true_state<- indat %>% filter(State=="Used") %>% group_by(Hummingbird,Availability) %>% summarize(mean=mean(TotalCorolla),range=abs(min(TotalCorolla)-max(TotalCorolla)))
 
 mtruestate<-melt(true_state,measure.vars=c("mean","range"))
@@ -671,19 +670,19 @@ null_state<-rbind_all(diffdf)
 
 cl<-makeCluster(5,"SOCK")
 registerDoSNOW(cl)
-nullframe<-foreach(x=1:10000,.packages=c("dplyr","reshape2")) %dopar% {nullc(indat)}
+nullframe<-foreach(x=1:100,.packages=c("dplyr","reshape2")) %dopar% {nullc(indat)}
 stopCluster(cl)
 
 nullframe<-rbind_all(nullframe)
 ```
 
-## Mean Trait-matching
+## Mean Difference in Corollas
 
 ```{r}
 ggplot(data=nullframe[nullframe$Metric=="mean",],aes(x=Difference)) + geom_density(fill="black",alpha=.2) + geom_vline(data=truedf[truedf$Metric=="mean",],aes(xintercept=Difference),linetype="dashed",col="red")+ facet_wrap(~Hummingbird,scales="free") + theme_bw() + ggtitle("Is the mean corolla length different in high and low periods")
 ```
 
-## Range of Trait-matching
+## Difference in Range of Corollas
 
 ```{r}
 ggplot(data=nullframe[nullframe$Metric=="range",],aes(x=Difference)) + geom_density(fill="black",alpha=.2) + geom_vline(data=truedf[truedf$Metric=="range",],aes(xintercept=Difference),linetype="dashed",col="red")+ facet_wrap(~Hummingbird,scales="free") + theme_bw() + ggtitle("Is the range trait-matching different in high and low periods")
@@ -743,14 +742,13 @@ indat$Hummingbird<-factor(indat$Hummingbird,levels=as.character(b[order(b$Bill),
 keep<-c("Tawny-bellied Hermit","White-whiskered Hermit","Brown Inca","Violet-tailed Sylph")
 
 #loop through plots, by bill length.
-b$Billc<-cut(b$Bill,breaks=c(0,20,35,60),labels=c("Short Bill","Medium Bill","Long Bill"))
+b$Billc<-cut(b$Bill,breaks=c(0,16,30,60),labels=c("Short Bill","Medium Bill","Long Bill"))
 
-b[b$Hummingbird %in% "Brown Inca","Billc"]<-"Long Bill"
 
 indat<-merge(indat,b[,!colnames(b) %in% "Bill"])
 
 #try general plot
-ggplot(indat[indat$State=="Used",],aes(x=TotalCorolla,fill=as.factor(Availability))) + geom_density(alpha=.7) + facet_wrap(~Hummingbird,scale="free_y",nrow=3) + theme_bw()   + geom_vline(data=b,aes(xintercept=Bill),linetype="dashed",size=1,col='red') + labs(x=NULL) + scale_fill_manual("Resource Availability",values=c("grey90","black"),labels=c("Low","High"),guide="none") + scale_x_continuous(limits=c(0,60),breaks=c(20,40,60)) + theme(plot.margin=unit(c(.25,.25,0.1,0.1),"cm"))
+ggplot(indat[indat$State=="Used",],aes(x=TotalCorolla,fill=as.factor(Availability))) + geom_density(alpha=.7) + facet_wrap(~Hummingbird,scale="free_y",nrow=3) + theme_bw()   + geom_vline(data=b,aes(xintercept=Bill),linetype="dashed",size=1,col='red') + labs(x=NULL) + scale_fill_manual("Resource Availability",values=c("grey90","black"),labels=c("Low","High"),guide="none") + scale_x_continuous(limits=c(0,70),breaks=c(20,40,60)) + theme(plot.margin=unit(c(.25,.25,0.1,0.1),"cm"))
 ```
 
 ```{r}
@@ -769,7 +767,7 @@ sindat<-split(indat,indat$Billc)
 #vectors of titles
 for (x in 1:length(sindat)){
   j<-sindat[[x]]
-  p[[x]]<-ggplot(j[j$State=="Used",],aes(x=TotalCorolla,fill=as.factor(Availability))) + geom_density(alpha=.7) + facet_wrap(~Hummingbird,scale="free_y",nrow=1) + theme_bw()   + geom_vline(aes(xintercept=Bill),linetype="dashed",size=1,col='red') + labs(x=NULL) + scale_fill_manual("Resource Availability",values=c("grey90","black"),labels=c("Low","High"),guide="none") + scale_x_continuous(limits=c(0,60),breaks=c(0,20,40,60)) + theme(plot.margin=unit(c(.6,.6,0.1,0.1),"cm"))
+  p[[x]]<-ggplot(j[j$State=="Used",],aes(x=TotalCorolla,fill=as.factor(Availability))) + geom_density(alpha=.7) + facet_wrap(~Hummingbird,scale="free_y",nrow=1) + theme_bw()   + geom_vline(aes(xintercept=Bill),linetype="dashed",size=1,col='red') + labs(x=NULL) + scale_fill_manual("Resource Availability",values=c("grey90","black"),labels=c("Low","High"),guide="none") + scale_x_continuous(limits=c(0,70),breaks=c(0,20,40,60)) + theme(plot.margin=unit(c(.6,.6,0.1,0.1),"cm"))
 }
 
 #just add legend to last one.
