@@ -354,6 +354,10 @@ full.fl<-read.csv("C:/Users/Ben/Dropbox/Thesis/Maquipucuna_SantaLucia/Results/Fl
  #month should be capital 
 colnames(full.fl)[colnames(full.fl) %in% "month"]<-"Month"
 
+#Be conservative, only use plants for which there were any observed records, for any species, that way we know we are just looking at hummingbird visited flowers, it can be difficult to guess in the field (faramea calyptrata? Clusia? It gets tricky.)
+
+full.fl<-full.fl %>% filter(Iplant_Double %in% unique(int$Iplant_Double))
+
 #group by month and replicate, remove date errors by making a max of 10 flowers, couple times where the gps places it in wrong transect by 1 to 2 meters. 
 flower.month<-group_by(full.fl,Month,Year,Transect_R,Date_F) %>% dplyr::summarise(Flowers=sum(Total_Flowers,na.rm=TRUE))  %>% filter(Flowers>20)
   
@@ -364,7 +368,7 @@ flower.month$Month.a<-factor(month.abb[flower.month$Month],month.abb[c(1:12)])
 flower.month$Year<-as.factor(flower.month$Year)
 
 #get quantile for each transect
-thresh<-melt(group_by(flower.month) %>% summarize(Threshold=quantile(Flowers,0.66)) )
+thresh<-melt(group_by(flower.month) %>% summarize(Upper=quantile(Flowers,0.75),Lower=quantile(Flowers,0.25)) )
 flower.month<-merge(flower.month,thresh)
 flower.month$High<-flower.month$Flowers>flower.month$value
 
@@ -496,13 +500,13 @@ This is most common definition of specialization.
 ```{r}
 
 #true state
-true_state<- indat %>% filter(State=="Used") %>% group_by(Hummingbird) %>% summarize(mean=mean(TotalCorolla),range=abs(min(TotalCorolla)-max(TotalCorolla)))
+true_state<- indat %>% filter(State=="Used") %>% group_by(Hummingbird) %>% summarize(mean=mean(TotalCorolla),sd=sd(TotalCorolla))
 
-mtruestate<-melt(true_state,measure.vars=c("mean","range"))
+mtruestate<-melt(true_state,measure.vars=c("mean","sd"))
 
 nullc<-function(indat){
   indat$State<-sample(indat$State)
-null_state<- indat %>% filter(State=="Used") %>% group_by(Hummingbird) %>% summarize(mean=mean(TotalCorolla),range=abs(max(TotalCorolla)-min(TotalCorolla)))
+null_state<- indat %>% filter(State=="Used") %>% group_by(Hummingbird) %>% summarize(mean=mean(TotalCorolla),sd=sd(TotalCorolla))
 
   return(null_state)
 }
@@ -524,9 +528,9 @@ nullframe<-melt(nullframe,id.vars=c("Hummingbird"))
 ggplot(nullframe[nullframe$variable=="mean",],aes(x=value)) + geom_density(fill="black",alpha=.2) + geom_vline(data=mtruestate[mtruestate$variable=="mean",],aes(xintercept=value),linetype="dashed",col="red",size=1) + facet_wrap(~Hummingbird,scales="free") + theme_bw() 
 ```
 
-## Range
+## Variance
 ```{r}
-ggplot(nullframe[nullframe$variable=="range",],aes(x=value)) + geom_density(fill="black",alpha=.2) + geom_vline(data=mtruestate[mtruestate$variable=="range",],aes(xintercept=value),linetype="dashed",col="red") + facet_wrap(~Hummingbird,scales="free") + theme_bw()
+ggplot(nullframe[nullframe$variable=="sd",],aes(x=value)) + geom_density(fill="black",alpha=.2) + geom_vline(data=mtruestate[mtruestate$variable=="sd",],aes(xintercept=value),linetype="dashed",col="red") + facet_wrap(~Hummingbird,scales="free") + theme_bw()
 ```
 
 Are those true distributions within reasonable confidence bands?
@@ -550,7 +554,7 @@ ord<-hum.morph %>% arrange(desc(Bill)) %>% select(English) %>% .$English
 
 mtstate$Var1<-factor(mtstate$Var1,levels=ord)
 
-p<-ggplot(mtstate,aes(x=Var1,y=Var2,fill=(value<0.025 | value > 0.975))) + geom_tile() + coord_flip() + labs(x="Hummingbird",y="Metric",fill="Difference between\nObserved and Null Distribution\n(alpha=0.05)") + ggtitle("Used versus Background")
+p<-ggplot(mtstate,aes(x=Var1,y=Var2,fill=(value<0.05 | value > 0.95))) + geom_tile() + coord_flip() + labs(x="Hummingbird",y="Metric",fill="Difference between\nObserved and Null Distribution\n(alpha=0.05)") + ggtitle("Used versus Background")
 p
 ```
 
@@ -559,14 +563,14 @@ p
 
 ```{r}
 #true state
-true_state<- indat %>% filter(State=="Used") %>% group_by(Hummingbird) %>% summarize(mean=mean(Traitmatch),range=abs(min(Traitmatch)-max(Traitmatch)))
+true_state<- indat %>% filter(State=="Used") %>% group_by(Hummingbird) %>% summarize(mean=mean(Traitmatch),sd=sd(TotalCorolla))
 
-mtruestate<-melt(true_state,measure.vars=c("mean","range"))
+mtruestate<-melt(true_state,measure.vars=c("mean","sd"))
 
 #randomization function
 nullc<-function(indat){
   indat$State<-sample(indat$State)
-null_state<- indat %>% filter(State=="Used") %>% group_by(Hummingbird) %>% summarize(mean=mean(Traitmatch),range=abs(max(Traitmatch)-min(Traitmatch)))
+null_state<- indat %>% filter(State=="Used") %>% group_by(Hummingbird) %>% summarize(mean=mean(Traitmatch),sd=sd(TotalCorolla))
 
   return(null_state)
 }
@@ -626,9 +630,9 @@ ggsave("Figures/UsedEmprical.jpeg",dpi=300,width=7.5,height=6)
 
 ##True state of trait-matching among high and low periods.
 ```{r}
-true_state<- indat %>% filter(State=="Used") %>% group_by(Hummingbird,Availability) %>% summarize(mean=mean(TotalCorolla),range=abs(max(TotalCorolla)-min(TotalCorolla))) 
+true_state<- indat %>% filter(State=="Used") %>% group_by(Hummingbird,Availability) %>% summarize(mean=mean(TotalCorolla),sd=sd(TotalCorolla)) 
 
-mtruestate<-melt(true_state,measure.vars=c("mean","range"))
+mtruestate<-melt(true_state,measure.vars=c("mean","sd"))
 
 #difference in values
 splt<-split(mtruestate,list(true_state$Hummingbird,mtruestate$variable),drop=T)
@@ -651,9 +655,9 @@ nullc<-function(indat){
   indat$State<-sample(indat$State)
   
   #Calculate null
-true_state<- indat %>% filter(State=="Used") %>% group_by(Hummingbird,Availability) %>% summarize(mean=mean(TotalCorolla),range=abs(min(TotalCorolla)-max(TotalCorolla)))
+true_state<- indat %>% filter(State=="Used") %>% group_by(Hummingbird,Availability) %>% summarize(mean=mean(TotalCorolla),sd=sd(TotalCorolla))
 
-mtruestate<-melt(true_state,measure.vars=c("mean","range"))
+mtruestate<-melt(true_state,measure.vars=c("mean","sd"))
 
 #difference in values
 splt<-split(mtruestate,list(true_state$Hummingbird,mtruestate$variable),drop=T)
@@ -670,7 +674,7 @@ null_state<-rbind_all(diffdf)
 
 cl<-makeCluster(5,"SOCK")
 registerDoSNOW(cl)
-nullframe<-foreach(x=1:100,.packages=c("dplyr","reshape2")) %dopar% {nullc(indat)}
+nullframe<-foreach(x=1:10000,.packages=c("dplyr","reshape2")) %dopar% {nullc(indat)}
 stopCluster(cl)
 
 nullframe<-rbind_all(nullframe)
@@ -682,10 +686,10 @@ nullframe<-rbind_all(nullframe)
 ggplot(data=nullframe[nullframe$Metric=="mean",],aes(x=Difference)) + geom_density(fill="black",alpha=.2) + geom_vline(data=truedf[truedf$Metric=="mean",],aes(xintercept=Difference),linetype="dashed",col="red")+ facet_wrap(~Hummingbird,scales="free") + theme_bw() + ggtitle("Is the mean corolla length different in high and low periods")
 ```
 
-## Difference in Range of Corollas
+## Difference in sd of Corollas
 
 ```{r}
-ggplot(data=nullframe[nullframe$Metric=="range",],aes(x=Difference)) + geom_density(fill="black",alpha=.2) + geom_vline(data=truedf[truedf$Metric=="range",],aes(xintercept=Difference),linetype="dashed",col="red")+ facet_wrap(~Hummingbird,scales="free") + theme_bw() + ggtitle("Is the range trait-matching different in high and low periods")
+ggplot(data=nullframe[nullframe$Metric=="sd",],aes(x=Difference)) + geom_density(fill="black",alpha=.2) + geom_vline(data=truedf[truedf$Metric=="sd",],aes(xintercept=Difference),linetype="dashed",col="red")+ facet_wrap(~Hummingbird,scales="free") + theme_bw() + ggtitle("Is the variance in  trait-matching different in high and low periods")
 ```
 
 Are those true distributions within reasonable confidence bands?
@@ -711,14 +715,14 @@ ord<-hum.morph %>% arrange(desc(Bill)) %>% select(English) %>% .$English
 mtstate$Var1<-factor(mtstate$Var1,levels=ord)
 
 #order by billsize
-p3<-ggplot(mtstate[mtstate$Var2 %in% c("mean","range"),],aes(x=Var1,y=Var2,fill=(value<0.025 | value > 0.975))) + geom_tile() + coord_flip() + labs(x="Hummingbird",y="Metric",fill="Difference between\nObserved and Null Distribution\n(alpha=0.05)") + ggtitle("Used v Used")
-
+p3<-ggplot(mtstate[mtstate$Var2 %in% c("mean","sd"),],aes(x=Var1,y=Var2,fill=(value<0.05 | value > 0.95))) + geom_tile() + coord_flip() + labs(x="Hummingbird",y="Metric",fill="Difference between\nObserved and Null Distribution\n(alpha=0.05)") + ggtitle("Used v Used")
+p3
 ```
 
 #View all randomization tests.
-
+*
 ```{r}
-grid.arrange(p,p2,ncol=1)
+grid.arrange(p,p2,p3,ncol=1)
 ```
 
 Regardless of identity, does the community converge on a corolla length, what is the space used in each time period
@@ -729,13 +733,7 @@ ggsave("Figures/AllCorollas.svg",height=4,width=6)
 ```
 
 
-Replot empirical distribution under coded for exapnsion, shift away, shift towards, null.
-
 ```{r}
-ss<-data.frame(Hummingbird=c("Booted Racket-tail","Brown Inca","Buff-tailed Coronet","Collared Inca","Crowned Woodnymph","Fawn-breasted Brilliant","Gorgeted Sunangel","Green-fronted Lancebill","Purple-bibbed Whitetip","Speckled Hummingbird","Stripe-throated Hermit","Tawny-bellied Hermit","Violet-tailed Sylph","White-whiskered Hermit"),mean_code=c("No Shift","Shift Away","No Shift","No Shift","No Shift","Shift Towards","No Shift","No Shift","No Shift","No Shift","No Shift","Shift Away","Shift Towards","Shift Away"),range_code=c("No Change","Expansion","Expansion","Contraction","Expansion","No Change","No Change","No Change","No Change","No Change","No Change","Expansion","No Change","Expansion"))
-
-indat<-merge(indat,ss,by=c("Hummingbird"))
-
 #Order by bill length
 
 indat$Hummingbird<-factor(indat$Hummingbird,levels=as.character(b[order(b$Bill),]$Hummingbird))
@@ -746,9 +744,6 @@ b$Billc<-cut(b$Bill,breaks=c(0,16,30,60),labels=c("Short Bill","Medium Bill","Lo
 
 
 indat<-merge(indat,b[,!colnames(b) %in% "Bill"])
-
-#try general plot
-ggplot(indat[indat$State=="Used",],aes(x=TotalCorolla,fill=as.factor(Availability))) + geom_density(alpha=.7) + facet_wrap(~Hummingbird,scale="free_y",nrow=3) + theme_bw()   + geom_vline(data=b,aes(xintercept=Bill),linetype="dashed",size=1,col='red') + labs(x=NULL) + scale_fill_manual("Resource Availability",values=c("grey90","black"),labels=c("Low","High"),guide="none") + scale_x_continuous(limits=c(0,70),breaks=c(20,40,60)) + theme(plot.margin=unit(c(.25,.25,0.1,0.1),"cm"))
 ```
 
 ```{r}
