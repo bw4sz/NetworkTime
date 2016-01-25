@@ -368,14 +368,26 @@ flower.month$Month.a<-factor(month.abb[flower.month$Month],month.abb[c(1:12)])
 flower.month$Year<-as.factor(flower.month$Year)
 
 #get quantile for each transect
-thresh<-melt(flower.month %>% group_by() %>%  summarize(Upper=quantile(Flowers,0.75),Lower=quantile(Flowers,0.25)))
+thresh<-melt(flower.month %>% group_by(Transect_R) %>%  summarize(Upper=quantile(Flowers,0.66),Lower=quantile(Flowers,0.33)))
 
-flower.month$High<-cut(flower.month$Flowers,c(0,thresh[thresh$variable %in% "Lower","value"],thresh[thresh$variable %in% "Upper","value"],max(flower.month$Flowers)),labels=c("Low","Medium","High"))
+#split and recombine after 
 
-#flower.month$High<-flower.month$Flowers>flower.month$value
+flower.month<-split(flower.month,flower.month$Transect_R)
+
+flower.month<-lapply(flower.month,function(x){
+  
+  threshr<-thresh[thresh$Transect_R %in% x$Transect_R,]
+  
+  x$High<-cut(x$Flowers,c(0,threshr[threshr$variable %in% "Lower","value"],threshr[threshr$variable %in% "Upper","value"],max(x$Flowers)+1),labels=c("Low","Medium","High"))
+  return(x)
+})
+
+flower.month<-rbind_all(flower.month)
+
 
 #fix the levels
 levels(flower.month$Transect_R)<-c("1300m - 1500m", "1500m - 1700m","1700m - 1900m","1900m - 2100m","2100m - 2300m","2300m - 2500m")
+
 #plot
 ggplot(flower.month,aes(x=Month.a,log(Flowers),col=High,shape=as.factor(Year))) + geom_point(size=3) + theme_bw()  + geom_smooth(aes(group=1)) + ylab("Flowers") + xlab("Month") + facet_wrap(~Transect_R,scales="free_y") + labs(shape="Year", y= "Log Available Flowers") + scale_x_discrete(breaks=month.abb[seq(1,12,2)]) + scale_color_manual(labels=c("Low","Medium","High"),values=c("blue","gray","red")) + labs(col="Resource Availability") 
 
@@ -394,28 +406,58 @@ indat$DateP<-as.character(indat$DateP)
 levels(flower.month$Transect_R)<-levels(as.factor(indat$Transect_R))
 
 #Average the two transects per month
-  flt<-flower.month %>% group_by(Transect_R,Month,Year) %>% summarize(Flowers=mean(Flowers)) %>% group_by(Transect_R) %>% summarize(thresh=quantile(Flowers,0.75))
+  mflower<-flower.month %>% group_by(Transect_R,Month,Year) %>% summarize(Flowers=mean(Flowers))
+  
+  mflower$Availability<-(mflower$Flowers > quantile(mflower$Flowers,0.66))*1
+   mflower$Availability<-factor(mflower$Availability,labels=c("Low","High"))
+#     flt<-mflower %>% group_by(Transect_R) %>% summarize(High=quantile(Flowers,0.66),Low=quantile(Flowers,0.33))
+# 
+#     #split to set threshold
+#     mflower<-split(mflower,mflower$Transect_R)
+#     
+#     mflower<-lapply(mflower,function(x){
+#       threshr<-flt[flt$Transect_R %in% x$Transect_R,]
+#       x$Availability<-cut(x$Flowers,c(0,threshr$Low,threshr$High,max(x$Flowers)+1),labels=c("Low","Medium","High"))
+#       return(x)
+#     })
+# 
+#     mflower<-rbind_all(mflower)
+#     
+ indat<-merge(indat,mflower,by=c("Month","Year","Transect_R"))
 
-mflower<-flower.month %>% group_by(Transect_R,Month,Year) %>% summarize(Flowers=mean(Flowers))
 
-mflower<-merge(mflower,flt)
+ggplot(mflower,aes(x=factor(Availability),y=log(Flowers),fill=Transect_R)) + geom_boxplot() + labs(x="Resource Availability") +ggtitle("Resource classification by elevation")
 
-mflower$Availability<-(mflower$Flowers>mflower$thresh)*1
+#for the moment take medium out
+#indat<-indat[!indat$Availability %in% "Medium",]
+```
 
-indat<-merge(indat,mflower,by=c("Month","Year","Transect_R"))
+#Corolla distributions
 
+```{r}
+#used versus unused flowers
+indat$State<-(indat$Yobs>0)*1
+indat$State<-factor(indat$State,labels = c("Unused","Used"))
 
-ggplot(mflower,aes(x=factor(Availability),y=Flowers,fill=Transect_R)) + geom_boxplot() + labs(x="Resource Availability")
+b<-indat %>% group_by(Hummingbird) %>% summarise(Bill=unique(Bill))
+
+#order by bill length
+indat$Hummingbird<-factor(indat$Hummingbird,levels=b %>% arrange(Bill) %>% .$Hummingbird)
+
+ggplot(indat,aes(x=TotalCorolla,fill=State)) + geom_density(alpha=.5) + facet_wrap(~Hummingbird,scales="free") + theme_bw() + geom_vline(data=b,aes(xintercept=Bill),linetype="dashed") +  scale_fill_manual("",values=c("grey90","black"),labels=c("Non-visited","Visited")) + xlab("Flower Corolla Length (mm)") + scale_x_continuous(limits=c(0,71),breaks=c(0,20,40,60))
+ggsave("Figures/Used_Background.svg",height=9,width=11)
 ```
 
 View species identity in resource splits.
 
 ```{r,fig.height=4,width=6}
+
+indat<-droplevels(indat)
 #Count of species in both time sets
-splist<-indat %>% filter(Yobs>0) %>% group_by(Hummingbird,Resource= Availability) %>% distinct(Iplant_Double) %>% dplyr::select(Iplant_Double)
+splist<-indat %>% filter(State=="Used") %>% group_by(Hummingbird,Resource=Availability) %>% distinct(Iplant_Double) %>% dplyr::select(Iplant_Double)
+
 
 #relevel text
-splist$Resource<-factor(as.factor(as.character(splist$Resource)),labels = c("Low","High"))
 
 splist<-split(splist,splist$Hummingbird)
 p<-list()
@@ -476,21 +518,7 @@ full.morph<-merge(full.morph,mflower,by=c("Month","Year","Transect_R"))
 ggplot(full.morph,aes(x=MonthA,fill=as.factor(Year),y=TotalCorolla)) + geom_boxplot() + labs(fill="Year",y="Corolla Length (mm)",x=NULL) + scale_fill_manual(values=c("grey60","grey40","grey10")) + theme_bw() 
 
 ggsave("Figures/CorollaAvailability.jpg",dpi=300,height=5,width=7)
-```
 
-
-```{r}
-#used versus unused flowers
-indat$State<-(indat$Yobs>0)*1
-indat$State<-factor(indat$State,labels = c("Unused","Used"))
-
-b<-indat %>% group_by(Hummingbird) %>% summarise(Bill=unique(Bill))
-
-#order by bill length
-indat$Hummingbird<-factor(indat$Hummingbird,levels=b %>% arrange(Bill) %>% .$Hummingbird)
-
-ggplot(indat,aes(x=TotalCorolla,fill=State)) + geom_density(alpha=.5) + facet_wrap(~Hummingbird,scales="free") + theme_bw() + geom_vline(data=b,aes(xintercept=Bill),linetype="dashed") +  scale_fill_manual("",values=c("grey90","black"),labels=c("Non-visited","Visited")) + xlab("Flower Corolla Length (mm)") + scale_x_continuous(limits=c(0,71),breaks=c(0,20,40,60))
-ggsave("Figures/Used_Background.svg",height=9,width=11)
 ```
 
 #Randomization 1
@@ -500,7 +528,6 @@ ggsave("Figures/Used_Background.svg",height=9,width=11)
 This is most common definition of specialization.
 
 ```{r}
-
 #true state
 true_state<- indat %>% filter(State=="Used") %>% group_by(Hummingbird) %>% summarize(mean=mean(TotalCorolla),sd=sd(TotalCorolla))
 
@@ -627,7 +654,6 @@ Do they expand, contract, or shift?
 
 ```{r}
 ggplot(indat[indat$State=="Used",],aes(x=TotalCorolla,fill=as.factor(Availability))) + geom_density(alpha=.7) + facet_wrap(~Hummingbird,scales="free",ncol=3) + theme_bw() + scale_fill_manual("Resource Availability",labels=c("Low","High"),values=c("Red","Black")) + ggtitle("Visited Flowers") + geom_vline(data=b,aes(xintercept=Bill),linetype="dashed",size=1,col='red') + scale_fill_manual("Resource Availability",values=c("grey90","black"),labels=c("Low","High")) + xlab("Flower Corolla Length (mm)")
-ggsave("Figures/UsedEmprical.jpeg",dpi=300,width=7.5,height=6)
 ```
 
 ##True state of trait-matching among high and low periods.
@@ -734,16 +760,13 @@ ggplot(indat[indat$State=="Used",],aes(fill=as.factor(Availability),x=TotalCorol
 ggsave("Figures/AllCorollas.svg",height=4,width=6)
 ```
 
-
 ```{r}
 #Order by bill length
-
 indat$Hummingbird<-factor(indat$Hummingbird,levels=as.character(b[order(b$Bill),]$Hummingbird))
 keep<-c("Tawny-bellied Hermit","White-whiskered Hermit","Brown Inca","Violet-tailed Sylph")
 
 #loop through plots, by bill length.
 b$Billc<-cut(b$Bill,breaks=c(0,16,30,60),labels=c("Short Bill","Medium Bill","Long Bill"))
-
 
 indat<-merge(indat,b[,!colnames(b) %in% "Bill"])
 ```

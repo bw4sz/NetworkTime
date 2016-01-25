@@ -5,7 +5,7 @@ Ben Weinstein - Stony Brook University
 
 
 ```
-## [1] "Run Completed at 2016-01-22 16:22:17"
+## [1] "Run Completed at 2016-01-23 17:10:03"
 ```
 
 
@@ -364,14 +364,15 @@ flower.month$Month.a<-factor(month.abb[flower.month$Month],month.abb[c(1:12)])
 flower.month$Year<-as.factor(flower.month$Year)
 
 #get quantile for each transect
-thresh<-melt(group_by(flower.month) %>% summarize(Threshold=quantile(Flowers,0.75)) )
-flower.month<-merge(flower.month,thresh)
-flower.month$High<-flower.month$Flowers>flower.month$value
+thresh<-melt(flower.month %>% group_by() %>%  summarize(Upper=quantile(Flowers,0.66),Lower=quantile(Flowers,0.33)))
+
+flower.month$High<-cut(flower.month$Flowers,c(0,thresh[thresh$variable %in% "Lower","value"],thresh[thresh$variable %in% "Upper","value"],max(flower.month$Flowers)),labels=c("Low","Medium","High"))
+
 
 #fix the levels
 levels(flower.month$Transect_R)<-c("1300m - 1500m", "1500m - 1700m","1700m - 1900m","1900m - 2100m","2100m - 2300m","2300m - 2500m")
 #plot
-ggplot(flower.month,aes(x=Month.a,log(Flowers),col=High,shape=as.factor(Year))) + geom_point(size=3) + theme_bw()  + geom_smooth(aes(group=1)) + ylab("Flowers") + xlab("Month") + facet_wrap(~Transect_R,scales="free_y") + labs(shape="Year", y= "Log Available Flowers") + scale_x_discrete(breaks=month.abb[seq(1,12,2)]) + scale_color_manual(labels=c("Low","High"),values=c("black","red")) + labs(col="Resource Availability")
+ggplot(flower.month,aes(x=Month.a,log(Flowers),col=High,shape=as.factor(Year))) + geom_point(size=3) + theme_bw()  + geom_smooth(aes(group=1)) + ylab("Flowers") + xlab("Month") + facet_wrap(~Transect_R,scales="free_y") + labs(shape="Year", y= "Log Available Flowers") + scale_x_discrete(breaks=month.abb[seq(1,12,2)]) + scale_color_manual(labels=c("Low","Medium","High"),values=c("blue","gray","red")) + labs(col="Resource Availability") 
 ```
 
 <img src="figureObserved/unnamed-chunk-15-1.png" title="" alt="" style="display: block; margin: auto;" />
@@ -393,13 +394,12 @@ indat$DateP<-as.character(indat$DateP)
 levels(flower.month$Transect_R)<-levels(as.factor(indat$Transect_R))
 
 #Average the two transects per month
-  flt<-flower.month %>% group_by(Transect_R,Month,Year) %>% summarize(Flowers=mean(Flowers)) %>% group_by(Transect_R) %>% summarize(thresh=quantile(Flowers,0.75))
+  flt<-flower.month %>% group_by(Year) %>% summarize(Flowers=mean(Flowers)) %>% summarize(High=quantile(Flowers,0.66),Low=quantile(Flowers,0.33))
+  
+  mflower<-flower.month %>% group_by(Transect_R,Month,Year) %>% summarize(Flowers=mean(Flowers))
 
-mflower<-flower.month %>% group_by(Transect_R,Month,Year) %>% summarize(Flowers=mean(Flowers))
+mflower$Availability<-cut(mflower$Flowers,c(0,flt$Low,flt$High,max(mflower$Flowers)),labels=c("Low","Medium","High"))
 
-mflower<-merge(mflower,flt)
-
-mflower$Availability<-(mflower$Flowers>mflower$thresh)*1
 
 indat<-merge(indat,mflower,by=c("Month","Year","Transect_R"))
 
@@ -408,6 +408,11 @@ ggplot(mflower,aes(x=factor(Availability),y=Flowers,fill=Transect_R)) + geom_box
 ```
 
 <img src="figureObserved/unnamed-chunk-16-1.png" title="" alt="" style="display: block; margin: auto;" />
+
+```r
+#for the moment take medium out
+indat<-indat[!indat$Availability %in% "Medium",]
+```
 
 View species identity in resource splits.
 
@@ -463,7 +468,7 @@ file.remove(list.files(pattern="*.log"))
 ```
 
 ```
-## [1] TRUE TRUE TRUE TRUE TRUE TRUE TRUE
+## [1] TRUE TRUE TRUE TRUE TRUE TRUE
 ```
 
 
