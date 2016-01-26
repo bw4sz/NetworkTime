@@ -5,7 +5,7 @@ Ben Weinstein - Stony Brook University
 
 
 ```
-## [1] "Run Completed at 2016-01-23 17:10:03"
+## [1] "Run Completed at 2016-01-25 16:33:54"
 ```
 
 
@@ -79,7 +79,7 @@ missingTraits<-int.FLlevels[!int.FLlevels %in% fl.morph$X]
 dath<-merge(dath,fl.morph, by.x="Iplant_Double",by.y="X")
 
 #Drop piercing events, since they don't represent correlation
-dath<-dath[!dath$Pierce %in% c("y","Y"),]
+#dath<-dath[!dath$Pierce %in% c("y","Y"),]
 ```
 
 ##Match Species to Morphology
@@ -355,7 +355,7 @@ colnames(full.fl)[colnames(full.fl) %in% "month"]<-"Month"
 full.fl<-full.fl %>% filter(Iplant_Double %in% unique(int$Iplant_Double))
 
 #group by month and replicate, remove date errors by making a max of 10 flowers, couple times where the gps places it in wrong transect by 1 to 2 meters. 
-flower.month<-group_by(full.fl,Month,Year,Transect_R,Date_F) %>% dplyr::summarise(Flowers=sum(Total_Flowers,na.rm=TRUE))  %>% filter(Flowers>20)
+flower.month<-group_by(full.fl,Month,Year,Transect_R,Date_F) %>% dplyr::summarise(Flowers=sum(Total_Flowers,na.rm=TRUE))  %>% filter(Flowers>10)
   
 #Make month abbreviation column, with the right order
 flower.month$Month.a<-factor(month.abb[flower.month$Month],month.abb[c(1:12)])
@@ -364,13 +364,15 @@ flower.month$Month.a<-factor(month.abb[flower.month$Month],month.abb[c(1:12)])
 flower.month$Year<-as.factor(flower.month$Year)
 
 #get quantile for each transect
-thresh<-melt(flower.month %>% group_by() %>%  summarize(Upper=quantile(Flowers,0.66),Lower=quantile(Flowers,0.33)))
+thresh<-melt(flower.month %>% group_by() %>%  summarize(Upper=quantile(Flowers,0.75),Lower=quantile(Flowers,0.5)))
 
-flower.month$High<-cut(flower.month$Flowers,c(0,thresh[thresh$variable %in% "Lower","value"],thresh[thresh$variable %in% "Upper","value"],max(flower.month$Flowers)),labels=c("Low","Medium","High"))
+
+  flower.month$High<-cut(flower.month$Flowers,c(0,thresh[thresh$variable %in% "Lower","value"],thresh[thresh$variable %in% "Upper","value"],max(flower.month$Flowers)+1),labels=c("Low","Medium","High"))
 
 
 #fix the levels
 levels(flower.month$Transect_R)<-c("1300m - 1500m", "1500m - 1700m","1700m - 1900m","1900m - 2100m","2100m - 2300m","2300m - 2500m")
+
 #plot
 ggplot(flower.month,aes(x=Month.a,log(Flowers),col=High,shape=as.factor(Year))) + geom_point(size=3) + theme_bw()  + geom_smooth(aes(group=1)) + ylab("Flowers") + xlab("Month") + facet_wrap(~Transect_R,scales="free_y") + labs(shape="Year", y= "Log Available Flowers") + scale_x_discrete(breaks=month.abb[seq(1,12,2)]) + scale_color_manual(labels=c("Low","Medium","High"),values=c("blue","gray","red")) + labs(col="Resource Availability") 
 ```
@@ -378,6 +380,7 @@ ggplot(flower.month,aes(x=Month.a,log(Flowers),col=High,shape=as.factor(Year))) 
 <img src="figureObserved/unnamed-chunk-15-1.png" title="" alt="" style="display: block; margin: auto;" />
 
 ```r
+ggsave("Figures/FlowerAvailability.jpg",height=5.5,width=9,dpi=600)
 #turn min and max elvation into seperate columns for the range
 flower.month$minElev<-as.numeric(str_extract(flower.month$Transect_R,"(\\d+)"))
 flower.month$maxElev<-as.numeric(str_match(flower.month$Transect_R,"(\\d+)_(\\d+)")[,3])
@@ -394,17 +397,27 @@ indat$DateP<-as.character(indat$DateP)
 levels(flower.month$Transect_R)<-levels(as.factor(indat$Transect_R))
 
 #Average the two transects per month
-  flt<-flower.month %>% group_by(Year) %>% summarize(Flowers=mean(Flowers)) %>% summarize(High=quantile(Flowers,0.66),Low=quantile(Flowers,0.33))
-  
   mflower<-flower.month %>% group_by(Transect_R,Month,Year) %>% summarize(Flowers=mean(Flowers))
+  
+    flt<-mflower %>% group_by() %>% summarize(High=quantile(Flowers,0.66),Low=quantile(Flowers,0.5))
 
-mflower$Availability<-cut(mflower$Flowers,c(0,flt$Low,flt$High,max(mflower$Flowers)),labels=c("Low","Medium","High"))
+    mflower$Availability<-cut(mflower$Flowers,c(0,flt$Low,flt$High,max(mflower$Flowers)+1),labels=c("Low","Medium","High"))
+
+#     #split to set threshold
+#     mflower<-split(mflower,mflower$Transect_R)
+#     
+#     mflower<-lapply(mflower,function(x){
+#       threshr<-flt[flt$Transect_R %in% x$Transect_R,]
+#       x$Availability<-cut(x$Flowers,c(0,threshr$Low,threshr$High,max(x$Flowers)+1),labels=c("Low","Medium","High"))
+#       return(x)
+#     })
+
+    #mflower<-rbind_all(mflower)
+    
+ indat<-merge(indat,mflower,by=c("Month","Year","Transect_R"))
 
 
-indat<-merge(indat,mflower,by=c("Month","Year","Transect_R"))
-
-
-ggplot(mflower,aes(x=factor(Availability),y=Flowers,fill=Transect_R)) + geom_boxplot() + labs(x="Resource Availability")
+ggplot(mflower,aes(x=factor(Availability),y=log(Flowers),fill=Transect_R)) + geom_boxplot() + labs(x="Resource Availability") +ggtitle("Resource classification by elevation")
 ```
 
 <img src="figureObserved/unnamed-chunk-16-1.png" title="" alt="" style="display: block; margin: auto;" />
@@ -414,15 +427,37 @@ ggplot(mflower,aes(x=factor(Availability),y=Flowers,fill=Transect_R)) + geom_box
 indat<-indat[!indat$Availability %in% "Medium",]
 ```
 
+#Corolla distributions
+
+
+```r
+#used versus unused flowers
+indat$State<-(indat$Yobs>0)*1
+indat$State<-factor(indat$State,labels = c("Unused","Used"))
+
+b<-indat %>% group_by(Hummingbird) %>% summarise(Bill=unique(Bill))
+
+#order by bill length
+indat$Hummingbird<-factor(indat$Hummingbird,levels=b %>% arrange(Bill) %>% .$Hummingbird)
+
+ggplot(indat,aes(x=TotalCorolla,fill=State)) + geom_density(alpha=.5) + facet_wrap(~Hummingbird,scales="free") + theme_bw() + geom_vline(data=b,aes(xintercept=Bill),linetype="dashed") +  scale_fill_manual("",values=c("grey90","black"),labels=c("Non-visited","Visited")) + xlab("Flower Corolla Length (mm)") + scale_x_continuous(limits=c(0,71),breaks=c(0,20,40,60))
+```
+
+<img src="figureObserved/unnamed-chunk-17-1.png" title="" alt="" style="display: block; margin: auto;" />
+
+```r
+ggsave("Figures/Used_Background.svg",height=9,width=11)
+```
+
 View species identity in resource splits.
 
 
 ```r
+indat<-droplevels(indat)
 #Count of species in both time sets
-splist<-indat %>% filter(Yobs>0) %>% group_by(Hummingbird,Resource= Availability) %>% distinct(Iplant_Double) %>% dplyr::select(Iplant_Double)
+splist<-indat %>% filter(State=="Used") %>% group_by(Hummingbird,Resource=Availability) %>% distinct(Iplant_Double) %>% dplyr::select(Iplant_Double)
 
 #relevel text
-splist$Resource<-factor(as.factor(as.character(splist$Resource)),labels = c("Low","High"))
 
 splist<-split(splist,splist$Hummingbird)
 p<-list()
@@ -460,7 +495,7 @@ for (x in 1:length(splist)){
 }
 ```
 
-<img src="figureObserved/unnamed-chunk-17-1.png" title="" alt="" style="display: block; margin: auto;" /><img src="figureObserved/unnamed-chunk-17-2.png" title="" alt="" style="display: block; margin: auto;" /><img src="figureObserved/unnamed-chunk-17-3.png" title="" alt="" style="display: block; margin: auto;" /><img src="figureObserved/unnamed-chunk-17-4.png" title="" alt="" style="display: block; margin: auto;" /><img src="figureObserved/unnamed-chunk-17-5.png" title="" alt="" style="display: block; margin: auto;" /><img src="figureObserved/unnamed-chunk-17-6.png" title="" alt="" style="display: block; margin: auto;" /><img src="figureObserved/unnamed-chunk-17-7.png" title="" alt="" style="display: block; margin: auto;" /><img src="figureObserved/unnamed-chunk-17-8.png" title="" alt="" style="display: block; margin: auto;" /><img src="figureObserved/unnamed-chunk-17-9.png" title="" alt="" style="display: block; margin: auto;" /><img src="figureObserved/unnamed-chunk-17-10.png" title="" alt="" style="display: block; margin: auto;" /><img src="figureObserved/unnamed-chunk-17-11.png" title="" alt="" style="display: block; margin: auto;" /><img src="figureObserved/unnamed-chunk-17-12.png" title="" alt="" style="display: block; margin: auto;" /><img src="figureObserved/unnamed-chunk-17-13.png" title="" alt="" style="display: block; margin: auto;" />
+<img src="figureObserved/unnamed-chunk-18-1.png" title="" alt="" style="display: block; margin: auto;" /><img src="figureObserved/unnamed-chunk-18-2.png" title="" alt="" style="display: block; margin: auto;" /><img src="figureObserved/unnamed-chunk-18-3.png" title="" alt="" style="display: block; margin: auto;" /><img src="figureObserved/unnamed-chunk-18-4.png" title="" alt="" style="display: block; margin: auto;" /><img src="figureObserved/unnamed-chunk-18-5.png" title="" alt="" style="display: block; margin: auto;" /><img src="figureObserved/unnamed-chunk-18-6.png" title="" alt="" style="display: block; margin: auto;" /><img src="figureObserved/unnamed-chunk-18-7.png" title="" alt="" style="display: block; margin: auto;" /><img src="figureObserved/unnamed-chunk-18-8.png" title="" alt="" style="display: block; margin: auto;" /><img src="figureObserved/unnamed-chunk-18-9.png" title="" alt="" style="display: block; margin: auto;" /><img src="figureObserved/unnamed-chunk-18-10.png" title="" alt="" style="display: block; margin: auto;" /><img src="figureObserved/unnamed-chunk-18-11.png" title="" alt="" style="display: block; margin: auto;" /><img src="figureObserved/unnamed-chunk-18-12.png" title="" alt="" style="display: block; margin: auto;" /><img src="figureObserved/unnamed-chunk-18-13.png" title="" alt="" style="display: block; margin: auto;" />
 
 ```r
 #venn diagram writes a silly set of log files
@@ -492,31 +527,10 @@ full.morph<-merge(full.morph,mflower,by=c("Month","Year","Transect_R"))
 ggplot(full.morph,aes(x=MonthA,fill=as.factor(Year),y=TotalCorolla)) + geom_boxplot() + labs(fill="Year",y="Corolla Length (mm)",x=NULL) + scale_fill_manual(values=c("grey60","grey40","grey10")) + theme_bw() 
 ```
 
-<img src="figureObserved/unnamed-chunk-18-1.png" title="" alt="" style="display: block; margin: auto;" />
-
-```r
-ggsave("Figures/CorollaAvailability.jpg",dpi=300,height=5,width=7)
-```
-
-
-
-```r
-#used versus unused flowers
-indat$State<-(indat$Yobs>0)*1
-indat$State<-factor(indat$State,labels = c("Unused","Used"))
-
-b<-indat %>% group_by(Hummingbird) %>% summarise(Bill=unique(Bill))
-
-#order by bill length
-indat$Hummingbird<-factor(indat$Hummingbird,levels=b %>% arrange(Bill) %>% .$Hummingbird)
-
-ggplot(indat,aes(x=TotalCorolla,fill=State)) + geom_density(alpha=.5) + facet_wrap(~Hummingbird,scales="free") + theme_bw() + geom_vline(data=b,aes(xintercept=Bill),linetype="dashed") +  scale_fill_manual("",values=c("grey90","black"),labels=c("Non-visited","Visited")) + xlab("Flower Corolla Length (mm)") + scale_x_continuous(limits=c(0,71),breaks=c(0,20,40,60))
-```
-
 <img src="figureObserved/unnamed-chunk-19-1.png" title="" alt="" style="display: block; margin: auto;" />
 
 ```r
-ggsave("Figures/Used_Background.svg",height=9,width=11)
+ggsave("Figures/CorollaAvailability.jpg",dpi=300,height=5,width=7)
 ```
 
 #Randomization 1
@@ -669,14 +683,10 @@ Do they expand, contract, or shift?
 
 
 ```r
-ggplot(indat[indat$State=="Used",],aes(x=TotalCorolla,fill=as.factor(Availability))) + geom_density(alpha=.7) + facet_wrap(~Hummingbird,scales="free",ncol=3) + theme_bw() + scale_fill_manual("Resource Availability",labels=c("Low","High"),values=c("Red","Black")) + ggtitle("Visited Flowers") + geom_vline(data=b,aes(xintercept=Bill),linetype="dashed",size=1,col='red') + scale_fill_manual("Resource Availability",values=c("grey90","black"),labels=c("Low","High")) + xlab("Flower Corolla Length (mm)")
+ggplot(indat[indat$State=="Used",],aes(x=TotalCorolla,fill=as.factor(Availability))) + geom_density(alpha=.7) + facet_wrap(~Hummingbird,scales="free",ncol=3) + theme_bw() + scale_fill_manual("Resource Availability",labels=c("Low","High"),values=c("Red","Black")) + ggtitle("Visited Flowers") + geom_vline(data=b,aes(xintercept=Bill),linetype="dashed",size=1,col='red') + scale_fill_manual("Resource Availability",values=c("grey90","black"),labels=c("Low","High")) + xlab("Flower Corolla Length (mm)") + xlim(0,65)
 ```
 
 <img src="figureObserved/unnamed-chunk-27-1.png" title="" alt="" style="display: block; margin: auto;" />
-
-```r
-ggsave("Figures/UsedEmprical.jpeg",dpi=300,width=7.5,height=6)
-```
 
 ##True state of trait-matching among high and low periods.
 
@@ -726,7 +736,7 @@ null_state<-rbind_all(diffdf)
 
 cl<-makeCluster(5,"SOCK")
 registerDoSNOW(cl)
-nullframe<-foreach(x=1:10000,.packages=c("dplyr","reshape2")) %dopar% {nullc(indat)}
+nullframe<-foreach(x=1:1000,.packages=c("dplyr","reshape2")) %dopar% {nullc(indat)}
 stopCluster(cl)
 
 nullframe<-rbind_all(nullframe)
@@ -749,6 +759,7 @@ ggplot(data=nullframe[nullframe$Metric=="sd",],aes(x=Difference)) + geom_density
 ```
 
 <img src="figureObserved/unnamed-chunk-31-1.png" title="" alt="" style="display: block; margin: auto;" />
+
 
 Are those true distributions within reasonable confidence bands?
 
@@ -803,16 +814,13 @@ ggsave("Figures/AllCorollas.svg",height=4,width=6)
 ```
 
 
-
 ```r
 #Order by bill length
-
 indat$Hummingbird<-factor(indat$Hummingbird,levels=as.character(b[order(b$Bill),]$Hummingbird))
 keep<-c("Tawny-bellied Hermit","White-whiskered Hermit","Brown Inca","Violet-tailed Sylph")
 
 #loop through plots, by bill length.
 b$Billc<-cut(b$Bill,breaks=c(0,16,30,60),labels=c("Short Bill","Medium Bill","Long Bill"))
-
 
 indat<-merge(indat,b[,!colnames(b) %in% "Bill"])
 ```

@@ -106,7 +106,7 @@ missingTraits<-int.FLlevels[!int.FLlevels %in% fl.morph$X]
 dath<-merge(dath,fl.morph, by.x="Iplant_Double",by.y="X")
 
 #Drop piercing events, since they don't represent correlation
-dath<-dath[!dath$Pierce %in% c("y","Y"),]
+#dath<-dath[!dath$Pierce %in% c("y","Y"),]
 ```
 
 ##Match Species to Morphology
@@ -359,7 +359,7 @@ colnames(full.fl)[colnames(full.fl) %in% "month"]<-"Month"
 full.fl<-full.fl %>% filter(Iplant_Double %in% unique(int$Iplant_Double))
 
 #group by month and replicate, remove date errors by making a max of 10 flowers, couple times where the gps places it in wrong transect by 1 to 2 meters. 
-flower.month<-group_by(full.fl,Month,Year,Transect_R,Date_F) %>% dplyr::summarise(Flowers=sum(Total_Flowers,na.rm=TRUE))  %>% filter(Flowers>20)
+flower.month<-group_by(full.fl,Month,Year,Transect_R,Date_F) %>% dplyr::summarise(Flowers=sum(Total_Flowers,na.rm=TRUE))  %>% filter(Flowers>10)
   
 #Make month abbreviation column, with the right order
 flower.month$Month.a<-factor(month.abb[flower.month$Month],month.abb[c(1:12)])
@@ -368,21 +368,10 @@ flower.month$Month.a<-factor(month.abb[flower.month$Month],month.abb[c(1:12)])
 flower.month$Year<-as.factor(flower.month$Year)
 
 #get quantile for each transect
-thresh<-melt(flower.month %>% group_by(Transect_R) %>%  summarize(Upper=quantile(Flowers,0.66),Lower=quantile(Flowers,0.33)))
+thresh<-melt(flower.month %>% group_by() %>%  summarize(Upper=quantile(Flowers,0.75),Lower=quantile(Flowers,0.5)))
 
-#split and recombine after 
 
-flower.month<-split(flower.month,flower.month$Transect_R)
-
-flower.month<-lapply(flower.month,function(x){
-  
-  threshr<-thresh[thresh$Transect_R %in% x$Transect_R,]
-  
-  x$High<-cut(x$Flowers,c(0,threshr[threshr$variable %in% "Lower","value"],threshr[threshr$variable %in% "Upper","value"],max(x$Flowers)+1),labels=c("Low","Medium","High"))
-  return(x)
-})
-
-flower.month<-rbind_all(flower.month)
+  flower.month$High<-cut(flower.month$Flowers,c(0,thresh[thresh$variable %in% "Lower","value"],thresh[thresh$variable %in% "Upper","value"],max(flower.month$Flowers)+1),labels=c("Low","Medium","High"))
 
 
 #fix the levels
@@ -391,6 +380,7 @@ levels(flower.month$Transect_R)<-c("1300m - 1500m", "1500m - 1700m","1700m - 190
 #plot
 ggplot(flower.month,aes(x=Month.a,log(Flowers),col=High,shape=as.factor(Year))) + geom_point(size=3) + theme_bw()  + geom_smooth(aes(group=1)) + ylab("Flowers") + xlab("Month") + facet_wrap(~Transect_R,scales="free_y") + labs(shape="Year", y= "Log Available Flowers") + scale_x_discrete(breaks=month.abb[seq(1,12,2)]) + scale_color_manual(labels=c("Low","Medium","High"),values=c("blue","gray","red")) + labs(col="Resource Availability") 
 
+ggsave("Figures/FlowerAvailability.jpg",height=5.5,width=9,dpi=600)
 #turn min and max elvation into seperate columns for the range
 flower.month$minElev<-as.numeric(str_extract(flower.month$Transect_R,"(\\d+)"))
 flower.month$maxElev<-as.numeric(str_match(flower.month$Transect_R,"(\\d+)_(\\d+)")[,3])
@@ -408,10 +398,10 @@ levels(flower.month$Transect_R)<-levels(as.factor(indat$Transect_R))
 #Average the two transects per month
   mflower<-flower.month %>% group_by(Transect_R,Month,Year) %>% summarize(Flowers=mean(Flowers))
   
-  mflower$Availability<-(mflower$Flowers > quantile(mflower$Flowers,0.66))*1
-   mflower$Availability<-factor(mflower$Availability,labels=c("Low","High"))
-#     flt<-mflower %>% group_by(Transect_R) %>% summarize(High=quantile(Flowers,0.66),Low=quantile(Flowers,0.33))
-# 
+    flt<-mflower %>% group_by() %>% summarize(High=quantile(Flowers,0.66),Low=quantile(Flowers,0.5))
+
+    mflower$Availability<-cut(mflower$Flowers,c(0,flt$Low,flt$High,max(mflower$Flowers)+1),labels=c("Low","Medium","High"))
+
 #     #split to set threshold
 #     mflower<-split(mflower,mflower$Transect_R)
 #     
@@ -420,16 +410,16 @@ levels(flower.month$Transect_R)<-levels(as.factor(indat$Transect_R))
 #       x$Availability<-cut(x$Flowers,c(0,threshr$Low,threshr$High,max(x$Flowers)+1),labels=c("Low","Medium","High"))
 #       return(x)
 #     })
-# 
-#     mflower<-rbind_all(mflower)
-#     
+
+    #mflower<-rbind_all(mflower)
+    
  indat<-merge(indat,mflower,by=c("Month","Year","Transect_R"))
 
 
 ggplot(mflower,aes(x=factor(Availability),y=log(Flowers),fill=Transect_R)) + geom_boxplot() + labs(x="Resource Availability") +ggtitle("Resource classification by elevation")
 
 #for the moment take medium out
-#indat<-indat[!indat$Availability %in% "Medium",]
+indat<-indat[!indat$Availability %in% "Medium",]
 ```
 
 #Corolla distributions
@@ -455,7 +445,6 @@ View species identity in resource splits.
 indat<-droplevels(indat)
 #Count of species in both time sets
 splist<-indat %>% filter(State=="Used") %>% group_by(Hummingbird,Resource=Availability) %>% distinct(Iplant_Double) %>% dplyr::select(Iplant_Double)
-
 
 #relevel text
 
@@ -653,7 +642,7 @@ Do the distributions of corollas used differ in resource periods, given the back
 Do they expand, contract, or shift?
 
 ```{r}
-ggplot(indat[indat$State=="Used",],aes(x=TotalCorolla,fill=as.factor(Availability))) + geom_density(alpha=.7) + facet_wrap(~Hummingbird,scales="free",ncol=3) + theme_bw() + scale_fill_manual("Resource Availability",labels=c("Low","High"),values=c("Red","Black")) + ggtitle("Visited Flowers") + geom_vline(data=b,aes(xintercept=Bill),linetype="dashed",size=1,col='red') + scale_fill_manual("Resource Availability",values=c("grey90","black"),labels=c("Low","High")) + xlab("Flower Corolla Length (mm)")
+ggplot(indat[indat$State=="Used",],aes(x=TotalCorolla,fill=as.factor(Availability))) + geom_density(alpha=.7) + facet_wrap(~Hummingbird,scales="free",ncol=3) + theme_bw() + scale_fill_manual("Resource Availability",labels=c("Low","High"),values=c("Red","Black")) + ggtitle("Visited Flowers") + geom_vline(data=b,aes(xintercept=Bill),linetype="dashed",size=1,col='red') + scale_fill_manual("Resource Availability",values=c("grey90","black"),labels=c("Low","High")) + xlab("Flower Corolla Length (mm)") + xlim(0,65)
 ```
 
 ##True state of trait-matching among high and low periods.
@@ -702,7 +691,7 @@ null_state<-rbind_all(diffdf)
 
 cl<-makeCluster(5,"SOCK")
 registerDoSNOW(cl)
-nullframe<-foreach(x=1:10000,.packages=c("dplyr","reshape2")) %dopar% {nullc(indat)}
+nullframe<-foreach(x=1:1000,.packages=c("dplyr","reshape2")) %dopar% {nullc(indat)}
 stopCluster(cl)
 
 nullframe<-rbind_all(nullframe)
@@ -719,6 +708,7 @@ ggplot(data=nullframe[nullframe$Metric=="mean",],aes(x=Difference)) + geom_densi
 ```{r}
 ggplot(data=nullframe[nullframe$Metric=="sd",],aes(x=Difference)) + geom_density(fill="black",alpha=.2) + geom_vline(data=truedf[truedf$Metric=="sd",],aes(xintercept=Difference),linetype="dashed",col="red")+ facet_wrap(~Hummingbird,scales="free") + theme_bw() + ggtitle("Is the variance in  trait-matching different in high and low periods")
 ```
+
 
 Are those true distributions within reasonable confidence bands?
 
@@ -763,7 +753,6 @@ ggsave("Figures/AllCorollas.svg",height=4,width=6)
 ```{r}
 #Order by bill length
 indat$Hummingbird<-factor(indat$Hummingbird,levels=as.character(b[order(b$Bill),]$Hummingbird))
-keep<-c("Tawny-bellied Hermit","White-whiskered Hermit","Brown Inca","Violet-tailed Sylph")
 
 #loop through plots, by bill length.
 b$Billc<-cut(b$Bill,breaks=c(0,16,30,60),labels=c("Short Bill","Medium Bill","Long Bill"))
