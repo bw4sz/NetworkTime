@@ -40,6 +40,7 @@ opts_chunk$set(message=FALSE,warning=FALSE,fig.height=9,fig.width=13,echo=FALSE,
 
 ```
 
+
 ************
 
 ```{r}
@@ -69,21 +70,9 @@ flower.month$Month.a<-factor(month.abb[flower.month$Month],month.abb[c(1:12)])
 flower.month$Year<-as.factor(flower.month$Year)
 
 #get quantile for each transect
-thresh<-melt(flower.month %>% group_by(Transect_R) %>%  summarize(Upper=quantile(Flowers,0.75),Lower=quantile(Flowers,0.50)))
+thresh<-melt(flower.month %>% group_by() %>%  summarize(Upper=quantile(Flowers,0.66),Lower=quantile(Flowers,0.50)))
 
-#split and recombine after 
-
-flower.month<-split(flower.month,flower.month$Transect_R)
-
-flower.month<-lapply(flower.month,function(x){
-  
-  threshr<-thresh[thresh$Transect_R %in% x$Transect_R,]
-  
-  x$High<-cut(x$Flowers,c(0,threshr[threshr$variable %in% "Lower","value"],threshr[threshr$variable %in% "Upper","value"],max(x$Flowers)+1),labels=c("Low","Medium","High"))
-  return(x)
-})
-
-flower.month<-rbind_all(flower.month)
+  flower.month$High<-cut(flower.month$Flowers,c(0,thresh[thresh$variable %in% "Lower","value"],thresh[thresh$variable %in% "Upper","value"],max(flower.month$Flowers)+1),labels=c("Low","Medium","High"))
 
 
 #fix the levels
@@ -103,22 +92,72 @@ flower.month$maxElev<-as.numeric(str_match(flower.month$Transect_R,"(\\d+)_(\\d+
 ```{r,fig.height=20,fig.width=13}
 #Goal to create randomized networks for each month and redo the entire analysis
 
-int<-read.csv(paste(droppath,"Thesis/Maquipucuna_SantaLucia/Results/Network/HummingbirdInteractions.csv",sep=""),row.names=1)
-int$Year<-years(int$DateP)
-int$Year[int$Year %in% 2012]<-2013
+int<-read.csv("InputData/FinalObs.csv",row.names=1)
 
-int[int$Year %in% 2013 & int$Month %in% 1,"Year"]<-2014
+#just presence records
+int<-int[int$Yobs>0,]
+```
 
-#break up network by two months
+#Overall Network
+
+```{r}
+tweb<-table(int$Hummingbird,int$Iplant_Double)
+mtweb<-melt(tweb)
+colnames(mtweb)<-c("Hummingbird","Iplant_Double","Visits")
+
+#turn 0's to NA for plotting
+mtweb$Visits[mtweb$Visits==0]<-NA
+
+#get order of interactions
+hord<-mtweb %>% group_by(Hummingbird) %>% filter(!is.na(Visits)) %>% summarize(n=n()) %>% arrange(n) %>% .$Hummingbird
+
+mtweb$Hummingbird<-factor(mtweb$Hummingbird,levels=hord)
+
+pord<-mtweb %>% group_by(Iplant_Double) %>% filter(!is.na(Visits)) %>% summarize(n=n()) %>% arrange(desc(n)) %>% .$Iplant_Double
+
+mtweb$Iplant_Double<-factor(mtweb$Iplant_Double,levels=pord)
+
+ggplot(mtweb,aes(y=Hummingbird,x=Iplant_Double,fill=Visits)) + geom_tile() + scale_fill_continuous(low="blue",high="red",na.value = "white") + theme(axis.text.x = element_text(angle = 90, hjust = 1)) + xlab("Plant")
+```
+
+#Calculate overall statistics.
+
+```{r}
+system.time(overallmetrics<-networklevel(as.matrix(tweb),level="higher",index="quantitative"))
+#melt into data frame
+overallmetrics<-data.frame(Metric=names(overallmetrics),value=overallmetrics)
+```
+
+## Permutation tests
+
+Test a couple permutation methods.
+
+```{r}
+null_all<-permatfull(tweb,times=10)
+
+null_metrics<-list()
+for(x in 1:length(null_all$perm)){
+  print(x)
+  system.time(nm<-networklevel(null_all$perm[[x]],level="higher",index="quantitative"))
+  null_metrics[[x]]<-data.frame(Metric=names(nm),value=nm)
+}
+
+null_metrics<-melt(null_metrics)
+ggplot(null_metrics,aes(x=value)) + geom_density() + facet_wrap(~Metric,scales="free") + geom_vline(aes(xintercept=value),col='red',linetype='dashed')
+```
+
+
+```{r}
+#break up network by months
 int.M<-split(int,list(int$Month,int$Year),drop=TRUE)
 
 #remove months with less than 15 records
-int.M<-int.M[sapply(int.M,nrow)>20]
+#int.M<-int.M[sapply(int.M,nrow)>15]
 
 #design null function
 nullC<-function(x){
   x<-droplevels(x)
-  N=nrow(x)
+  N<-x %>% group_by(ID) %>% n_groups()
   month.inter<-t(table(x$Hummingbird,x$Iplant_Double))
 
 true_stat<-networklevel(month.inter)
@@ -128,21 +167,18 @@ true_stat<-melt(true_stat)
 true_stat$variable<-rownames(true_stat)
 
 # Create 199 random matrixes
-r.int<-permatfull(month.inter,times=50)
-
-#Compute nestendness seperately.
-nested.test<-nestedness(month.inter)
+r.int<-permatfull(month.inter,times=2)
 
 #Create a function that computes network metrics
 null_total<-as.data.frame(
   t(sapply(r.int$perm,function(x){
   #Compute network statistics
-    out<-networklevel(x,index="quantitative")
+    out<-networklevel(x,index="quantitative",level="higher")
     return(out)
     })))
-#get the upper and lower 2.5th quantiles
+#get the upper and lower 5th quantiles
 null_total<-melt(null_total)
-nullq<-group_by(null_total,variable) %>% summarize(Lower=quantile(value,0.025,na.rm=T),Upper=quantile(value,0.975,na.rm=T))
+nullq<-group_by(null_total,variable) %>% summarize(Lower=quantile(value,0.05,na.rm=T),Upper=quantile(value,0.95,na.rm=T))
 
 #add month
 nullq$Month<-unique(x$Month)
@@ -159,7 +195,7 @@ out$N<-N
 return(out)}
 
 #apply function to each month
-cl<-makeCluster(4,"SOCK")
+cl<-makeCluster(2,"SOCK")
 registerDoSNOW(cl)
 runs<-foreach(x=1:length(int.M),.packages=c("bipartite","reshape2","dplyr")) %dopar% {nullC(int.M[[x]])}
 stopCluster(cl)
@@ -212,8 +248,7 @@ x<-droplevels(x)
 dim(table(x$Hummingbird,x$Iplant_Double))
 }))
 
-#split into high and low
-network.fl$HL<- cut(network.fl$Flowers,c(0,quantile(network.fl$Flowers,c(0.5,0.75)),max(network.fl$Flowers)+1),labels=c("Low","Medium","High"))
+network.fl$HL<- cut(network.fl$Flowers,c(0,quantile(network.fl$Flowers,c(0.5,0.66)),max(network.fl$Flowers)+1),labels=c("Low","Medium","High"))
 
 network.fl<-network.fl[!network.fl$HL %in% "Medium",]
 
@@ -224,10 +259,22 @@ nsub<-droplevels(network.fl[network.fl$Metric %in% keep,])
 
 levels(nsub$Metric)<-c("Nestedness","Connectance","Niche Overlap")
 
-ggplot(nsub,aes(x=HL,y=True)) + geom_boxplot() + facet_wrap(~Metric,scales="free") + scale_x_discrete("Resource Availability",labels=c("Low","High"))  + ylab("value")
+ggplot(nsub[nsub$N>10,],aes(x=HL,y=True,col=log(Flowers),size=N)) +geom_boxplot() + facet_wrap(~Metric,scales="free") + scale_x_discrete("Resource Availability",labels=c("Low","High"))  + ylab("value") + theme_bw() + scale_color_continuous(low='blue',high='red')
 
 ggsave("Figures/Boxplot_ResourcesSubset.jpeg",height=4,width=8,dpi=300,units="in")
 ggsave("Figures/Boxplot_ResourcesSubset.svg")
+```
+
+#Sampling and Metrics
+
+Did we sample more in high or low periods? No.
+
+```{r}
+ggplot(nsub,aes(x=HL,y=N)) + geom_boxplot() + ylab("Number of Cameras") + xlab("Number of Cameras")
+```
+
+```{r}
+ggplot(nsub,aes(x=N,y=True)) + geom_point() + facet_wrap(~Metric,scales="free") + geom_smooth(method="lm") + xlab("Number of Cameras")
 ```
 
 ```{r}
@@ -250,164 +297,6 @@ summary(lm(data=network.fl[network.fl$Metric %in% "weighted connectance",],value
 network.fl$value<-network.fl$True
 summary(lm(data=network.fl[network.fl$Metric %in% "weighted NODF",],value~log(Flowers)))
 summary(lm(data=network.fl[network.fl$Metric %in% "niche.overlap.HL",],value~log(Flowers)))
-```
-
-## Figure 5. Trait matching
-
-* Hummingbirds in general match the corolla resources based on their bill length.
-
-* This relationship changes over time
-
-* During periods of high resource availability, trait matching is decreased. This is most pronounced in long billed species.
-
-```{r,fig.width=9,fig.height=7,fig.align='center'}
-
-#read in flower morphology data, comes from Nectar.R
-fl.morph<-read.csv(paste(droppath,"Thesis/Maquipucuna_SantaLucia/Results/FlowerMorphology.csv",sep=""))
-
-#First row is empty
-fl.morph<-fl.morph[-1,]
-
-#Bring in Hummingbird Morphology Dataset, comes from
-hum.morph<-read.csv(paste(droppath,"Thesis/Maquipucuna_SantaLucia/Results/HummingbirdMorphology.csv",sep=""))
-
-#Bring in Interaction Matrix from the Network.R script
-int<-read.csv(paste(droppath,"Thesis/Maquipucuna_SantaLucia/Results/Network/HummingbirdInteractions.csv",sep=""),row.names=1)
-
-#int$Month<-cut(int$Month,seq(0,12,2),labels=seq(1,11,2))
-
-#Melt the interaction frame and match it with the traits
-m.dat<-int[colnames(int) %in% c("ID","Video","Time","Hummingbird","Sex","TransectID","Transect_R","Iplant_Double","Pierce","DateP","Month","ele")]
-
-m.dat$Year<-years(as.Date(m.dat$DateP))
-#Fix spacing to match clades
-
-#Which are matching
-levels(m.dat$Hummingbird)[!levels(m.dat$Hummingbird) %in% hum.morph$English]
-
-#This needs to be checked
-#print(paste(levels(m.dat$Hummingbird)[!levels(m.dat$Hummingbird) %in% hum.morph$English],"not matched"))
-
-#levels(m.dat$Hummingbird)[!levels(m.dat$Hummingbird) %in% hum.morph$English]<-c("Green-crowned Woodnymph")
-m.datH<-merge(m.dat,hum.morph, by.x="Hummingbird",by.y="English")
-
-#Merge to flowers
-int.FLlevels<-levels(factor(m.datH$Iplant_Double))
-
-#Which flowers are we missing info for?
-missingTraits<-int.FLlevels[!int.FLlevels %in% fl.morph$X]
-
-print(paste("Missing Trait Information:",missingTraits))
-m.datH<-merge(m.datH,fl.morph, by.x="Iplant_Double",by.y="X")
-
-#Drop piercing events, since they don't represent correlation
-m.datH<-m.datH[!m.datH$Pierce %in% c("y","Y"),]
-```
-
-###Correlation
-
-The correlation coefficient among bill and corolla lengths decreases as a function of available resources. The gray ribbon is a null randomization of the correlation structure for each month.
-
-```{r}
-#Time Cycles in correlation between bills and corollas
-
-#Start by plotting monthly breaks of corolla matching
-
-p<-ggplot(m.datH[!is.na(m.datH$Month),],aes(x=factor(Total_Culmen),TotalCorolla,col=Hummingbird)) + geom_point() 
-p<-p + geom_smooth(aes(group=1),method="lm") + facet_wrap(~Month) + theme_bw()
-
-p<-ggplot(m.datH[!is.na(m.datH$Month),],aes(x=Total_Culmen,TotalCorolla,col=Month)) + geom_point() 
-p<-p + geom_smooth(aes(group=Month),method="lm") + theme_bw() + scale_color_continuous(low="blue",high="red")
-
-#Difference Between Corolla and Bill Length of interactions measured
-m.datH$BD<-m.datH$Total_Culmen-m.datH$TotalCorolla
-p<-ggplot(m.datH,aes(y=BD,x=Hummingbird)) + geom_boxplot(position="dodge")
-p<-p + coord_flip()
-
-#######################################
-#Compared usage to available resources
-#######################################
-
-sdat<-split(m.datH,list(m.datH$Month,m.datH$Year))
-
-#atleast 10 observations
-sdat<-sdat[sapply(sdat,nrow)>30]
-
-######Correlation coefficient
-#calculate it for all birds, then short and longbilled (30cm)
-coeff<-rbind_all(lapply(sdat,function(x){
-  mod.c<-cor(x$Total_Culmen,x$TotalCorolla)
-  data.frame(Month=unique(x$Month),Year=as.numeric(as.character(unique(x$Year))),all=mod.c)
-}))
-
-#observed correlation
-observed<-melt(coeff,measure.vars=c("all"))
-
-#view observed and add date column, just call it the firt of the month for plotting
-observed$Date<-as.Date(paste(observed$Month,1,observed$Year,sep="/"),format="%m/%d/%Y")
-p<-ggplot(data=observed,aes(x=Date,y=value)) + geom_point() + geom_smooth(aes(group=variable)) 
-p<-p+ theme_bw()  + labs(y="Correlation between Bill and Corolla Length",x="Available Resources") + labs(shape="Year")
-p
-ggsave("Figures/CorrelationTime.jpg",height=5,width=8,units="in",dpi=600)
-ggsave("Figures/CorrelationTime.svg",height=5,width=8)
-
-setwd(gitpath)
-```
-
-```{r,fig.height=7}
-
-#Randomization of correlation
-
-#Define replication function, shuffle corolla length values
-shufflecor<-function(x=m.datH){
-  #sample draw
-  x$NewCorolla<-sample(x$TotalCorolla,replace=F)
-  splitdat<-split(x,list(x$Month,x$Year))
-  
-  #atleast 20 observations
-  splitdat<-splitdat[sapply(splitdat,nrow)>30]
-  
-  ######Correlation coefficient, which method to use?
-  coef<-lapply(splitdat,function(y){
-    mc<-cor(y$Total_Culmen,y$NewCorolla)
-    
-    out<-data.frame(Month=unique(y$Month),Year=as.numeric(as.character(unique(y$Year))),all=mc)
-    return(out)}
-    )
-  nullc<-rbind_all(coef)
-  return(nullc)
-  }
-
-nullcor<-replicate(100,shufflecor(m.datH),simplify = F)
-nullcor<-rbind_all(nullcor)
-#bind with resource dataframe
-nullcor<-merge(flowerMean,nullcor,by=c("Month","Year"))
-
-#Bind into one data frame
-nullcorm<-melt(nullcor,measure.vars=c("all"))
-
-#Get upper and lower quantile of null correlation
-nullcorq<-dplyr::group_by(nullcorm,Month,Year,variable) %>% dplyr::summarize(Flowers=unique(Flowers),Upper=quantile(value,0.025),Lower=quantile(value,0.975))
-
-#merge with original data
-finaldat<-merge(nullcorq,observed)
-
-#get data size for each month
-sizeall<-group_by(m.datH,Month,Year) %>% mutate(Billtype=cut(Total_Culmen,breaks=c(0,60),labels=c("all"))) %>% group_by(Month,Year,Billtype) %>% summarize(N=n())
-
-#bind size with observed and null data
-finaldat<-merge(finaldat,sizeall)
-
-p<-ggplot(data=finaldat,aes(x=log(Flowers),fill=variable))
-p<-p+geom_ribbon(aes(ymin=Lower,ymax=Upper),fill="grey20",alpha=.15)
-p<-p 
-p<-p+ theme_bw() + labs(y="Correlaton between Bill and Corolla Length",x="Log Available Resources",shape="Year",y="")
-
-p<-p + scale_y_continuous(breaks=c(-.3,0,.2,.4,.6,.8)) + scale_size_continuous(range=c(2.5,5)) + scale_fill_discrete(guide="none") + geom_smooth(aes(y=value),method="lm",fill="grey60",alpha=.8)  + labs(size="Observations") + geom_point(aes(y=value,shape=as.factor(Year),size=N)) + geom_text(aes(y=value,label=month.abb[Month]),size=3.5,vjust=-.5)
-print(p)
-ggsave("Figures/TraitMatching_Resource.jpg",height=6,width=8,units="in",dpi=600)
-ggsave("Figures/TraitMatching_Resource.svg",height=6,width=8)
-
 ```
 
 ```{r}

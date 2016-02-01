@@ -323,24 +323,8 @@ indat<-merge(indat,hum.morph[,colnames(hum.morph) %in% c("English","Bill")],by.x
 indat<-merge(indat,fl.morph[,c("Group.1","TotalCorolla")],by.x="Iplant_Double",by.y="Group.1")
 #Billd
 indat<-merge(indat,traitmelt,by=c("Hummingbird","Iplant_Double"))
-```
 
-Reformat index for jags.
-Jags needs a vector of input species 1:n with no breaks.
-
-```{r}
-#Easiest to work with jags as numeric ordinal values
-indat$Hummingbird<-as.factor(indat$Hummingbird)
-indat$Iplant_Double<-as.factor(indat$Iplant_Double)
-indat$jBird<-as.numeric(indat$Hummingbird)
-indat$jPlant<-as.numeric(indat$Iplant_Double)
-
-jagsIndexBird<-data.frame(Hummingbird=levels(indat$Hummingbird),jBird=1:length(levels(indat$Hummingbird)))
- 
-jagsIndexPlants<-data.frame(Iplant_Double=levels(indat$Iplant_Double),jPlant=1:length(levels(indat$Iplant_Double)))
-
-#Similiarly, the trait matrix needs to reflect this indexing.
-jTotalCorolla<-TotalCorollaT[rownames(TotalCorollaT) %in% unique(indat$Hummingbird),colnames(TotalCorollaT) %in% unique(indat$Iplant_Double)]
+write.csv(indat,"InputData/FinalObs.csv")
 ```
 
 #Resources at each point
@@ -386,6 +370,14 @@ flower.month$minElev<-as.numeric(str_extract(flower.month$Transect_R,"(\\d+)"))
 flower.month$maxElev<-as.numeric(str_match(flower.month$Transect_R,"(\\d+)_(\\d+)")[,3])
 ```
 
+Resources are intensely skewed. 
+
+Mean value is greater than 75th quantile.
+```{r,fig.height=3,fig.width=3}
+qplot(flower.month$Flowers)
+ggplot(flower.month,aes(x=Flowers)) + stat_ecdf(size=2) + theme_bw() + geom_vline(aes(xintercept=mean(Flowers)),linetype='dashed')
+```
+
 ##Binary Measures of Resources
 
 ```{r}
@@ -396,25 +388,13 @@ indat$DateP<-as.character(indat$DateP)
 levels(flower.month$Transect_R)<-levels(as.factor(indat$Transect_R))
 
 #Average the two transects per month
-  mflower<-flower.month %>% group_by(Transect_R,Month,Year) %>% summarize(Flowers=mean(Flowers))
+mflower<-flower.month %>% group_by(Transect_R,Month,Year) %>% summarize(Flowers=mean(Flowers))
   
-    flt<-mflower %>% group_by() %>% summarize(High=quantile(Flowers,0.66),Low=quantile(Flowers,0.5))
+flt<-mflower %>% group_by() %>% summarize(High=quantile(Flowers,0.75),Low=quantile(Flowers,0.5))
 
-    mflower$Availability<-cut(mflower$Flowers,c(0,flt$Low,flt$High,max(mflower$Flowers)+1),labels=c("Low","Medium","High"))
+mflower$Availability<-cut(mflower$Flowers,c(0,flt$Low,flt$High,max(mflower$Flowers)+1),labels=c("Low","Medium","High"))
 
-#     #split to set threshold
-#     mflower<-split(mflower,mflower$Transect_R)
-#     
-#     mflower<-lapply(mflower,function(x){
-#       threshr<-flt[flt$Transect_R %in% x$Transect_R,]
-#       x$Availability<-cut(x$Flowers,c(0,threshr$Low,threshr$High,max(x$Flowers)+1),labels=c("Low","Medium","High"))
-#       return(x)
-#     })
-
-    #mflower<-rbind_all(mflower)
-    
- indat<-merge(indat,mflower,by=c("Month","Year","Transect_R"))
-
+indat<-merge(indat,mflower,by=c("Month","Year","Transect_R"))
 
 ggplot(mflower,aes(x=factor(Availability),y=log(Flowers),fill=Transect_R)) + geom_boxplot() + labs(x="Resource Availability") +ggtitle("Resource classification by elevation")
 
@@ -518,13 +498,13 @@ This is most common definition of specialization.
 
 ```{r}
 #true state
-true_state<- indat %>% filter(State=="Used") %>% group_by(Hummingbird) %>% summarize(mean=mean(TotalCorolla),sd=sd(TotalCorolla))
+true_state<- indat %>% filter(State=="Used") %>% group_by(Hummingbird) %>% summarize(mean=mean(TotalCorolla))
 
-mtruestate<-melt(true_state,measure.vars=c("mean","sd"))
+mtruestate<-melt(true_state,measure.vars=c("mean"))
 
 nullc<-function(indat){
   indat$State<-sample(indat$State)
-null_state<- indat %>% filter(State=="Used") %>% group_by(Hummingbird) %>% summarize(mean=mean(TotalCorolla),sd=sd(TotalCorolla))
+null_state<- indat %>% filter(State=="Used") %>% group_by(Hummingbird) %>% summarize(mean=mean(TotalCorolla))
 
   return(null_state)
 }
@@ -544,11 +524,6 @@ nullframe<-melt(nullframe,id.vars=c("Hummingbird"))
 
 ```{r}
 ggplot(nullframe[nullframe$variable=="mean",],aes(x=value)) + geom_density(fill="black",alpha=.2) + geom_vline(data=mtruestate[mtruestate$variable=="mean",],aes(xintercept=value),linetype="dashed",col="red",size=1) + facet_wrap(~Hummingbird,scales="free") + theme_bw() 
-```
-
-## Variance
-```{r}
-ggplot(nullframe[nullframe$variable=="sd",],aes(x=value)) + geom_density(fill="black",alpha=.2) + geom_vline(data=mtruestate[mtruestate$variable=="sd",],aes(xintercept=value),linetype="dashed",col="red") + facet_wrap(~Hummingbird,scales="free") + theme_bw()
 ```
 
 Are those true distributions within reasonable confidence bands?
@@ -581,14 +556,14 @@ p
 
 ```{r}
 #true state
-true_state<- indat %>% filter(State=="Used") %>% group_by(Hummingbird) %>% summarize(mean=mean(Traitmatch),sd=sd(TotalCorolla))
+true_state<- indat %>% filter(State=="Used") %>% group_by(Hummingbird) %>% summarize(mean=mean(Traitmatch))
 
-mtruestate<-melt(true_state,measure.vars=c("mean","sd"))
+mtruestate<-melt(true_state,measure.vars=c("mean"))
 
 #randomization function
 nullc<-function(indat){
   indat$State<-sample(indat$State)
-null_state<- indat %>% filter(State=="Used") %>% group_by(Hummingbird) %>% summarize(mean=mean(Traitmatch),sd=sd(TotalCorolla))
+null_state<- indat %>% filter(State=="Used") %>% group_by(Hummingbird) %>% summarize(mean=mean(Traitmatch))
 
   return(null_state)
 }
@@ -647,9 +622,9 @@ ggplot(indat[indat$State=="Used",],aes(x=TotalCorolla,fill=as.factor(Availabilit
 
 ##True state of trait-matching among high and low periods.
 ```{r}
-true_state<- indat %>% filter(State=="Used") %>% group_by(Hummingbird,Availability) %>% summarize(mean=mean(TotalCorolla),sd=sd(TotalCorolla)) 
+true_state<- indat %>% filter(State=="Used") %>% group_by(Hummingbird,Availability) %>% summarize(mean=mean(TotalCorolla),Lower=quantile(TotalCorolla,0.05),Higher=quantile(TotalCorolla,0.95)) 
 
-mtruestate<-melt(true_state,measure.vars=c("mean","sd"))
+mtruestate<-melt(true_state,measure.vars=c("mean","Higher","Lower"))
 
 #difference in values
 splt<-split(mtruestate,list(true_state$Hummingbird,mtruestate$variable),drop=T)
@@ -672,9 +647,9 @@ nullc<-function(indat){
   indat$State<-sample(indat$State)
   
   #Calculate null
-true_state<- indat %>% filter(State=="Used") %>% group_by(Hummingbird,Availability) %>% summarize(mean=mean(TotalCorolla),sd=sd(TotalCorolla))
+true_state<- indat %>% filter(State=="Used") %>% group_by(Hummingbird,Availability) %>% summarize(mean=mean(TotalCorolla),Lower=quantile(TotalCorolla,0.05),Higher=quantile(TotalCorolla,0.95))
 
-mtruestate<-melt(true_state,measure.vars=c("mean","sd"))
+mtruestate<-melt(true_state,measure.vars=c("mean","Lower","Higher"))
 
 #difference in values
 splt<-split(mtruestate,list(true_state$Hummingbird,mtruestate$variable),drop=T)
@@ -691,7 +666,7 @@ null_state<-rbind_all(diffdf)
 
 cl<-makeCluster(5,"SOCK")
 registerDoSNOW(cl)
-nullframe<-foreach(x=1:1000,.packages=c("dplyr","reshape2")) %dopar% {nullc(indat)}
+nullframe<-foreach(x=1:10000,.packages=c("dplyr","reshape2")) %dopar% {nullc(indat)}
 stopCluster(cl)
 
 nullframe<-rbind_all(nullframe)
@@ -701,12 +676,6 @@ nullframe<-rbind_all(nullframe)
 
 ```{r}
 ggplot(data=nullframe[nullframe$Metric=="mean",],aes(x=Difference)) + geom_density(fill="black",alpha=.2) + geom_vline(data=truedf[truedf$Metric=="mean",],aes(xintercept=Difference),linetype="dashed",col="red")+ facet_wrap(~Hummingbird,scales="free") + theme_bw() + ggtitle("Is the mean corolla length different in high and low periods")
-```
-
-## Difference in sd of Corollas
-
-```{r}
-ggplot(data=nullframe[nullframe$Metric=="sd",],aes(x=Difference)) + geom_density(fill="black",alpha=.2) + geom_vline(data=truedf[truedf$Metric=="sd",],aes(xintercept=Difference),linetype="dashed",col="red")+ facet_wrap(~Hummingbird,scales="free") + theme_bw() + ggtitle("Is the variance in  trait-matching different in high and low periods")
 ```
 
 
@@ -732,8 +701,10 @@ ord<-hum.morph %>% arrange(desc(Bill)) %>% select(English) %>% .$English
 
 mtstate$Var1<-factor(mtstate$Var1,levels=ord)
 
+#round to alpha interval
+round(mtstate$value,2)
 #order by billsize
-p3<-ggplot(mtstate[mtstate$Var2 %in% c("mean","sd"),],aes(x=Var1,y=Var2,fill=(value<0.05 | value > 0.95))) + geom_tile() + coord_flip() + labs(x="Hummingbird",y="Metric",fill="Difference between\nObserved and Null Distribution\n(alpha=0.05)") + ggtitle("Used v Used")
+p3<-ggplot(mtstate[,],aes(x=Var1,y=Var2,fill=(value<0.05 | value > 0.95))) + geom_tile() + coord_flip() + labs(x="Hummingbird",y="Metric",fill="Difference between\nObserved and Null Distribution\n(alpha=0.05)") + ggtitle("Used v Used")
 p3
 ```
 
@@ -776,7 +747,7 @@ sindat<-split(indat,indat$Billc)
 #vectors of titles
 for (x in 1:length(sindat)){
   j<-sindat[[x]]
-  p[[x]]<-ggplot(j[j$State=="Used",],aes(x=TotalCorolla,fill=as.factor(Availability))) + geom_density(alpha=.7) + facet_wrap(~Hummingbird,scale="free_y",nrow=1) + theme_bw()   + geom_vline(aes(xintercept=Bill),linetype="dashed",size=1,col='red') + labs(x=NULL) + scale_fill_manual("Resource Availability",values=c("grey90","black"),labels=c("Low","High"),guide="none") + scale_x_continuous(limits=c(0,70),breaks=c(0,20,40,60)) + theme(plot.margin=unit(c(.6,.6,0.1,0.1),"cm"))
+  p[[x]]<-ggplot(j[j$State=="Used",],aes(x=TotalCorolla,fill=as.factor(Availability))) + geom_density(alpha=.7) + facet_wrap(~Hummingbird,scale="free_y",nrow=1) + theme_bw()   + geom_vline(aes(xintercept=Bill),linetype="dashed",size=1,col='red') + labs(x=NULL) + scale_fill_manual("Resource Availability",values=c("grey90","black"),labels=c("Low","High"),guide="none")+ theme(plot.margin=unit(c(.6,.6,0.1,0.1),"cm"))
 }
 
 #just add legend to last one.
@@ -788,6 +759,30 @@ dev.off()
 grid.arrange(p[[1]],p[[2]],p[[3]],heights=c(0.3,.3,0.4))
 
 ```
+
+#Mean Shift
+
+# Quantile shift
+
+```{r}
+# need a clever trick of where to play y axis to offset availability.
+true_state$ymin<-0.05
+true_state$ymax<-0.0515
+
+true_state$ymin[true_state$Availability=="High"]<-true_state$ymin[true_state$Availability=="High"] + 0.005
+true_state$ymax[true_state$Availability=="High"]<-true_state$ymax[true_state$Availability=="High"] + 0.005
+
+#position of the means
+tom<-true_state %>% group_by(Availability) %>% summarize(ymean=mean(c(ymin,ymax))+0.0001)
+
+true_state<-merge(true_state,tom,by="Availability")
+#plot distributions and ranges.
+
+ggplot(indat[indat$State=='Unused',],aes(x=TotalCorolla,fill=Availability)) + geom_density(alpha=.7) + facet_wrap(~Hummingbird) + geom_rect(data=true_state[!true_state$Hummingbird %in% "Fawn-breasted Brilliant",],aes(ymin=ymin,ymax=ymax,xmin=Lower,xmax=Higher,x=NULL)) + scale_fill_manual("Resource Availability",values=c("blue","red"),labels=c("Low","High")) + scale_color_manual("Resource Availability",values=c("blue","red"),labels=c("Low","High"),guide="none") + theme_bw() + xlab("Corolla Length (mm)") + geom_vline(data=b[!b$Hummingbird %in% "Fawn-breasted Brilliant",],aes(xintercept=Bill),alpha=.3,size=1,linetype='dashed') + geom_point(data=true_state[!true_state$Hummingbird %in% "Fawn-breasted Brilliant",],size=3,aes(col=Availability,x=mean,y=ymean),col="black",show.legend=F) 
+
+ggsave("Figures/Meanshift.jpeg",height=6,width=10,dpi=500)
+```
+
 
 Save image
 
