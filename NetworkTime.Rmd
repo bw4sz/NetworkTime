@@ -1,13 +1,15 @@
 ---
-title: Niche overlap increases with increasing resource availability in a tropical
-  plant-pollinator network.
+title: Appendix  B - Network Statistics.
 author: "Ben Weinstein"
-date: "Tuesday, October 14, 2014"
+date: "2/1/2016"
 output:
   html_document:
+    toc: true
+    number_sections: true
     theme: spacelab
-  word_document: default
+    keep_md: true
 ---
+
 ```{r,echo=F}
 paste("Run Completed at",Sys.time())
 ```
@@ -36,7 +38,7 @@ gitpath<-"C:/Users/Ben/Documents/NetworkTime/"
 
 setwd(gitpath)
 
-opts_chunk$set(message=FALSE,warning=FALSE,fig.height=9,fig.width=13,echo=FALSE,cache=TRUE,cache.path = 'NetworkTime_cache/', fig.path='figure/')
+opts_chunk$set(message=FALSE,warning=FALSE,fig.height=5,fig.width=10,echo=FALSE,cache=F,cache.path = 'NetworkTime_cache/', fig.path='figure/',fig.align = 'center')
 
 ```
 
@@ -48,54 +50,16 @@ opts_chunk$set(message=FALSE,warning=FALSE,fig.height=9,fig.width=13,echo=FALSE,
 #load("NetworkTime.Rdata")
 ```
 
+#Read in data
 
-```{r,fig.height=5,fig.width=9}
-#Get flower transect data
-full.fl<-read.csv("C:/Users/Ben/Dropbox/Thesis/Maquipucuna_SantaLucia/Results/FlowerTransects/FlowerTransectClean.csv")[,-1]
-
- #month should be capital 
-colnames(full.fl)[colnames(full.fl) %in% "month"]<-"Month"
-
-#Be conservative, only use plants for which there were any observed records, for any species, that way we know we are just looking at hummingbird visited flowers, it can be difficult to guess in the field (faramea calyptrata? Clusia? It gets tricky.)
-
-#full.fl<-full.fl %>% filter(Iplant_Double %in% unique(int$Iplant_Double))
-
-#group by month and replicate, remove date errors by making a max of 10 flowers, couple times where the gps places it in wrong transect by 1 to 2 meters. 
-flower.month<-group_by(full.fl,Month,Year,Transect_R,Date_F) %>% dplyr::summarise(Flowers=sum(Total_Flowers,na.rm=TRUE))  %>% filter(Flowers>10)
-  
-#Make month abbreviation column, with the right order
-flower.month$Month.a<-factor(month.abb[flower.month$Month],month.abb[c(1:12)])
-
-#Make year factor column
-flower.month$Year<-as.factor(flower.month$Year)
-
-#get quantile for each transect
-thresh<-melt(flower.month %>% group_by() %>%  summarize(Upper=quantile(Flowers,0.66),Lower=quantile(Flowers,0.50)))
-
-  flower.month$High<-cut(flower.month$Flowers,c(0,thresh[thresh$variable %in% "Lower","value"],thresh[thresh$variable %in% "Upper","value"],max(flower.month$Flowers)+1),labels=c("Low","Medium","High"))
-
-
-#fix the levels
-levels(flower.month$Transect_R)<-c("1300m - 1500m", "1500m - 1700m","1700m - 1900m","1900m - 2100m","2100m - 2300m","2300m - 2500m")
-
-#plot
-ggplot(flower.month,aes(x=Month.a,log(Flowers),col=High,shape=as.factor(Year))) + geom_point(size=3) + theme_bw()  + geom_smooth(aes(group=1)) + ylab("Flowers") + xlab("Month") + facet_wrap(~Transect_R,scales="free_y") + labs(shape="Year", y= "Log Available Flowers") + scale_x_discrete(breaks=month.abb[seq(1,12,2)]) + scale_color_manual(labels=c("Low","Medium","High"),values=c("blue","gray","red")) + labs(col="Resource Availability") 
-
-#turn min and max elvation into seperate columns for the range
-flower.month$minElev<-as.numeric(str_extract(flower.month$Transect_R,"(\\d+)"))
-flower.month$maxElev<-as.numeric(str_match(flower.month$Transect_R,"(\\d+)_(\\d+)")[,3])
-```
-
-
-**Measures of hummingbird plant interactions through time (points) as compared to a null model maintaining the number of observations (shaded region).The size of the point is proportional to the number of interactions measured for each month.**
+From Randomizations.Rmd
 
 ```{r,fig.height=20,fig.width=13}
-#Goal to create randomized networks for each month and redo the entire analysis
 
 int<-read.csv("InputData/FinalObs.csv",row.names=1)
 
 #just presence records
-int<-int[int$Yobs>0,]
+int<-int[int$State=="Used",]
 ```
 
 #Overall Network
@@ -117,186 +81,200 @@ pord<-mtweb %>% group_by(Iplant_Double) %>% filter(!is.na(Visits)) %>% summarize
 
 mtweb$Iplant_Double<-factor(mtweb$Iplant_Double,levels=pord)
 
-ggplot(mtweb,aes(y=Hummingbird,x=Iplant_Double,fill=Visits)) + geom_tile() + scale_fill_continuous(low="blue",high="red",na.value = "white") + theme(axis.text.x = element_text(angle = 90, hjust = 1)) + xlab("Plant")
+overall<-ggplot(mtweb,aes(y=Hummingbird,x=Iplant_Double,fill=Visits)) + geom_tile() + scale_fill_continuous(low="blue",high="red",na.value = "white") + theme(axis.text.x = element_text(angle = 90, hjust = 1)) + xlab("Plant")
+overall
 ```
 
-#Calculate overall statistics.
+##Calculate overall statistics.
 
 ```{r}
-system.time(overallmetrics<-networklevel(as.matrix(tweb),level="higher",index="quantitative"))
+overallmetrics<-networklevel(as.matrix(tweb),level="higher",index=c("weighted connectance","weighted nestedness"))
 #melt into data frame
 overallmetrics<-data.frame(Metric=names(overallmetrics),value=overallmetrics)
 ```
 
 ## Permutation tests
 
-Test a couple permutation methods.
+There is some discussion as to what the best null model for nestedness is. Should we constrain the matrix? Try both ways to see if it makes a difference in inference.
+
+### Calculate randomized matrix
+
+Maintaining the total number of observations, but shuffling where those visitations fall.
 
 ```{r}
-null_all<-permatfull(tweb,times=10)
+null_all<-permatfull(tweb,times=500,fixedmar = "none")
 
 null_metrics<-list()
 for(x in 1:length(null_all$perm)){
-  print(x)
-  system.time(nm<-networklevel(null_all$perm[[x]],level="higher",index="quantitative"))
+  nm<-networklevel(null_all$perm[[x]],level="higher",index=c("weighted connectance","weighted nestedness"))
   null_metrics[[x]]<-data.frame(Metric=names(nm),value=nm)
 }
 
 null_metrics<-melt(null_metrics)
-ggplot(null_metrics,aes(x=value)) + geom_density() + facet_wrap(~Metric,scales="free") + geom_vline(aes(xintercept=value),col='red',linetype='dashed')
+ggplot(null_metrics,aes(x=value)) + geom_density(fill='grey40') + facet_wrap(~Metric,scales="free") + geom_vline(data=overallmetrics,aes(xintercept=value),col='red',linetype='dashed') + theme_bw()
+```
+
+```{r}
+#Add overall network and measures underneath as a supp figure
+num<-droplevels(null_metrics[null_metrics$Metric %in% c( "weighted connectance","weighted nestedness"),])
+
+ob<-droplevels(overallmetrics[overallmetrics$Metric %in% c("weighted connectance","weighted nestedness"),])
+
+levels(num$Metric)<-c("Connectance","Nestedness")
+levels(ob$Metric)<-c("Connectance","Nestedness")
+
+nulls<-ggplot(num,aes(x=value)) + geom_density(fill='grey40') + facet_wrap(~Metric,scales="free",nrow=1) + geom_vline(data=ob,aes(xintercept=value),col='red',linetype='dashed') + theme_bw()
+
+jpeg("Figures/Overall.jpeg",height=6,width=11,units="in",res=400)
+grid.arrange(overall,nulls,heights=c(.7,.3))
+dev.off()
+```
+
+#Temporal change in network
+
+##View Sub-Networks
+
+```{r}
+
+int.M<-split(int,int$Availability,drop = T)
+
+p<-lapply(int.M,function(x){
+
+  tweb<-table(x$Hummingbird,x$Iplant_Double)
+  mtweb<-melt(tweb)
+  colnames(mtweb)<-c("Hummingbird","Iplant_Double","Visits")
+  
+  #turn 0's to NA for plotting
+  mtweb$Visits[mtweb$Visits==0]<-NA
+  mtweb<-mtweb[!is.na(mtweb$Visits),]
+  
+  #get order of interactions
+  hord<-mtweb %>% group_by(Hummingbird) %>% filter(!is.na(Visits)) %>% summarize(n=n()) %>% arrange(n) %>% .$Hummingbird
+  
+  mtweb$Hummingbird<-factor(mtweb$Hummingbird,levels=hord)
+  
+  pord<-mtweb %>% group_by(Iplant_Double) %>% filter(!is.na(Visits)) %>% summarize(n=n()) %>% arrange(desc(n)) %>% .$Iplant_Double
+  
+  mtweb$Iplant_Double<-factor(mtweb$Iplant_Double,levels=pord)
+  
+  ggplot(mtweb,aes(y=Hummingbird,x=Iplant_Double,fill=Visits)) + theme_bw() +geom_tile() + scale_fill_continuous(low="blue",high="red",na.value = "white") + theme(axis.text.x = element_text(angle = 90, hjust = 1)) + xlab("Plant") + ggtitle(unique(x$Availability)) 
+})
+
+grid.arrange(p[[1]],p[[2]])
 ```
 
 
+
+## Null function
+
 ```{r}
-#break up network by months
-int.M<-split(int,list(int$Month,int$Year),drop=TRUE)
-
-#remove months with less than 15 records
-#int.M<-int.M[sapply(int.M,nrow)>15]
-
-#design null function
 nullC<-function(x){
   x<-droplevels(x)
   N<-x %>% group_by(ID) %>% n_groups()
   month.inter<-t(table(x$Hummingbird,x$Iplant_Double))
 
-true_stat<-networklevel(month.inter)
+true_stat<-networklevel(month.inter,index=c("weighted connectance","weighted nestedness"),level="higher")
   
 true_stat<-melt(true_stat)
 
 true_stat$variable<-rownames(true_stat)
 
 # Create 199 random matrixes
-r.int<-permatfull(month.inter,times=2)
+r.int<-permatfull(month.inter,times=500)
 
-#Create a function that computes network metrics
+#Create a functi\on that computes network metrics
 null_total<-as.data.frame(
   t(sapply(r.int$perm,function(x){
   #Compute network statistics
-    out<-networklevel(x,index="quantitative",level="higher")
+    out<-networklevel(x,index=c("weighted connectance","weighted nestedness"),level="higher")
     return(out)
     })))
+
 #get the upper and lower 5th quantiles
 null_total<-melt(null_total)
 nullq<-group_by(null_total,variable) %>% summarize(Lower=quantile(value,0.05,na.rm=T),Upper=quantile(value,0.95,na.rm=T))
 
-#add month
-nullq$Month<-unique(x$Month)
-
-#add Year
-nullq$Year<-unique(x$Year)
-
-colnames(nullq)<-c("Metric","Lower","Upper","Month","Year")
+colnames(nullq)<-c("Metric","Lower","Upper")
 
 #append true information
 out<-merge(nullq,true_stat,by.x="Metric",by.y="variable")
 colnames(out)[colnames(out) %in% "value"]<-"True"
 out$N<-N
 return(out)}
+```
 
-#apply function to each month
+###Apply function to each period
+
+```{r}
+
 cl<-makeCluster(2,"SOCK")
 registerDoSNOW(cl)
 runs<-foreach(x=1:length(int.M),.packages=c("bipartite","reshape2","dplyr")) %dopar% {nullC(int.M[[x]])}
 stopCluster(cl)
 
-dat<-rbind_all(runs)
+names(runs)<-names(int.M)
+datHL<-melt(runs,id.vars=colnames(runs[[1]]))
 
-#format date
-dat$Date<-as.Date(paste(1,round(dat$Month),dat$Year,sep="/"),format="%d/%m/%Y")
+colnames(datHL)[6]<-"HL"
+```
 
-#Take out plant metrics for the moment
-datHL<-dat[!str_detect(dat$Metric,".LL"),]
 
-#plot distribution of  values
-p<-ggplot(datHL,aes(x=Date,fill=Metric)) + facet_wrap(~Metric,scales='free',ncol=3) + geom_ribbon(aes(ymin=Lower,ymax=Upper))
+#Observed versus null values of nestedness, connectance
+
+```{r}
+p<-ggplot(datHL,aes(x=HL,fill=Metric)) + facet_wrap(~Metric,scales='free',ncol=3) + geom_linerange(aes(ymin=Lower,ymax=Upper))
 p<-p+ geom_point(aes(size=N,y=True)) + geom_line(aes(y=True)) 
-p<-p+scale_fill_discrete(guide="none") + scale_x_date(date_breaks="6 months",label=date_format("%m/%y"))+ scale_size_continuous(range=c(2.5,5),"Observations") + labs(y="") + theme_bw()
+p<-p+scale_fill_discrete(guide="none") + scale_size_continuous(range=c(2.5,5),"Observations") + labs(y="") + theme_bw()
 print(p) 
-
-
 ggsave("Figures/NullNetwork.jpg",dpi=600,quality=100,pointsize=14,height=10,width=12)
 ggsave("Figures/NullNetwork.svg",height=10,width=12)
 
 ```
 
-********
+#Randomize with respect to resource membership.  
 
-**Connectance, clustering and niche overlap as a function of available resources.**
-
-```{r,fig.height=30,fig.width=15}
-    
-flowerMean<-group_by(flower.month,Month,Year,Transect_R) %>% summarize(mFlowers=mean(Flowers,na.rm=TRUE)) %>% group_by(Month,Year) %>% summarize(Flowers=sum(mFlowers,na.rm=TRUE))
+```{r}
+rHL<-function(){
   
-#combine the flower totals and network metrics
-  network.fl<-merge(flowerMean,datHL,by=c("Month","Year"))
+  #shuffle
+  int$rHL<-sample(int$Availability)
+  rint.M<-split(int,int$rHL,drop = T)
   
-  #Quick visualization 
-  p<-ggplot(network.fl[,],aes(log(Flowers),y=True,shape=as.factor(Year))) + geom_point(aes(size=N)) + facet_wrap(~Metric,scale="free",ncol=3)  + geom_smooth(aes(group=1),method="lm") + theme_bw() + labs(col="Month",shape="Year",size="Interactions") + geom_text(aes(label=month.abb[Month]),hjust=-0.25,size=3) + scale_size_continuous(range=c(2.5,5),"Observations") + labs(x="Log Available Resources") + ylab("Score")
-p
-ggsave("Figures/Network_Resources.jpg",height=15,width=15,dpi=300,units="in")
-ggsave("Figures/Network_Resources.svg",height=10,width=10)
+  r<-lapply(rint.M,function(x){
+  month.inter<-t(table(x$Hummingbird,x$Iplant_Double))
+  true_stat<-networklevel(month.inter,index=c("weighted connectance","weighted nestedness"),level="higher")
+  true_stat<-melt(true_stat)
+  true_stat$variable<-rownames(true_stat)
+  return(melt(true_stat))
+  })
+  r<-melt(r)
+  colnames(r)[3]<-"Availability"
+  return(r)
+}
 
-```
+randomN<-list()
+for(x in 1:500){
+randomN[[x]]<-rHL()
+  }
 
-```{r}
-#just a subset
+names(randomN)<-1:500
+randomN<-melt(randomN,id.vars=colnames(randomN[[1]]))
 
-#network size
-size<-t(sapply(int.M,function(x){
-x<-droplevels(x)
-dim(table(x$Hummingbird,x$Iplant_Double))
-}))
+colnames(randomN)<-c("Metric","value","HL","Iteration")
 
-network.fl$HL<- cut(network.fl$Flowers,c(0,quantile(network.fl$Flowers,c(0.5,0.66)),max(network.fl$Flowers)+1),labels=c("Low","Medium","High"))
+#find quantiles
+randomQ<-randomN %>% group_by(Metric,HL) %>% summarize(Lower=quantile(value,0.05),Upper=quantile(value,0.95))
 
-network.fl<-network.fl[!network.fl$HL %in% "Medium",]
+levels(datHL$Metric)<-c("Nestedness","Connectance")
+randomQ$Metric<-as.factor(randomQ$Metric)
+levels(randomQ$Metric)<-c("Connectance","Nestedness")
 
-keep<-c("niche.overlap.HL","weighted NODF","weighted connectance")
-
-#rename levels
-nsub<-droplevels(network.fl[network.fl$Metric %in% keep,])
-
-levels(nsub$Metric)<-c("Nestedness","Connectance","Niche Overlap")
-
-ggplot(nsub[nsub$N>10,],aes(x=HL,y=True,col=log(Flowers),size=N)) +geom_boxplot() + facet_wrap(~Metric,scales="free") + scale_x_discrete("Resource Availability",labels=c("Low","High"))  + ylab("value") + theme_bw() + scale_color_continuous(low='blue',high='red')
-
-ggsave("Figures/Boxplot_ResourcesSubset.jpeg",height=4,width=8,dpi=300,units="in")
-ggsave("Figures/Boxplot_ResourcesSubset.svg")
-```
-
-#Sampling and Metrics
-
-Did we sample more in high or low periods? No.
-
-```{r}
-ggplot(nsub,aes(x=HL,y=N)) + geom_boxplot() + ylab("Number of Cameras") + xlab("Number of Cameras")
-```
-
-```{r}
-ggplot(nsub,aes(x=N,y=True)) + geom_point() + facet_wrap(~Metric,scales="free") + geom_smooth(method="lm") + xlab("Number of Cameras")
-```
-
-```{r}
-p<-ggplot(network.fl,aes(log(Flowers),y=True,shape=as.factor(Year))) + geom_point(aes(size=N)) + facet_wrap(~Metric,scale="free")  + geom_smooth(aes(group=1),method="lm") + theme_bw() + labs(col="Month",shape="Year",size="Interactions") + geom_text(aes(label=month.abb[Month]),hjust=-0.25,size=3) + scale_size_continuous(range=c(2.5,5),"Observations") + labs(x="Log Available Resources") + ylab("Score")
-p
-ggsave("Figures/Network_ResourcesSubset.jpg",height=5,width=10,dpi=300,units="in")
-ggsave("Figures/Network_ResourcesSubset.svg",height=5,width=10)
-  
-#add in null model
-#plot mean position
-mpt<-network.fl %>% group_by(Metric,Flowers) %>% summarize(meanN=mean(c(Lower,Upper)))
-network.fl<-merge(network.fl,mpt,by=c("Metric","Flowers"))
-p + geom_pointrange(data=network.fl,aes(ymin=Lower,ymax=Upper,y=meanN),alpha=.5,col='red')
-```
-
-Linear regression
-```{r}
-network.fl$value<-network.fl$True
-summary(lm(data=network.fl[network.fl$Metric %in% "weighted connectance",],value~log(Flowers)))
-network.fl$value<-network.fl$True
-summary(lm(data=network.fl[network.fl$Metric %in% "weighted NODF",],value~log(Flowers)))
-summary(lm(data=network.fl[network.fl$Metric %in% "niche.overlap.HL",],value~log(Flowers)))
+#compare to observed values. 
+p<-ggplot(datHL,aes(x=HL,fill=Metric)) + facet_wrap(~Metric,scales='free',ncol=3)
+p<-p+ geom_point(aes(size=N,y=True)) + geom_line(aes(y=True)) 
+p<-p+scale_fill_discrete(guide="none") + scale_size_continuous(range=c(2.5,5),"Observations") + labs(y="") + theme_bw()
+p + geom_linerange(data=randomQ,col='red',aes(ymin=Lower,ymax=Upper)) + xlab("Resource Availability")
+ggsave("Figures/NetworkChange.jpg",dpi=300,height=2.5,width=5)
 ```
 
 ```{r}

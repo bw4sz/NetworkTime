@@ -39,7 +39,7 @@ paste("Run Completed at",Sys.time())
 
 ```{r}
 #reload if needed
-#load("Randomization.Rdata")
+load("Randomization.Rdata")
 ```
 
 #Load in data
@@ -323,8 +323,6 @@ indat<-merge(indat,hum.morph[,colnames(hum.morph) %in% c("English","Bill")],by.x
 indat<-merge(indat,fl.morph[,c("Group.1","TotalCorolla")],by.x="Iplant_Double",by.y="Group.1")
 #Billd
 indat<-merge(indat,traitmelt,by=c("Hummingbird","Iplant_Double"))
-
-write.csv(indat,"InputData/FinalObs.csv")
 ```
 
 #Resources at each point
@@ -362,7 +360,7 @@ thresh<-melt(flower.month %>% group_by() %>%  summarize(Upper=quantile(Flowers,0
 levels(flower.month$Transect_R)<-c("1300m - 1500m", "1500m - 1700m","1700m - 1900m","1900m - 2100m","2100m - 2300m","2300m - 2500m")
 
 #plot
-ggplot(flower.month,aes(x=Month.a,log(Flowers),col=High,shape=as.factor(Year))) + geom_point(size=3) + theme_bw()  + geom_smooth(aes(group=1)) + ylab("Flowers") + xlab("Month") + facet_wrap(~Transect_R,scales="free_y") + labs(shape="Year", y= "Log Available Flowers") + scale_x_discrete(breaks=month.abb[seq(1,12,2)]) + scale_color_manual(labels=c("Low","Medium","High"),values=c("blue","gray","red")) + labs(col="Resource Availability") 
+ggplot(flower.month,aes(x=Month.a,log(Flowers),col=High,shape=as.factor(Year))) + geom_point(size=3) + theme_bw()  + geom_smooth(aes(group=1),col='black',size=.5) + ylab("Flowers") + xlab("Month") + facet_wrap(~Transect_R) + labs(shape="Year", y= "Log Available Flowers") + scale_x_discrete(breaks=month.abb[seq(1,12,2)]) + scale_color_manual(labels=c("Low","Medium","High"),values=c("blue","gray","red")) + labs(col="Resource Availability") 
 
 ggsave("Figures/FlowerAvailability.jpg",height=5.5,width=9,dpi=600)
 #turn min and max elvation into seperate columns for the range
@@ -717,7 +715,7 @@ grid.arrange(p,p2,p3,ncol=1)
 Regardless of identity, does the community converge on a corolla length, what is the space used in each time period
 
 ```{r}
-ggplot(indat[indat$State=="Used",],aes(fill=as.factor(Availability),x=TotalCorolla)) + geom_density(alpha=.75)+ scale_fill_manual("Resource Availability",values = c("grey90","black"),labels=c("Low","High")) + theme_bw() + geom_vline(xintercept=c(16.23,19.78),linetype="dashed")
+ggplot(indat[indat$State=="Used",],aes(fill=as.factor(Availability),x=TotalCorolla)) + geom_density(alpha=.75)+ scale_fill_manual("Resource Availability",values = c("grey90","black"),labels=c("Low","High")) + theme_bw() + geom_vline(xintercept=c(16.23,19.78),linetype="dashed") 
 ggsave("Figures/AllCorollas.svg",height=4,width=6)
 ```
 
@@ -781,11 +779,15 @@ true_state<-merge(true_state,tom,by="Availability")
 ggplot(indat[indat$State=='Unused',],aes(x=TotalCorolla,fill=Availability)) + geom_density(alpha=.7) + facet_wrap(~Hummingbird) + geom_rect(data=true_state[!true_state$Hummingbird %in% "Fawn-breasted Brilliant",],aes(ymin=ymin,ymax=ymax,xmin=Lower,xmax=Higher,x=NULL)) + scale_fill_manual("Resource Availability",values=c("blue","red"),labels=c("Low","High")) + scale_color_manual("Resource Availability",values=c("blue","red"),labels=c("Low","High"),guide="none") + theme_bw() + xlab("Corolla Length (mm)") + geom_vline(data=b[!b$Hummingbird %in% "Fawn-breasted Brilliant",],aes(xintercept=Bill),alpha=.3,size=1,linetype='dashed') + geom_point(data=true_state[!true_state$Hummingbird %in% "Fawn-breasted Brilliant",],size=3,aes(col=Availability,x=mean,y=ymean),col="black",show.legend=F) 
 
 ggsave("Figures/Meanshift.jpeg",height=6,width=10,dpi=500)
+
 ```
 
 
 Save image
 
 ```{r}
+#Write output data
+write.csv(indat,"InputData/FinalObs.csv")
+
 save.image("Randomization.Rdata")
 ```

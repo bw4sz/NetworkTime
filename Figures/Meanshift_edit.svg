@@ -241,6 +241,21 @@
          d="M 8.7185878,4.0337352 -2.2072895,0.01601326 8.7185884,-4.0017078 c -1.7454984,2.3720609 -1.7354408,5.6174519 -6e-7,8.035443 z"
          transform="scale(-0.6,-0.6)" />
     </marker>
+    <marker
+       inkscape:stockid="Arrow2Mend"
+       orient="auto"
+       refY="0"
+       refX="0"
+       id="Arrow2Mend-66-9"
+       style="overflow:visible"
+       inkscape:isstock="true">
+      <path
+         inkscape:connector-curvature="0"
+         id="path6684-1-7"
+         style="fill:#ff0000;fill-opacity:1;fill-rule:evenodd;stroke:#fd0200;stroke-width:0.625;stroke-linejoin:round;stroke-opacity:1"
+         d="M 8.7185878,4.0337352 -2.2072895,0.01601326 8.7185884,-4.0017078 c -1.7454984,2.3720609 -1.7354408,5.6174519 -6e-7,8.035443 z"
+         transform="scale(-0.6,-0.6)" />
+    </marker>
   </defs>
   <sodipodi:namedview
      pagecolor="#ffffff"
@@ -255,9 +270,9 @@
      inkscape:window-height="705"
      id="namedview6013"
      showgrid="false"
-     inkscape:zoom="0.99259259"
-     inkscape:cx="450"
-     inkscape:cy="270"
+     inkscape:zoom="1.4161604"
+     inkscape:cx="450.6301"
+     inkscape:cy="528.78317"
      inkscape:window-x="-8"
      inkscape:window-y="-8"
      inkscape:window-maximized="1"
@@ -415,7 +430,7 @@
        id="tspan7878"
        x="731.41791"
        y="355.63434"
-       style="font-size:13.75px">Expansion/Contraction</tspan></text>
+       style="font-size:13.75px">Contraction/Expansion</tspan></text>
   <path
      style="fill:#ff0000;fill-rule:evenodd;stroke:#fd0200;stroke-width:0.69999999;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;marker-end:url(#Arrow2Mend-3)"
      d="m 669.55504,65.579438 -9.14636,0.13859"
@@ -467,5 +482,10 @@
      style="fill:#ff0000;fill-rule:evenodd;stroke:#fd0200;stroke-width:0.69999999;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;marker-end:url(#Arrow2Mend-7-4)"
      d="m 643.15816,231.43437 -9.14636,0.13859"
      id="path6651-9-3"
+     inkscape:connector-curvature="0" />
+  <path
+     style="fill:#ff0000;fill-rule:evenodd;stroke:#fd0200;stroke-width:1.29610109;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;marker-end:url(#Arrow2Mend-66-9)"
+     d="m 859.24109,340.26536 25.81577,0.0795"
+     id="path6651-8-1"
      inkscape:connector-curvature="0" />
 </svg>
