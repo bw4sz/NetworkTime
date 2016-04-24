@@ -1,0 +1,6 @@
+{
+  "name": "Source Code",
+  "tagline": " ",
+  "body": "#Exploring plant-pollinator nestedness using trait-matching and phenology of available resources\r\n\r\nMS submitted to Ecology Letters in the “Letters” category. \r\nBen G. Weinstein, corresponding author, email: benjamin.weinstein@stonybrook.edu\t\r\nDepartment of Ecology and Evolution, Stony Brook University, Stony Brook, New York 11794; USA\r\n\r\nCatherine H. Graham, email: Catherine.Graham@stonybrook.edu\r\nDepartment of Ecology and Evolution, Stony Brook University, Stony Brook, New York 11794; USA\r\n\r\nData was collected at the Maquipucuna and Santa Lucia Ecolodges in Pichincha, Ecuador.\r\n\r\nTo run the code, you can clone this repo\r\n```\r\ngit clone https://github.com/bw4sz/NetworkTime.git\r\n```\r\n\r\nAll data is in the folder InputData\\\r\n\r\n# Appendices\r\n\r\n[Appendix 1: Randomizations](https://github.com/bw4sz/NetworkTime/blob/master/Randomizations.md)\r\n\r\n[Appendix 2: Nestedness](https://github.com/bw4sz/NetworkTime/blob/master/NetworkTime.md)\r\n",
+  "note": "Don't delete this file! It's used internally to help with page regeneration."
+}
