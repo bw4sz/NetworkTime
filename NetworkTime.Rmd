@@ -52,7 +52,7 @@ opts_chunk$set(message=FALSE,warning=FALSE,fig.height=5,fig.width=10,echo=FALSE,
 
 #Read in data
 
-From Randomizations.Rmd
+From Generate.Rmd
 
 ```{r,fig.height=20,fig.width=13}
 
@@ -88,7 +88,7 @@ overall
 ##Calculate overall statistics.
 
 ```{r}
-overallmetrics<-networklevel(as.matrix(tweb),level="higher",index=c("weighted connectance","weighted nestedness"))
+overallmetrics<-networklevel(as.matrix(tweb),level="lower",index=c("weighted connectance","weighted NODF"))
 #melt into data frame
 overallmetrics<-data.frame(Metric=names(overallmetrics),value=overallmetrics)
 ```
@@ -106,7 +106,7 @@ null_all<-permatfull(tweb,times=500,fixedmar = "none")
 
 null_metrics<-list()
 for(x in 1:length(null_all$perm)){
-  nm<-networklevel(null_all$perm[[x]],level="higher",index=c("weighted connectance","weighted nestedness"))
+  nm<-networklevel(null_all$perm[[x]],level="lower",index=c("weighted connectance","weighted NODF"))
   null_metrics[[x]]<-data.frame(Metric=names(nm),value=nm)
 }
 
@@ -116,9 +116,9 @@ ggplot(null_metrics,aes(x=value)) + geom_density(fill='grey40') + facet_wrap(~Me
 
 ```{r}
 #Add overall network and measures underneath as a supp figure
-num<-droplevels(null_metrics[null_metrics$Metric %in% c( "weighted connectance","weighted nestedness"),])
+num<-droplevels(null_metrics[null_metrics$Metric %in% c( "weighted connectance","weighted NODF"),])
 
-ob<-droplevels(overallmetrics[overallmetrics$Metric %in% c("weighted connectance","weighted nestedness"),])
+ob<-droplevels(overallmetrics[overallmetrics$Metric %in% c("weighted connectance","weighted NODF"),])
 
 levels(num$Metric)<-c("Connectance","Nestedness")
 levels(ob$Metric)<-c("Connectance","Nestedness")
@@ -134,7 +134,7 @@ dev.off()
 
 ##View Sub-Networks
 
-```{r}
+```{r,fig.height=15}
 
 int.M<-split(int,int$Availability,drop = T)
 
@@ -164,7 +164,6 @@ grid.arrange(p[[1]],p[[2]])
 ```
 
 
-
 ## Null function
 
 ```{r}
@@ -173,20 +172,20 @@ nullC<-function(x){
   N<-x %>% group_by(ID) %>% n_groups()
   month.inter<-t(table(x$Hummingbird,x$Iplant_Double))
 
-true_stat<-networklevel(month.inter,index=c("weighted connectance","weighted nestedness"),level="higher")
+true_stat<-networklevel(month.inter,index=c("weighted connectance","weighted NODF"),level="lower")
   
 true_stat<-melt(true_stat)
 
 true_stat$variable<-rownames(true_stat)
 
-# Create 199 random matrixes
-r.int<-permatfull(month.inter,times=500)
+# Create 500 random matrixes
+r.int<-permatfull(month.inter,times=500,fixedmar="none")
 
 #Create a functi\on that computes network metrics
 null_total<-as.data.frame(
   t(sapply(r.int$perm,function(x){
   #Compute network statistics
-    out<-networklevel(x,index=c("weighted connectance","weighted nestedness"),level="higher")
+    out<-networklevel(x,index=c("weighted connectance","weighted NODF"),level="lower")
     return(out)
     })))
 
@@ -219,7 +218,7 @@ colnames(datHL)[6]<-"HL"
 ```
 
 
-#Observed versus null values of nestedness, connectance
+#Observed versus null values of nestedness, connectance within time periods
 
 ```{r}
 p<-ggplot(datHL,aes(x=HL,fill=Metric)) + facet_wrap(~Metric,scales='free',ncol=3) + geom_linerange(aes(ymin=Lower,ymax=Upper))
@@ -231,7 +230,7 @@ ggsave("Figures/NullNetwork.svg",height=10,width=12)
 
 ```
 
-#Randomize with respect to resource membership.  
+#Randomize with respect to overall resource membership.  
 
 ```{r}
 rHL<-function(){
@@ -242,7 +241,7 @@ rHL<-function(){
   
   r<-lapply(rint.M,function(x){
   month.inter<-t(table(x$Hummingbird,x$Iplant_Double))
-  true_stat<-networklevel(month.inter,index=c("weighted connectance","weighted nestedness"),level="higher")
+  true_stat<-networklevel(month.inter,index=c("weighted connectance","weighted NODF"),level="lower")
   true_stat<-melt(true_stat)
   true_stat$variable<-rownames(true_stat)
   return(melt(true_stat))
