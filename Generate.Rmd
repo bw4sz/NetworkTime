@@ -470,11 +470,10 @@ flower.month$MonthA<-flower.month$Month.a
 full.morph<-merge(full.morph,mflower,by=c("Month","Year","Transect_R"))
 
 #
-ggplot(full.morph,aes(x=MonthA,fill=as.factor(Year),y=TotalCorolla)) + geom_boxplot() + labs(fill="Year",y="Corolla Length (mm)",x=NULL) + scale_fill_manual(values=c("grey60","grey40","grey10")) + theme_bw() 
+ggplot(full.morph,aes(x=TotalCorolla)) + geom_density(aes(fill=Availability),alpha=0.7) + labs(fill="Resource Availability",y="Density",x="Corolla Length (mm)")+ theme_bw() + scale_fill_manual(values=c("Blue","Red"))
 
-ggsave("Figures/CorollaAvailability.jpg",dpi=300,height=5,width=7)
+ggsave("Figures/CorollaAvailability.jpg",dpi=300,height=3,width=6)
 
 #Write output data
 write.csv(indat,"InputData/FinalObs.csv")
-
 ```

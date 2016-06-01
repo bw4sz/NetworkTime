@@ -1,0 +1,142 @@
+---
+title: "Modularity"
+author: "Ben Weinstein"
+date: "May 31, 2016"
+output: html_document
+---
+
+```{r,echo=F}
+paste("Run Completed at",Sys.time())
+```
+
+```{r,echo=FALSE,warning=FALSE,message=FALSE}
+require(knitr)
+library(R2jags)
+require(reshape2)
+require(ggplot2)
+library(scales)
+library(dplyr)
+library(stringr)
+require(picante)
+require(igraph)
+library(bipartite)
+library(chron)
+library(gridExtra)
+library(doSNOW)
+library(foreach)
+#Set Dropbox Location
+#setwd to dropbox
+droppath<-"C:/Users/Ben/Dropbox/"
+
+#Set github path
+gitpath<-"C:/Users/Ben/Documents/NetworkTime/"
+
+setwd(gitpath)
+
+opts_chunk$set(message=FALSE,warning=FALSE,fig.height=5,fig.width=10,echo=FALSE,cache=F,cache.path = 'NetworkTime_cache/', fig.path='figure/',fig.align = 'center')
+
+```
+
+
+************
+
+```{r}
+#load data if needed
+#load("NetworkTime.Rdata")
+```
+
+#Read in data
+
+From Generate.Rmd
+
+```{r,fig.height=20,fig.width=13}
+int<-read.csv("InputData/FinalObs.csv",row.names=1)
+
+#just presence records
+int<-int[int$State=="Used",]
+
+#Morphology
+#read in flower morphology data, comes from Nectar.R
+droppath<-"C:/Users/Ben/Dropbox/"
+fl.morph<-read.csv(paste(droppath,"Thesis/Maquipucuna_SantaLucia/Results/FlowerMorphology.csv",sep=""))
+
+#First row is empty
+fl.morph<-fl.morph[-1,]
+
+#Bring in Hummingbird Morphology Dataset, comes from
+hum.morph<-read.csv(paste(droppath,"Thesis/Maquipucuna_SantaLucia/Results/HummingbirdMorphology.csv",sep=""))
+
+#taxonomy change, we are calling them Crowned Woodnymph's now.
+hum.morph$English<-as.character(hum.morph$English)
+
+hum.morph$English[hum.morph$English %in% "Green-crowned Woodnymph"]<-"Crowned Woodnymph"
+
+```
+
+#Overall Network
+
+```{r}
+
+tweb<-table(int$Hummingbird,int$Iplant_Double,int$Availability)
+mtweb<-melt(tweb)
+colnames(mtweb)<-c("Hummingbird","Iplant_Double","Availability","Visits")
+
+#turn 0's to NA for plotting
+mtweb$Visits[mtweb$Visits==0]<-NA
+
+#get order of interactions by bill lenght
+hord<-hum.morph[,c("English","Total_Culmen")] %>% arrange(desc(Total_Culmen)) %>% .$English
+
+mtweb$Hummingbird<-factor(mtweb$Hummingbird,levels=hord)
+
+pord<-fl.morph %>% arrange(desc(TotalCorolla)) %>% .$Group.1
+
+mtweb$Iplant_Double<-factor(mtweb$Iplant_Double,levels=pord)
+
+mtweb<-mtweb[!is.na(mtweb$Visits),]
+overall<-ggplot(mtweb,aes(y=Hummingbird,x=Iplant_Double,fill=as.factor(Availability))) + geom_tile()  + theme(axis.text.x = element_text(angle = 90, hjust = 1)) + xlab("Plant")
+overall
+
+```
+
+#Normal Resource Modules
+
+```{r}
+int.M<-split(int,int$Availability)
+tweb<-table(int.M[[2]]$Hummingbird,int.M[[2]]$Iplant_Double)
+mods<-computeModules(tweb)
+plotModuleWeb(mods)
+lowm<-listModuleInformation(mods)
+lowm<-melt(lowm[[2]])
+colnames(lowm)<-c("Species","Level","Module")
+
+#Create network
+lowm<-split(lowm,lowm$Module)
+  lowm<-lapply(lowm,function(x){
+  data.frame(expand.grid(Hummingbird=x[x$Level==1,"Species"],Iplant_Double=x[x$Level==2,"Species"]),Module=unique(x$Module))
+})
+lowm<-rbind_all(lowm)
+
+```
+
+#Overlay modules on nested network
+```{r}
+#merge low modules
+aweb<-merge(mtweb,lowm,by=c("Hummingbird","Iplant_Double"),all = T)
+
+#get order of interactions by bill length
+hord<-hum.morph[,c("English","Total_Culmen")] %>% arrange(desc(Total_Culmen)) %>% .$English
+
+aweb$Hummingbird<-factor(aweb$Hummingbird,levels=hord)
+
+pord<-fl.morph %>% arrange(desc(TotalCorolla)) %>% .$Group.1
+
+aweb$Iplant_Double<-factor(aweb$Iplant_Double,levels=pord)
+
+
+#turn 0's to NA for plotting
+aweb$Visits[aweb$Visits==0]<-NA
+
+ggplot(aweb,aes(y=Hummingbird,x=Iplant_Double,fill=as.factor(Module))) + geom_tile() + theme_bw()  + theme(axis.text.x = element_text(angle = 90, hjust = 1)) + xlab("Plant")
+```
+

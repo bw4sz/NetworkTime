@@ -60,29 +60,36 @@ int<-read.csv("InputData/FinalObs.csv",row.names=1)
 
 #just presence records
 int<-int[int$State=="Used",]
+
+#Just use cameras
+int<-int[int$Survey_Type=="Camera",]
+
+#Daily interaction rate
+ndays<-int %>% group_by(Iplant_Double) %>% summarize(n=length(unique(DateP))) 
+
+#Total visits 
+tvisits<-int %>% group_by(Hummingbird,Iplant_Double) %>% summarize(Total_Visits=sum(Yobs))
+tvisits<-merge(tvisits,ndays,by="Iplant_Double")
+tvisits$Rate<-round(tvisits$Total_Visits/tvisits$n,3)
+
 ```
 
 #Overall Network
 
 ```{r}
-tweb<-table(int$Hummingbird,int$Iplant_Double)
-mtweb<-melt(tweb)
-colnames(mtweb)<-c("Hummingbird","Iplant_Double","Visits")
-
-#turn 0's to NA for plotting
-mtweb$Visits[mtweb$Visits==0]<-NA
-
 #get order of interactions
-hord<-mtweb %>% group_by(Hummingbird) %>% filter(!is.na(Visits)) %>% summarize(n=n()) %>% arrange(n) %>% .$Hummingbird
+hord<-tvisits %>% group_by(Hummingbird) %>% summarize(n=n()) %>% arrange(n)
 
-mtweb$Hummingbird<-factor(mtweb$Hummingbird,levels=hord)
+tvisits$Hummingbird<-factor(tvisits$Hummingbird,levels=hord$Hummingbird)
 
-pord<-mtweb %>% group_by(Iplant_Double) %>% filter(!is.na(Visits)) %>% summarize(n=n()) %>% arrange(desc(n)) %>% .$Iplant_Double
+pord<-tvisits %>% group_by(Iplant_Double) %>% summarize(n=n()) %>% arrange(desc(n))
 
-mtweb$Iplant_Double<-factor(mtweb$Iplant_Double,levels=pord)
+tvisits$Iplant_Double<-factor(tvisits$Iplant_Double,levels=pord$Iplant_Double)
 
-overall<-ggplot(mtweb,aes(y=Hummingbird,x=Iplant_Double,fill=Visits)) + geom_tile() + scale_fill_continuous(low="blue",high="red",na.value = "white") + theme(axis.text.x = element_text(angle = 90, hjust = 1)) + xlab("Plant")
-overall
+ggplot(tvisits,aes(y=Hummingbird,x=Iplant_Double,fill=Total_Visits)) + theme_bw() + geom_tile() + scale_fill_continuous(low="blue",high="red",na.value = "white") + theme(axis.text.x = element_text(angle = 90, hjust = 1)) + xlab("Plant") 
+
+#cast web
+tweb<-acast(tvisits,Hummingbird~Iplant_Double,value.var="Rate",fill=0)
 ```
 
 ##Calculate overall statistics.
@@ -95,23 +102,39 @@ overallmetrics<-data.frame(Metric=names(overallmetrics),value=overallmetrics)
 
 ## Permutation tests
 
-There is some discussion as to what the best null model for nestedness is. Should we constrain the matrix? Try both ways to see if it makes a difference in inference.
+We want to randomize the underlying total matrix, then recalculate daily interaction rates. We maintain column sums since cameras were placed at individual flowers, those identities are fixed through sampling. It is only the identity of hummingbirds that could vary in create realistic alternative networks. 
 
 ### Calculate randomized matrix
 
 Maintaining the total number of observations, but shuffling where those visitations fall.
 
 ```{r}
-null_all<-permatfull(tweb,times=500,fixedmar = "none")
 
 null_metrics<-list()
-for(x in 1:length(null_all$perm)){
-  nm<-networklevel(null_all$perm[[x]],level="lower",index=c("weighted connectance","weighted NODF"))
+for(x in 1:1000){
+  
+  #create duplicate dataframe
+  nint<-int
+  
+  #Resample hummingbird identity
+  nint$Hummingbird<-sample(levels(nint$Hummingbird),length(nint$Hummingbird),replace=T)
+  
+  #Calculate Daily interaction rate
+  ndays<-nint %>% group_by(Iplant_Double) %>% summarize(n=length(unique(DateP))) 
+
+  #Total visits 
+  nvisits<-nint %>% group_by(Hummingbird,Iplant_Double) %>% summarize(Total_Visits=sum(Yobs))
+  nvisits<-merge(nvisits,ndays,by="Iplant_Double")
+  nvisits$Rate<-round(nvisits$Total_Visits/nvisits$n,3)
+  
+  #cast into network
+  nweb<-acast(nvisits,Hummingbird~Iplant_Double,value.var="Rate",fill=0)
+  nm<-networklevel(nweb,level="lower",index=c("weighted connectance","weighted NODF"))
   null_metrics[[x]]<-data.frame(Metric=names(nm),value=nm)
 }
 
 null_metrics<-melt(null_metrics)
-ggplot(null_metrics,aes(x=value)) + geom_density(fill='grey40') + facet_wrap(~Metric,scales="free") + geom_vline(data=overallmetrics,aes(xintercept=value),col='red',linetype='dashed') + theme_bw()
+ggplot(data=null_metrics,aes(x=value)) + geom_density(fill='grey40') + facet_wrap(~Metric,scales="free") + geom_vline(data=overallmetrics,aes(xintercept=value),col='red',linetype='dashed') + theme_bw()
 ```
 
 ```{r}
@@ -123,10 +146,10 @@ ob<-droplevels(overallmetrics[overallmetrics$Metric %in% c("weighted connectance
 levels(num$Metric)<-c("Connectance","Nestedness")
 levels(ob$Metric)<-c("Connectance","Nestedness")
 
-nulls<-ggplot(num,aes(x=value)) + geom_density(fill='grey40') + facet_wrap(~Metric,scales="free",nrow=1) + geom_vline(data=ob,aes(xintercept=value),col='red',linetype='dashed') + theme_bw()
+nulls<-ggplot(num,aes(x=value)) + geom_density(fill='grey40',alpha=0.5) + facet_wrap(~Metric,scales="free",nrow=1) + geom_vline(data=ob,aes(xintercept=value),col='red',linetype='dashed',size=1.5) + theme_bw() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
 
 jpeg("Figures/Overall.jpeg",height=6,width=11,units="in",res=400)
-grid.arrange(overall,nulls,heights=c(.7,.3))
+grid.arrange(overall,nulls,heights=c(.7,.3)) 
 dev.off()
 ```
 
