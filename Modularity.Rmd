@@ -55,6 +55,8 @@ int<-read.csv("InputData/FinalObs.csv",row.names=1)
 #just presence records
 int<-int[int$State=="Used",]
 
+int<-int[int$Survey_Type=="Camera",]
+
 #Morphology
 #read in flower morphology data, comes from Nectar.R
 droppath<-"C:/Users/Ben/Dropbox/"
@@ -94,7 +96,7 @@ pord<-fl.morph %>% arrange(desc(TotalCorolla)) %>% .$Group.1
 mtweb$Iplant_Double<-factor(mtweb$Iplant_Double,levels=pord)
 
 mtweb<-mtweb[!is.na(mtweb$Visits),]
-overall<-ggplot(mtweb,aes(y=Hummingbird,x=Iplant_Double,fill=as.factor(Availability))) + geom_tile()  + theme(axis.text.x = element_text(angle = 90, hjust = 1)) + xlab("Plant")
+overall<-ggplot(mtweb,aes(y=Hummingbird,x=Iplant_Double,fill=Rate)) + geom_tile()  + theme(axis.text.x = element_text(angle = 90, hjust = 1)) + xlab("Plant")
 overall
 
 ```

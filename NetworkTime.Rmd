@@ -59,16 +59,30 @@ From Generate.Rmd
 int<-read.csv("InputData/FinalObs.csv",row.names=1)
 
 #just presence records
-int<-int[int$State=="Used",]
+#int<-int[int$State=="Used",]
 
 #Just use cameras
 int<-int[int$Survey_Type=="Camera",]
 
+fl.morph<-read.csv(paste(droppath,"Thesis/Maquipucuna_SantaLucia/Results/FlowerMorphology.csv",sep=""))
+
+#First row is empty
+fl.morph<-fl.morph[-1,]
+
+#Bring in Hummingbird Morphology Dataset, comes from
+hum.morph<-read.csv(paste(droppath,"Thesis/Maquipucuna_SantaLucia/Results/HummingbirdMorphology.csv",sep=""))
+
+#taxonomy change, we are calling them Crowned Woodnymph's now.
+hum.morph$English<-as.character(hum.morph$English)
+hum.morph$English[hum.morph$English %in% "Green-crowned Woodnymph"]<-"Crowned Woodnymph"
+```
+
 #Daily interaction rate
-ndays<-int %>% group_by(Iplant_Double) %>% summarize(n=length(unique(DateP))) 
+```{r}
+ndays<-int %>% filter(State=="Used") %>% group_by(Iplant_Double) %>% summarize(n=length(unique(DateP)))
 
 #Total visits 
-tvisits<-int %>% group_by(Hummingbird,Iplant_Double) %>% summarize(Total_Visits=sum(Yobs))
+tvisits<-int %>% filter(State=="Used") %>% group_by(Hummingbird,Iplant_Double) %>% summarize(Total_Visits=sum(Yobs))
 tvisits<-merge(tvisits,ndays,by="Iplant_Double")
 tvisits$Rate<-round(tvisits$Total_Visits/tvisits$n,3)
 
@@ -76,20 +90,40 @@ tvisits$Rate<-round(tvisits$Total_Visits/tvisits$n,3)
 
 #Overall Network
 
+## Ordered by interactions
+
 ```{r}
 #get order of interactions
-hord<-tvisits %>% group_by(Hummingbird) %>% summarize(n=n()) %>% arrange(n)
+hord<-tvisits %>% group_by(Hummingbird) %>% summarize(n=sum(Rate)) %>% arrange(n)
 
 tvisits$Hummingbird<-factor(tvisits$Hummingbird,levels=hord$Hummingbird)
 
-pord<-tvisits %>% group_by(Iplant_Double) %>% summarize(n=n()) %>% arrange(desc(n))
+pord<-tvisits %>% group_by(Iplant_Double) %>% summarize(n=sum(Rate)) %>% arrange(desc(n))
 
 tvisits$Iplant_Double<-factor(tvisits$Iplant_Double,levels=pord$Iplant_Double)
 
-ggplot(tvisits,aes(y=Hummingbird,x=Iplant_Double,fill=Total_Visits)) + theme_bw() + geom_tile() + scale_fill_continuous(low="blue",high="red",na.value = "white") + theme(axis.text.x = element_text(angle = 90, hjust = 1)) + xlab("Plant") 
+overall<-ggplot(tvisits,aes(y=Hummingbird,x=Iplant_Double,fill=Rate)) + theme_bw() + geom_tile() + scale_fill_continuous(low="blue",high="red",na.value = "white") + theme(axis.text.x = element_text(angle = 90, hjust = 1)) + xlab("Plant") 
+overall
 
 #cast web
 tweb<-acast(tvisits,Hummingbird~Iplant_Double,value.var="Rate",fill=0)
+```
+
+##Ordered by traits
+
+```{r}
+#get order of interactions by bill 
+hord<-hum.morph[,c("English","Total_Culmen")] %>% arrange(desc(Total_Culmen)) %>% .$English
+
+#by corolla
+pord<-fl.morph %>% arrange(TotalCorolla) %>% .$Group.1
+
+tvisits$Hummingbird<-factor(tvisits$Hummingbird,levels=hord)
+tvisits$Iplant_Double<-factor(tvisits$Iplant_Double,levels=pord)
+
+
+ggplot(tvisits,aes(y=Hummingbird,x=Iplant_Double,fill=Rate)) + theme_bw() + geom_tile() + scale_fill_continuous(low="blue",high="red",na.value = "white") + theme(axis.text.x = element_text(angle = 90, hjust = 1)) + xlab("Plant") 
+
 ```
 
 ##Calculate overall statistics.
@@ -111,19 +145,19 @@ Maintaining the total number of observations, but shuffling where those visitati
 ```{r}
 
 null_metrics<-list()
-for(x in 1:1000){
+for(x in 1:500){
   
   #create duplicate dataframe
   nint<-int
   
-  #Resample hummingbird identity
-  nint$Hummingbird<-sample(levels(nint$Hummingbird),length(nint$Hummingbird),replace=T)
+  #Resample hummingbird identity based on elevation
+  nint$State<-sample(nint$State)
   
   #Calculate Daily interaction rate
-  ndays<-nint %>% group_by(Iplant_Double) %>% summarize(n=length(unique(DateP))) 
+  ndays<-nint %>% filter(State=="Used") %>% group_by(Iplant_Double) %>% summarize(n=length(unique(DateP))) 
 
   #Total visits 
-  nvisits<-nint %>% group_by(Hummingbird,Iplant_Double) %>% summarize(Total_Visits=sum(Yobs))
+  nvisits<-nint %>% filter(State=="Used") %>% group_by(Hummingbird,Iplant_Double) %>% summarize(Total_Visits=sum(Yobs))
   nvisits<-merge(nvisits,ndays,by="Iplant_Double")
   nvisits$Rate<-round(nvisits$Total_Visits/nvisits$n,3)
   
@@ -159,144 +193,129 @@ dev.off()
 
 ```{r,fig.height=15}
 
-int.M<-split(int,int$Availability,drop = T)
+int.M<-split(int,list(int$Month,int$Year),drop = T)
 
 p<-lapply(int.M,function(x){
 
-  tweb<-table(x$Hummingbird,x$Iplant_Double)
-  mtweb<-melt(tweb)
-  colnames(mtweb)<-c("Hummingbird","Iplant_Double","Visits")
+  days<-x %>% filter(State=="Used") %>% group_by(Iplant_Double) %>% summarize(n=length(unique(DateP))) 
+
+  #Total visits 
+  tvisits<-x %>% filter(State=="Used") %>% group_by(Hummingbird,Iplant_Double) %>% summarize(Total_Visits=sum(Yobs))
+  tvisits<-merge(tvisits,ndays,by="Iplant_Double")
+  tvisits$Rate<-round(tvisits$Total_Visits/tvisits$n,3)
+
+  tweb<-acast(tvisits,Hummingbird~Iplant_Double,value.var="Rate",fill=0)
   
   #turn 0's to NA for plotting
-  mtweb$Visits[mtweb$Visits==0]<-NA
-  mtweb<-mtweb[!is.na(mtweb$Visits),]
+  tvisits$Rate[tvisits$Rate==0]<-NA
+  tvisits<-tvisits[!is.na(tvisits$Rate),]
   
   #get order of interactions
-  hord<-mtweb %>% group_by(Hummingbird) %>% filter(!is.na(Visits)) %>% summarize(n=n()) %>% arrange(n) %>% .$Hummingbird
+  hord<-tvisits %>% group_by(Hummingbird) %>% filter(!is.na(Rate)) %>% summarize(n=sum(Rate)) %>% arrange(n) %>% .$Hummingbird
   
-  mtweb$Hummingbird<-factor(mtweb$Hummingbird,levels=hord)
+  tvisits$Hummingbird<-factor(tvisits$Hummingbird,levels=hord)
   
-  pord<-mtweb %>% group_by(Iplant_Double) %>% filter(!is.na(Visits)) %>% summarize(n=n()) %>% arrange(desc(n)) %>% .$Iplant_Double
+  pord<-tvisits %>% group_by(Iplant_Double) %>% filter(!is.na(Rate)) %>% summarize(n=sum(Rate)) %>% arrange(desc(n)) %>% .$Iplant_Double
   
-  mtweb$Iplant_Double<-factor(mtweb$Iplant_Double,levels=pord)
+  tvisits$Iplant_Double<-factor(tvisits$Iplant_Double,levels=pord)
   
-  ggplot(mtweb,aes(y=Hummingbird,x=Iplant_Double,fill=Visits)) + theme_bw() +geom_tile() + scale_fill_continuous(low="blue",high="red",na.value = "white") + theme(axis.text.x = element_text(angle = 90, hjust = 1)) + xlab("Plant") + ggtitle(unique(x$Availability)) 
+  ggplot(tvisits,aes(y=Hummingbird,x=Iplant_Double,fill=Rate)) + theme_bw() +geom_tile() + scale_fill_continuous(low="blue",high="red",na.value = "white") + theme(axis.text.x = element_text(angle = 90, hjust = 1)) + xlab("Plant") + ggtitle(unique(x$Availability)) 
 })
 
-grid.arrange(p[[1]],p[[2]])
+p
 ```
 
 
-## Null function
+## Randomize with respect to sampling
 
 ```{r}
-nullC<-function(x){
-  x<-droplevels(x)
-  N<-x %>% group_by(ID) %>% n_groups()
-  month.inter<-t(table(x$Hummingbird,x$Iplant_Double))
 
-true_stat<-networklevel(month.inter,index=c("weighted connectance","weighted NODF"),level="lower")
+make_web<-function(x){
+    #create duplicate dataframe
+  nint<-x
+
+  #Calculate Daily interaction rate
+  ndays<-nint %>% filter(State=="Used") %>% group_by(Iplant_Double) %>% summarize(n=length(unique(DateP))) 
+
+  #Total visits 
+  nvisits<-nint %>% filter(State=="Used") %>% group_by(Hummingbird,Iplant_Double) %>% summarize(Total_Visits=sum(Yobs))
+  nvisits<-merge(nvisits,ndays,by="Iplant_Double")
+  nvisits$Rate<-round(nvisits$Total_Visits/nvisits$n,3)
   
-true_stat<-melt(true_stat)
+  #cast into network
+  nweb<-acast(nvisits,Hummingbird~Iplant_Double,value.var="Rate",fill=0)
+  return(nweb)
+}
 
-true_stat$variable<-rownames(true_stat)
-
-# Create 500 random matrixes
-r.int<-permatfull(month.inter,times=500,fixedmar="none")
-
-#Create a functi\on that computes network metrics
-null_total<-as.data.frame(
-  t(sapply(r.int$perm,function(x){
-  #Compute network statistics
-    out<-networklevel(x,index=c("weighted connectance","weighted NODF"),level="lower")
-    return(out)
-    })))
-
-#get the upper and lower 5th quantiles
-null_total<-melt(null_total)
-nullq<-group_by(null_total,variable) %>% summarize(Lower=quantile(value,0.05,na.rm=T),Upper=quantile(value,0.95,na.rm=T))
-
-colnames(nullq)<-c("Metric","Lower","Upper")
-
-#append true information
-out<-merge(nullq,true_stat,by.x="Metric",by.y="variable")
-colnames(out)[colnames(out) %in% "value"]<-"True"
-out$N<-N
+null_month<-function(x){
+  
+  #make duplicate
+  nint<-x
+  
+  #make web
+  tweb<-make_web(nint)
+  true_state<-melt(networklevel(tweb,level="lower",index=c("weighted connectance","weighted NODF")))
+  true_state<-data.frame(Metric=rownames(true_state),true_value=true_state,Availability=unique(nint$Availability))
+  
+null_state<-list()
+  for(i in 1:100){
+    #make duplicate, poor scoping.
+    nint<-x
+    nint$State<-sample(nint$State)
+    nweb<-make_web(nint)
+    ns<-melt(networklevel(nweb,level="lower",index=c("weighted connectance","weighted NODF")))
+    null_state[[i]]<-data.frame(Metric=rownames(ns),value=ns)
+  }
+  
+  #get the upper and lower 5th quantiles
+  null_total<-melt(null_state,id.vars="Metric")
+  nullq<-group_by(null_total,Metric) %>% summarize(Lower=quantile(value,0.05,na.rm=T),Upper=quantile(value,0.95,na.rm=T))
+  
+  #append true information
+  out<-merge(nullq,true_state,by.x="Metric")
+  colnames(out)[colnames(out) %in% "value"]<-"True_State"
 return(out)}
+```
+
+##Which months were sufficiently sampled?
+
+```{r}
+#need to do some rarifaction?
+#atleast 20 observations for now.
+
+samp<-sapply(int.M,function(x){
+nrow(x[x$State=="Used",])
+  })
+int.M<-int.M[samp>15]
 ```
 
 ###Apply function to each period
 
 ```{r}
-
-cl<-makeCluster(2,"SOCK")
-registerDoSNOW(cl)
-runs<-foreach(x=1:length(int.M),.packages=c("bipartite","reshape2","dplyr")) %dopar% {nullC(int.M[[x]])}
-stopCluster(cl)
+#needs to be fixed
+runs<-list()
+for(x in 1:length(int.M)){
+  runs[[x]]<-null_month(int.M[[x]])
+}
 
 names(runs)<-names(int.M)
 datHL<-melt(runs,id.vars=colnames(runs[[1]]))
 
-colnames(datHL)[6]<-"HL"
+#Create time stamp
+datHL[,c("Month","Year")]<-str_match(datHL$L1,"(\\d+).(\\d+)")[,-1]
+datHL$TimeStamp<-strptime(paste("01",datHL$Month,datHL$Year,sep="/"),format="%d/%m/%Y")
 ```
-
 
 #Observed versus null values of nestedness, connectance within time periods
 
 ```{r}
-p<-ggplot(datHL,aes(x=HL,fill=Metric)) + facet_wrap(~Metric,scales='free',ncol=3) + geom_linerange(aes(ymin=Lower,ymax=Upper))
-p<-p+ geom_point(aes(size=N,y=True)) + geom_line(aes(y=True)) 
-p<-p+scale_fill_discrete(guide="none") + scale_size_continuous(range=c(2.5,5),"Observations") + labs(y="") + theme_bw()
+p<-ggplot(datHL,aes(x=TimeStamp,fill=Metric)) + facet_wrap(~Metric,scales='free',ncol=1) + geom_linerange(aes(ymin=Lower,ymax=Upper),col="red")
+p<-p+ geom_point(aes(y=True_State,col=Availability,size=3)) + geom_line(aes(y=True_State)) 
+p<-p+scale_fill_discrete(guide="none") + labs(y="") + theme_bw()
 print(p) 
 ggsave("Figures/NullNetwork.jpg",dpi=600,quality=100,pointsize=14,height=10,width=12)
 ggsave("Figures/NullNetwork.svg",height=10,width=12)
 
-```
-
-#Randomize with respect to overall resource membership.  
-
-```{r}
-rHL<-function(){
-  
-  #shuffle
-  int$rHL<-sample(int$Availability)
-  rint.M<-split(int,int$rHL,drop = T)
-  
-  r<-lapply(rint.M,function(x){
-  month.inter<-t(table(x$Hummingbird,x$Iplant_Double))
-  true_stat<-networklevel(month.inter,index=c("weighted connectance","weighted NODF"),level="lower")
-  true_stat<-melt(true_stat)
-  true_stat$variable<-rownames(true_stat)
-  return(melt(true_stat))
-  })
-  r<-melt(r)
-  colnames(r)[3]<-"Availability"
-  return(r)
-}
-
-randomN<-list()
-for(x in 1:500){
-randomN[[x]]<-rHL()
-  }
-
-names(randomN)<-1:500
-randomN<-melt(randomN,id.vars=colnames(randomN[[1]]))
-
-colnames(randomN)<-c("Metric","value","HL","Iteration")
-
-#find quantiles
-randomQ<-randomN %>% group_by(Metric,HL) %>% summarize(Lower=quantile(value,0.05),Upper=quantile(value,0.95))
-
-levels(datHL$Metric)<-c("Nestedness","Connectance")
-randomQ$Metric<-as.factor(randomQ$Metric)
-levels(randomQ$Metric)<-c("Connectance","Nestedness")
-
-#compare to observed values. 
-p<-ggplot(datHL,aes(x=HL,fill=Metric)) + facet_wrap(~Metric,scales='free',ncol=3)
-p<-p+ geom_point(aes(size=N,y=True)) + geom_line(aes(y=True)) 
-p<-p+scale_fill_discrete(guide="none") + scale_size_continuous(range=c(2.5,5),"Observations") + labs(y="") + theme_bw()
-p + geom_linerange(data=randomQ,col='red',aes(ymin=Lower,ymax=Upper)) + xlab("Resource Availability")
-ggsave("Figures/NetworkChange.jpg",dpi=300,height=2.5,width=5)
 ```
 
 ```{r}
