@@ -4,7 +4,7 @@ Ben Weinstein
 
 
 ```
-## [1] "Run Completed at 2016-06-02 08:39:52"
+## [1] "Run Completed at 2016-06-02 12:26:07"
 ```
 
 
@@ -266,9 +266,12 @@ Maintaining the total number of observations, but shuffling where those visitati
 
 
 
-
 #Observed versus null values of nestedness, connectance within time periods
 
 <img src="figure/unnamed-chunk-15-1.png" title="" alt="" style="display: block; margin: auto;" />
+
+#Regression of resources
+<img src="figure/unnamed-chunk-16-1.png" title="" alt="" style="display: block; margin: auto;" /><img src="figure/unnamed-chunk-16-2.png" title="" alt="" style="display: block; margin: auto;" />
+
 
 

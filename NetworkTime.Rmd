@@ -85,7 +85,6 @@ ndays<-int %>% filter(State=="Used") %>% group_by(Iplant_Double) %>% summarize(n
 tvisits<-int %>% filter(State=="Used") %>% group_by(Hummingbird,Iplant_Double) %>% summarize(Total_Visits=sum(Yobs))
 tvisits<-merge(tvisits,ndays,by="Iplant_Double")
 tvisits$Rate<-round(tvisits$Total_Visits/tvisits$n,3)
-
 ```
 
 #Overall Network
@@ -121,15 +120,13 @@ pord<-fl.morph %>% arrange(TotalCorolla) %>% .$Group.1
 tvisits$Hummingbird<-factor(tvisits$Hummingbird,levels=hord)
 tvisits$Iplant_Double<-factor(tvisits$Iplant_Double,levels=pord)
 
-
 ggplot(tvisits,aes(y=Hummingbird,x=Iplant_Double,fill=Rate)) + theme_bw() + geom_tile() + scale_fill_continuous(low="blue",high="red",na.value = "white") + theme(axis.text.x = element_text(angle = 90, hjust = 1)) + xlab("Plant") 
-
 ```
 
 ##Calculate overall statistics.
 
 ```{r}
-overallmetrics<-networklevel(as.matrix(tweb),level="lower",index=c("weighted connectance","weighted NODF"))
+overallmetrics<-networklevel(as.matrix(tweb),level="lower",index=c("niche overlap","weighted NODF"))
 #melt into data frame
 overallmetrics<-data.frame(Metric=names(overallmetrics),value=overallmetrics)
 ```
@@ -143,7 +140,6 @@ We want to randomize the underlying total matrix, then recalculate daily interac
 Maintaining the total number of observations, but shuffling where those visitations fall.
 
 ```{r}
-
 null_metrics<-list()
 for(x in 1:500){
   
@@ -151,7 +147,7 @@ for(x in 1:500){
   nint<-int
   
   #Resample hummingbird identity based on elevation
-  nint$State<-sample(nint$State)
+  nint$Hummingbird<-sample(nint$Hummingbird)
   
   #Calculate Daily interaction rate
   ndays<-nint %>% filter(State=="Used") %>% group_by(Iplant_Double) %>% summarize(n=length(unique(DateP))) 
@@ -163,7 +159,7 @@ for(x in 1:500){
   
   #cast into network
   nweb<-acast(nvisits,Hummingbird~Iplant_Double,value.var="Rate",fill=0)
-  nm<-networklevel(nweb,level="lower",index=c("weighted connectance","weighted NODF"))
+  nm<-networklevel(nweb,level="lower",index=c("niche overlap","weighted NODF"))
   null_metrics[[x]]<-data.frame(Metric=names(nm),value=nm)
 }
 
@@ -173,9 +169,9 @@ ggplot(data=null_metrics,aes(x=value)) + geom_density(fill='grey40') + facet_wra
 
 ```{r}
 #Add overall network and measures underneath as a supp figure
-num<-droplevels(null_metrics[null_metrics$Metric %in% c( "weighted connectance","weighted NODF"),])
+num<-droplevels(null_metrics[null_metrics$Metric %in% c( "niche overlap","weighted NODF"),])
 
-ob<-droplevels(overallmetrics[overallmetrics$Metric %in% c("weighted connectance","weighted NODF"),])
+ob<-droplevels(overallmetrics[overallmetrics$Metric %in% c("niche overlap","weighted NODF"),])
 
 levels(num$Metric)<-c("Connectance","Nestedness")
 levels(ob$Metric)<-c("Connectance","Nestedness")
@@ -191,11 +187,16 @@ dev.off()
 
 ##View Sub-Networks
 
-```{r,fig.height=15}
+```{r,fig.height=4,fig.width=5}
+#Create time stamp
+int$TimeStamp<-as.POSIXct(int$DateP)
 
-int.M<-split(int,list(int$Month,int$Year),drop = T)
+#Set window size
+cutm<-"2 month"
+int$DateC<-cut(int$TimeStamp,breaks=cutm)
+int.M<-split(int,int$DateC,drop = T)
 
-p<-lapply(int.M,function(x){
+webp<-lapply(int.M,function(x){
 
   days<-x %>% filter(State=="Used") %>% group_by(Iplant_Double) %>% summarize(n=length(unique(DateP))) 
 
@@ -219,17 +220,14 @@ p<-lapply(int.M,function(x){
   
   tvisits$Iplant_Double<-factor(tvisits$Iplant_Double,levels=pord)
   
-  ggplot(tvisits,aes(y=Hummingbird,x=Iplant_Double,fill=Rate)) + theme_bw() +geom_tile() + scale_fill_continuous(low="blue",high="red",na.value = "white") + theme(axis.text.x = element_text(angle = 90, hjust = 1)) + xlab("Plant") + ggtitle(unique(x$Availability)) 
+  ggplot(tvisits,aes(y=Hummingbird,x=Iplant_Double,fill=Rate)) + theme_bw() +geom_tile() + scale_fill_continuous(low="blue",high="red",na.value = "white") + theme(axis.text.x = element_text(angle = 90, hjust = 1)) + xlab("Plant") + ggtitle(unique(x$Date_C)) 
 })
 
-p
 ```
-
 
 ## Randomize with respect to sampling
 
 ```{r}
-
 make_web<-function(x){
     #create duplicate dataframe
   nint<-x
@@ -254,16 +252,17 @@ null_month<-function(x){
   
   #make web
   tweb<-make_web(nint)
-  true_state<-melt(networklevel(tweb,level="lower",index=c("weighted connectance","weighted NODF")))
-  true_state<-data.frame(Metric=rownames(true_state),true_value=true_state,Availability=unique(nint$Availability))
+  true_state<-melt(networklevel(tweb,level="lower",index=c("niche overlap","weighted NODF")))
+  true_state<-data.frame(Metric=rownames(true_state),true_value=true_state)
   
 null_state<-list()
-  for(i in 1:100){
+  for(i in 1:500){
     #make duplicate, poor scoping.
     nint<-x
-    nint$State<-sample(nint$State)
+    #resample hummingbird identity
+    nint$Hummingbird<-sample(nint$Hummingbird)
     nweb<-make_web(nint)
-    ns<-melt(networklevel(nweb,level="lower",index=c("weighted connectance","weighted NODF")))
+    ns<-melt(networklevel(nweb,level="lower",index=c("niche overlap","weighted NODF")))
     null_state[[i]]<-data.frame(Metric=rownames(ns),value=ns)
   }
   
@@ -286,7 +285,7 @@ return(out)}
 samp<-sapply(int.M,function(x){
 nrow(x[x$State=="Used",])
   })
-int.M<-int.M[samp>15]
+
 ```
 
 ###Apply function to each period
@@ -302,21 +301,52 @@ names(runs)<-names(int.M)
 datHL<-melt(runs,id.vars=colnames(runs[[1]]))
 
 #Create time stamp
-datHL[,c("Month","Year")]<-str_match(datHL$L1,"(\\d+).(\\d+)")[,-1]
-datHL$TimeStamp<-strptime(paste("01",datHL$Month,datHL$Year,sep="/"),format="%d/%m/%Y")
+datHL[,c("Year","Month")]<-str_match(datHL$L1,"(\\d+).(\\d+)")[,-1]
+datHL$Date_C<-strptime(paste("01",datHL$Month,datHL$Year,sep="/"),format="%d/%m/%Y")
 ```
-
-#Observed versus null values of nestedness, connectance within time periods
 
 ```{r}
-p<-ggplot(datHL,aes(x=TimeStamp,fill=Metric)) + facet_wrap(~Metric,scales='free',ncol=1) + geom_linerange(aes(ymin=Lower,ymax=Upper),col="red")
-p<-p+ geom_point(aes(y=True_State,col=Availability,size=3)) + geom_line(aes(y=True_State)) 
-p<-p+scale_fill_discrete(guide="none") + labs(y="") + theme_bw()
-print(p) 
+#Merge Flower Data
+
+#Get flower transect data
+full.fl<-read.csv("C:/Users/Ben/Dropbox/Thesis/Maquipucuna_SantaLucia/Results/FlowerTransects/FlowerTransectClean.csv")[,-1]
+
+#month should be capital 
+colnames(full.fl)[colnames(full.fl) %in% "month"]<-"Month"
+
+#Time Stamp
+full.fl$Date_F<-as.POSIXct(full.fl$Date_F)
+
+#Cut Stamp
+full.fl$Date_C<-cut(full.fl$Date_F,breaks=unique(datHL$Date_C))
+
+#group by date cut
+flower.month<-group_by(full.fl,Date_C,Transect_R,Date) %>% dplyr::summarise(Flowers=sum(Total_Flowers,na.rm=TRUE))%>% filter(Flowers>10) %>% summarize(Flowers=mean(Flowers)) %>% summarize(Flowers=sum(Flowers))
+
+#combine the flower totals and network metrics
+network.fl<-merge(flower.month,datHL,by="Date_C")
+```
+
+```{r}
+p<-ggplot(network.fl,aes(x=as.POSIXct(Date_C),fill=Metric)) + facet_wrap(~Metric,scales='free',ncol=1) + geom_linerange(aes(ymin=Lower,ymax=Upper),col="red")
+p<-p+ geom_point(aes(y=True_State,col=log(Flowers)),size=7) + geom_line(aes(y=True_State)) 
+p<-p+scale_fill_discrete(guide="none") + labs(y="",x="Date") + theme_bw() + scale_x_datetime(date_breaks = "2 months",date_labels = "%b %Y") + scale_color_continuous("Available Flowers",high='red',low='blue')
+p
+
 ggsave("Figures/NullNetwork.jpg",dpi=600,quality=100,pointsize=14,height=10,width=12)
 ggsave("Figures/NullNetwork.svg",height=10,width=12)
-
 ```
+
+Difference from expected.
+
+##Resource Regression
+
+```{r}
+#Quick visualization 
+p<-ggplot(network.fl[,],aes(log(Flowers),y=True_State,shape=as.factor(Year))) + geom_point(size=7) + facet_wrap(~Metric,scale="free",ncol=3)  + geom_smooth(aes(group=1),method="lm") + theme_bw() + labs(shape="Year",size="Interactions") + geom_text(aes(label=month.abb[as.numeric(Month)]),hjust=-0.25,size=4) + labs(x="Log Available Resources") + ylab("Score") 
+p
+```
+
 
 ```{r}
 save.image("NetworkTime.RData")
