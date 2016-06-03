@@ -38,7 +38,7 @@ gitpath<-"C:/Users/Ben/Documents/NetworkTime/"
 
 setwd(gitpath)
 
-opts_chunk$set(message=FALSE,warning=FALSE,fig.height=5,fig.width=10,echo=FALSE,cache=F,cache.path = 'NetworkTime_cache/', fig.path='figure/',fig.align = 'center')
+opts_chunk$set(message=FALSE,warning=FALSE,fig.height=5,fig.width=12,echo=FALSE,cache=F,cache.path = 'NetworkTime_cache/', fig.path='figure/',fig.align = 'center')
 
 ```
 
@@ -62,7 +62,7 @@ int<-read.csv("InputData/FinalObs.csv",row.names=1)
 #int<-int[int$State=="Used",]
 
 #Just use cameras
-int<-int[int$Survey_Type=="Camera",]
+#int<-int[int$Survey_Type=="Camera",]
 
 fl.morph<-read.csv(paste(droppath,"Thesis/Maquipucuna_SantaLucia/Results/FlowerMorphology.csv",sep=""))
 
@@ -126,7 +126,7 @@ ggplot(tvisits,aes(y=Hummingbird,x=Iplant_Double,fill=Rate)) + theme_bw() + geom
 ##Calculate overall statistics.
 
 ```{r}
-overallmetrics<-networklevel(as.matrix(tweb),level="lower",index=c("niche overlap","weighted NODF"))
+overallmetrics<-networklevel(as.matrix(tweb),level="lower",index=c("weighted NODF"))
 #melt into data frame
 overallmetrics<-data.frame(Metric=names(overallmetrics),value=overallmetrics)
 ```
@@ -141,7 +141,7 @@ Maintaining the total number of observations, but shuffling where those visitati
 
 ```{r}
 null_metrics<-list()
-for(x in 1:500){
+for(x in 1:100){
   
   #create duplicate dataframe
   nint<-int
@@ -159,24 +159,16 @@ for(x in 1:500){
   
   #cast into network
   nweb<-acast(nvisits,Hummingbird~Iplant_Double,value.var="Rate",fill=0)
-  nm<-networklevel(nweb,level="lower",index=c("niche overlap","weighted NODF"))
+  nm<-networklevel(nweb,level="lower",index=c("weighted NODF"))
   null_metrics[[x]]<-data.frame(Metric=names(nm),value=nm)
 }
 
 null_metrics<-melt(null_metrics)
-ggplot(data=null_metrics,aes(x=value)) + geom_density(fill='grey40') + facet_wrap(~Metric,scales="free") + geom_vline(data=overallmetrics,aes(xintercept=value),col='red',linetype='dashed') + theme_bw()
+ggplot(data=null_metrics,aes(x=value)) + geom_density(fill='grey40',alpha=0.5) + facet_wrap(~Metric,scales="free") + geom_vline(data=overallmetrics,aes(xintercept=value),col='red',linetype='dashed',size=1.5) + theme_bw()
 ```
 
 ```{r}
-#Add overall network and measures underneath as a supp figure
-num<-droplevels(null_metrics[null_metrics$Metric %in% c( "niche overlap","weighted NODF"),])
-
-ob<-droplevels(overallmetrics[overallmetrics$Metric %in% c("niche overlap","weighted NODF"),])
-
-levels(num$Metric)<-c("Connectance","Nestedness")
-levels(ob$Metric)<-c("Connectance","Nestedness")
-
-nulls<-ggplot(num,aes(x=value)) + geom_density(fill='grey40',alpha=0.5) + facet_wrap(~Metric,scales="free",nrow=1) + geom_vline(data=ob,aes(xintercept=value),col='red',linetype='dashed',size=1.5) + theme_bw() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
+nulls<-ggplot(null_metrics,aes(x=value)) + geom_density(fill='grey40',alpha=0.5) + facet_wrap(~Metric,scales="free",nrow=1) + geom_vline(data=overallmetrics,aes(xintercept=value),col='red',linetype='dashed',size=1.5) + theme_bw() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
 
 jpeg("Figures/Overall.jpeg",height=6,width=11,units="in",res=400)
 grid.arrange(overall,nulls,heights=c(.7,.3)) 
@@ -193,13 +185,12 @@ int$TimeStamp<-as.POSIXct(int$DateP)
 
 #Set window size
 cutm<-"2 month"
-int$DateC<-cut(int$TimeStamp,breaks=cutm)
-int.M<-split(int,int$DateC,drop = T)
+int$Date_C<-cut(int$TimeStamp,breaks=cutm)
+int.M<-split(int,int$Date_C,drop = T)
 
 webp<-lapply(int.M,function(x){
 
   days<-x %>% filter(State=="Used") %>% group_by(Iplant_Double) %>% summarize(n=length(unique(DateP))) 
-
   #Total visits 
   tvisits<-x %>% filter(State=="Used") %>% group_by(Hummingbird,Iplant_Double) %>% summarize(Total_Visits=sum(Yobs))
   tvisits<-merge(tvisits,ndays,by="Iplant_Double")
@@ -222,7 +213,7 @@ webp<-lapply(int.M,function(x){
   
   ggplot(tvisits,aes(y=Hummingbird,x=Iplant_Double,fill=Rate)) + theme_bw() +geom_tile() + scale_fill_continuous(low="blue",high="red",na.value = "white") + theme(axis.text.x = element_text(angle = 90, hjust = 1)) + xlab("Plant") + ggtitle(unique(x$Date_C)) 
 })
-
+webp
 ```
 
 ## Randomize with respect to sampling
@@ -252,23 +243,23 @@ null_month<-function(x){
   
   #make web
   tweb<-make_web(nint)
-  true_state<-melt(networklevel(tweb,level="lower",index=c("niche overlap","weighted NODF")))
+  true_state<-melt(networklevel(tweb,level="lower",index="weighted NODF"))
   true_state<-data.frame(Metric=rownames(true_state),true_value=true_state)
   
 null_state<-list()
-  for(i in 1:500){
-    #make duplicate, poor scoping.
+  for(i in 1:100){
+    #make duplicate
     nint<-x
     #resample hummingbird identity
     nint$Hummingbird<-sample(nint$Hummingbird)
     nweb<-make_web(nint)
-    ns<-melt(networklevel(nweb,level="lower",index=c("niche overlap","weighted NODF")))
+    ns<-melt(networklevel(nweb,level="lower",index=c("weighted NODF")))
     null_state[[i]]<-data.frame(Metric=rownames(ns),value=ns)
   }
   
   #get the upper and lower 5th quantiles
   null_total<-melt(null_state,id.vars="Metric")
-  nullq<-group_by(null_total,Metric) %>% summarize(Lower=quantile(value,0.05,na.rm=T),Upper=quantile(value,0.95,na.rm=T))
+  nullq<-group_by(null_total,Metric) %>% summarize(Mean=mean(value),Lower=quantile(value,0.05,na.rm=T),Upper=quantile(value,0.95,na.rm=T))
   
   #append true information
   out<-merge(nullq,true_state,by.x="Metric")
@@ -276,9 +267,9 @@ null_state<-list()
 return(out)}
 ```
 
-##Which months were sufficiently sampled?
 
 ```{r}
+##Which months were sufficiently sampled?
 #need to do some rarifaction?
 #atleast 20 observations for now.
 
@@ -337,13 +328,21 @@ ggsave("Figures/NullNetwork.jpg",dpi=600,quality=100,pointsize=14,height=10,widt
 ggsave("Figures/NullNetwork.svg",height=10,width=12)
 ```
 
-Difference from expected.
+## Difference from expected
+
+```{r}
+p<-ggplot(network.fl,aes(x=as.POSIXct(Date_C),fill=Metric)) + facet_wrap(~Metric,scales='free',ncol=1) + geom_linerange(aes(ymin=True_State-Lower,ymax=True_State-Upper),col="red")
+p<-p+ geom_point(aes(y=True_State-Mean,col=log(Flowers)),size=7) + geom_line(aes(y=True_State-Mean)) 
+p<-p+scale_fill_discrete(guide="none") + labs(y="",x="Date") + theme_bw() + scale_x_datetime(date_breaks = "2 months",date_labels = "%b %Y") + scale_color_continuous("Available Flowers",high='red',low='blue') 
+p
+
+```
 
 ##Resource Regression
 
 ```{r}
 #Quick visualization 
-p<-ggplot(network.fl[,],aes(log(Flowers),y=True_State,shape=as.factor(Year))) + geom_point(size=7) + facet_wrap(~Metric,scale="free",ncol=3)  + geom_smooth(aes(group=1),method="lm") + theme_bw() + labs(shape="Year",size="Interactions") + geom_text(aes(label=month.abb[as.numeric(Month)]),hjust=-0.25,size=4) + labs(x="Log Available Resources") + ylab("Score") 
+p<-ggplot(network.fl[,],aes(log(Flowers),y=True_State-Mean,shape=as.factor(Year))) + geom_point(size=7) + facet_wrap(~Metric,scale="free",ncol=3)  + geom_smooth(aes(group=1),method="lm") + theme_bw() + labs(shape="Year",size="Interactions") + geom_text(aes(label=month.abb[as.numeric(Month)]),hjust=-0.25,size=4) + labs(x="Log Available Resources") + ylab("Score") 
 p
 ```
 

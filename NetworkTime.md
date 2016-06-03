@@ -4,7 +4,7 @@ Ben Weinstein
 
 
 ```
-## [1] "Run Completed at 2016-06-02 12:26:07"
+## [1] "Run Completed at 2016-06-03 15:03:31"
 ```
 
 
@@ -59,206 +59,113 @@ Maintaining the total number of observations, but shuffling where those visitati
 
 
 ```
-## $`6.2013`
+## $`2013-06-01`
 ```
 
 <img src="figure/unnamed-chunk-11-1.png" title="" alt="" style="display: block; margin: auto;" />
 
 ```
 ## 
-## $`7.2013`
+## $`2013-08-01`
 ```
 
 <img src="figure/unnamed-chunk-11-2.png" title="" alt="" style="display: block; margin: auto;" />
 
 ```
 ## 
-## $`8.2013`
+## $`2013-10-01`
 ```
 
 <img src="figure/unnamed-chunk-11-3.png" title="" alt="" style="display: block; margin: auto;" />
 
 ```
 ## 
-## $`10.2013`
+## $`2013-12-01`
 ```
 
 <img src="figure/unnamed-chunk-11-4.png" title="" alt="" style="display: block; margin: auto;" />
 
 ```
 ## 
-## $`11.2013`
+## $`2014-02-01`
 ```
 
 <img src="figure/unnamed-chunk-11-5.png" title="" alt="" style="display: block; margin: auto;" />
 
 ```
 ## 
-## $`12.2013`
+## $`2014-04-01`
 ```
 
 <img src="figure/unnamed-chunk-11-6.png" title="" alt="" style="display: block; margin: auto;" />
 
 ```
 ## 
-## $`1.2014`
+## $`2014-06-01`
 ```
 
 <img src="figure/unnamed-chunk-11-7.png" title="" alt="" style="display: block; margin: auto;" />
 
 ```
 ## 
-## $`2.2014`
+## $`2014-08-01`
 ```
 
 <img src="figure/unnamed-chunk-11-8.png" title="" alt="" style="display: block; margin: auto;" />
 
 ```
 ## 
-## $`3.2014`
+## $`2014-10-01`
 ```
 
 <img src="figure/unnamed-chunk-11-9.png" title="" alt="" style="display: block; margin: auto;" />
 
 ```
 ## 
-## $`4.2014`
+## $`2014-12-01`
 ```
 
 <img src="figure/unnamed-chunk-11-10.png" title="" alt="" style="display: block; margin: auto;" />
 
 ```
 ## 
-## $`5.2014`
+## $`2015-02-01`
 ```
 
 <img src="figure/unnamed-chunk-11-11.png" title="" alt="" style="display: block; margin: auto;" />
 
 ```
 ## 
-## $`6.2014`
+## $`2015-04-01`
 ```
 
 <img src="figure/unnamed-chunk-11-12.png" title="" alt="" style="display: block; margin: auto;" />
 
 ```
 ## 
-## $`7.2014`
+## $`2015-06-01`
 ```
 
 <img src="figure/unnamed-chunk-11-13.png" title="" alt="" style="display: block; margin: auto;" />
 
 ```
 ## 
-## $`8.2014`
+## $`2015-08-01`
 ```
 
 <img src="figure/unnamed-chunk-11-14.png" title="" alt="" style="display: block; margin: auto;" />
 
 ```
 ## 
-## $`9.2014`
+## $`2015-10-01`
 ```
 
 <img src="figure/unnamed-chunk-11-15.png" title="" alt="" style="display: block; margin: auto;" />
-
-```
-## 
-## $`10.2014`
-```
-
-<img src="figure/unnamed-chunk-11-16.png" title="" alt="" style="display: block; margin: auto;" />
-
-```
-## 
-## $`11.2014`
-```
-
-<img src="figure/unnamed-chunk-11-17.png" title="" alt="" style="display: block; margin: auto;" />
-
-```
-## 
-## $`12.2014`
-```
-
-<img src="figure/unnamed-chunk-11-18.png" title="" alt="" style="display: block; margin: auto;" />
-
-```
-## 
-## $`1.2015`
-```
-
-<img src="figure/unnamed-chunk-11-19.png" title="" alt="" style="display: block; margin: auto;" />
-
-```
-## 
-## $`2.2015`
-```
-
-<img src="figure/unnamed-chunk-11-20.png" title="" alt="" style="display: block; margin: auto;" />
-
-```
-## 
-## $`3.2015`
-```
-
-<img src="figure/unnamed-chunk-11-21.png" title="" alt="" style="display: block; margin: auto;" />
-
-```
-## 
-## $`4.2015`
-```
-
-<img src="figure/unnamed-chunk-11-22.png" title="" alt="" style="display: block; margin: auto;" />
-
-```
-## 
-## $`5.2015`
-```
-
-<img src="figure/unnamed-chunk-11-23.png" title="" alt="" style="display: block; margin: auto;" />
-
-```
-## 
-## $`6.2015`
-```
-
-<img src="figure/unnamed-chunk-11-24.png" title="" alt="" style="display: block; margin: auto;" />
-
-```
-## 
-## $`7.2015`
-```
-
-<img src="figure/unnamed-chunk-11-25.png" title="" alt="" style="display: block; margin: auto;" />
-
-```
-## 
-## $`8.2015`
-```
-
-<img src="figure/unnamed-chunk-11-26.png" title="" alt="" style="display: block; margin: auto;" />
-
-```
-## 
-## $`9.2015`
-```
-
-<img src="figure/unnamed-chunk-11-27.png" title="" alt="" style="display: block; margin: auto;" />
-
-```
-## 
-## $`10.2015`
-```
-
-<img src="figure/unnamed-chunk-11-28.png" title="" alt="" style="display: block; margin: auto;" />
-
 
 ## Randomize with respect to sampling
 
 
 
-##Which months were sufficiently sampled?
 
 
 
@@ -266,12 +173,17 @@ Maintaining the total number of observations, but shuffling where those visitati
 
 
 
-#Observed versus null values of nestedness, connectance within time periods
 
-<img src="figure/unnamed-chunk-15-1.png" title="" alt="" style="display: block; margin: auto;" />
 
-#Regression of resources
-<img src="figure/unnamed-chunk-16-1.png" title="" alt="" style="display: block; margin: auto;" /><img src="figure/unnamed-chunk-16-2.png" title="" alt="" style="display: block; margin: auto;" />
+<img src="figure/unnamed-chunk-16-1.png" title="" alt="" style="display: block; margin: auto;" />
+
+## Difference from expected
+
+<img src="figure/unnamed-chunk-17-1.png" title="" alt="" style="display: block; margin: auto;" />
+
+##Resource Regression
+
+<img src="figure/unnamed-chunk-18-1.png" title="" alt="" style="display: block; margin: auto;" />
 
 
 
