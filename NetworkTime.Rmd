@@ -1,5 +1,5 @@
 ---
-title: Appendix  B - Network Statistics.
+title: Appendix  B - Species Network Statistics.
 author: "Ben Weinstein"
 date: "2/1/2016"
 output:
@@ -52,9 +52,9 @@ opts_chunk$set(message=FALSE,warning=FALSE,fig.height=5,fig.width=12,echo=FALSE,
 
 #Read in data
 
-From Generate.Rmd
 
 ```{r,fig.height=20,fig.width=13}
+#From Generate.Rmd
 
 int<-read.csv("InputData/FinalObs.csv",row.names=1)
 
@@ -62,7 +62,7 @@ int<-read.csv("InputData/FinalObs.csv",row.names=1)
 #int<-int[int$State=="Used",]
 
 #Just use cameras
-#int<-int[int$Survey_Type=="Camera",]
+int<-int[int$Survey_Type=="Camera",]
 
 fl.morph<-read.csv(paste(droppath,"Thesis/Maquipucuna_SantaLucia/Results/FlowerMorphology.csv",sep=""))
 
@@ -126,9 +126,9 @@ ggplot(tvisits,aes(y=Hummingbird,x=Iplant_Double,fill=Rate)) + theme_bw() + geom
 ##Calculate overall statistics.
 
 ```{r}
-overallmetrics<-networklevel(as.matrix(tweb),level="lower",index=c("weighted NODF"))
+overallmetrics<-specieslevel(as.matrix(tweb),level="lower",index=c("PDI"))
 #melt into data frame
-overallmetrics<-data.frame(Metric=names(overallmetrics),value=overallmetrics)
+overallmetrics<-data.frame(Hummingbird=rownames(overallmetrics),Metric=names(overallmetrics),value=overallmetrics)
 ```
 
 ## Permutation tests
@@ -159,16 +159,19 @@ for(x in 1:100){
   
   #cast into network
   nweb<-acast(nvisits,Hummingbird~Iplant_Double,value.var="Rate",fill=0)
-  nm<-networklevel(nweb,level="lower",index=c("weighted NODF"))
-  null_metrics[[x]]<-data.frame(Metric=names(nm),value=nm)
+  nm<-specieslevel(nweb,level="lower",index=c("PDI"))
+  null_metrics[[x]]<-data.frame(Hummingbird=rownames(overallmetrics),Metric=names(nm),value=nm)
 }
 
+hord<-hum.morph[,c("English","Total_Culmen")] %>% arrange(desc(Total_Culmen)) %>% .$English
+null_metrics$Hummingbird<-factor(null_metrics$Hummingbird,levels=hord)
+
 null_metrics<-melt(null_metrics)
-ggplot(data=null_metrics,aes(x=value)) + geom_density(fill='grey40',alpha=0.5) + facet_wrap(~Metric,scales="free") + geom_vline(data=overallmetrics,aes(xintercept=value),col='red',linetype='dashed',size=1.5) + theme_bw()
+ggplot(data=null_metrics,aes(x=Hummingbird,y=value)) + geom_violin(fill='grey40',alpha=0.5) + geom_point(data=overallmetrics,aes(x=Hummingbird,y=PDI),col='red',size=2.5) + theme_bw() + coord_flip()
 ```
 
 ```{r}
-nulls<-ggplot(null_metrics,aes(x=value)) + geom_density(fill='grey40',alpha=0.5) + facet_wrap(~Metric,scales="free",nrow=1) + geom_vline(data=overallmetrics,aes(xintercept=value),col='red',linetype='dashed',size=1.5) + theme_bw() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
+nulls<-ggplot(null_metrics,aes(x=value)) + geom_density(fill='grey40',alpha=0.5) + facet_wrap(~Metric,scales="free",nrow=1) + geom_vline(data=overallmetrics,aes(xintercept=PDI),col='red',linetype='dashed',size=1.5) + theme_bw() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
 
 jpeg("Figures/Overall.jpeg",height=6,width=11,units="in",res=400)
 grid.arrange(overall,nulls,heights=c(.7,.3)) 
@@ -179,7 +182,7 @@ dev.off()
 
 ##View Sub-Networks
 
-```{r,fig.height=4,fig.width=5}
+```{r,fig.height=40,fig.width=12}
 #Create time stamp
 int$TimeStamp<-as.POSIXct(int$DateP)
 
@@ -213,7 +216,7 @@ webp<-lapply(int.M,function(x){
   
   ggplot(tvisits,aes(y=Hummingbird,x=Iplant_Double,fill=Rate)) + theme_bw() +geom_tile() + scale_fill_continuous(low="blue",high="red",na.value = "white") + theme(axis.text.x = element_text(angle = 90, hjust = 1)) + xlab("Plant") + ggtitle(unique(x$Date_C)) 
 })
-webp
+marrangeGrob(webp,nrow=8,ncol=2)
 ```
 
 ## Randomize with respect to sampling
@@ -243,7 +246,7 @@ null_month<-function(x){
   
   #make web
   tweb<-make_web(nint)
-  true_state<-melt(networklevel(tweb,level="lower",index="weighted NODF"))
+  true_state<-specieslevel(tweb,level="lower",index="PDI")
   true_state<-data.frame(Metric=rownames(true_state),true_value=true_state)
   
 null_state<-list()
@@ -253,7 +256,7 @@ null_state<-list()
     #resample hummingbird identity
     nint$Hummingbird<-sample(nint$Hummingbird)
     nweb<-make_web(nint)
-    ns<-melt(networklevel(nweb,level="lower",index=c("weighted NODF")))
+    ns<-specieslevel(nweb,level="lower",index=c("PDI"))
     null_state[[i]]<-data.frame(Metric=rownames(ns),value=ns)
   }
   
@@ -282,7 +285,7 @@ nrow(x[x$State=="Used",])
 ###Apply function to each period
 
 ```{r}
-#needs to be fixed
+  #needs to be fixed
 runs<-list()
 for(x in 1:length(int.M)){
   runs[[x]]<-null_month(int.M[[x]])
@@ -305,6 +308,9 @@ full.fl<-read.csv("C:/Users/Ben/Dropbox/Thesis/Maquipucuna_SantaLucia/Results/Fl
 #month should be capital 
 colnames(full.fl)[colnames(full.fl) %in% "month"]<-"Month"
 
+#Take out flowers not in the network
+full.fl<-full.fl[full.fl$Iplant_Double %in% levels(int$Iplant_Double),]
+
 #Time Stamp
 full.fl$Date_F<-as.POSIXct(full.fl$Date_F)
 
@@ -319,8 +325,8 @@ network.fl<-merge(flower.month,datHL,by="Date_C")
 ```
 
 ```{r}
-p<-ggplot(network.fl,aes(x=as.POSIXct(Date_C),fill=Metric)) + facet_wrap(~Metric,scales='free',ncol=1) + geom_linerange(aes(ymin=Lower,ymax=Upper),col="red")
-p<-p+ geom_point(aes(y=True_State,col=log(Flowers)),size=7) + geom_line(aes(y=True_State)) 
+p<-ggplot(network.fl,aes(x=as.POSIXct(Date_C),fill=Metric)) + facet_wrap(~Metric,scales='free',ncol=4) + geom_linerange(aes(ymin=Lower,ymax=Upper),col="red")
+p<-p+ geom_point(aes(y=PDI,col=log(Flowers)),size=7) + geom_line(aes(y=PDI)) 
 p<-p+scale_fill_discrete(guide="none") + labs(y="",x="Date") + theme_bw() + scale_x_datetime(date_breaks = "2 months",date_labels = "%b %Y") + scale_color_continuous("Available Flowers",high='red',low='blue')
 p
 
@@ -331,8 +337,8 @@ ggsave("Figures/NullNetwork.svg",height=10,width=12)
 ## Difference from expected
 
 ```{r}
-p<-ggplot(network.fl,aes(x=as.POSIXct(Date_C),fill=Metric)) + facet_wrap(~Metric,scales='free',ncol=1) + geom_linerange(aes(ymin=True_State-Lower,ymax=True_State-Upper),col="red")
-p<-p+ geom_point(aes(y=True_State-Mean,col=log(Flowers)),size=7) + geom_line(aes(y=True_State-Mean)) 
+p<-ggplot(network.fl,aes(x=as.POSIXct(Date_C),fill=Metric)) + facet_wrap(~Metric,scales='free',ncol=5) + geom_linerange(aes(ymin=PDI-Lower,ymax=PDI-Upper),col="red")
+p<-p+ geom_point(aes(y=PDI-Mean,col=log(Flowers)),size=7) + geom_line(aes(y=PDI-Mean)) 
 p<-p+scale_fill_discrete(guide="none") + labs(y="",x="Date") + theme_bw() + scale_x_datetime(date_breaks = "2 months",date_labels = "%b %Y") + scale_color_continuous("Available Flowers",high='red',low='blue') 
 p
 
@@ -342,7 +348,7 @@ p
 
 ```{r}
 #Quick visualization 
-p<-ggplot(network.fl[,],aes(log(Flowers),y=True_State-Mean,shape=as.factor(Year))) + geom_point(size=7) + facet_wrap(~Metric,scale="free",ncol=3)  + geom_smooth(aes(group=1),method="lm") + theme_bw() + labs(shape="Year",size="Interactions") + geom_text(aes(label=month.abb[as.numeric(Month)]),hjust=-0.25,size=4) + labs(x="Log Available Resources") + ylab("Score") 
+p<-ggplot(network.fl[,],aes(log(Flowers),y=PDI-Mean,shape=as.factor(Year))) + geom_point(size=7)  + geom_smooth(aes(group=1),method="lm") + theme_bw() + labs(shape="Year",size="Interactions") + geom_text(aes(label=month.abb[as.numeric(Month)]),hjust=-0.25,size=4) + labs(x="Log Available Resources") + ylab("Score") 
 p
 ```
 
