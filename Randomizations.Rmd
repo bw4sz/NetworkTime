@@ -156,11 +156,11 @@ truemonths<-lapply(int.M,function(x){
 #bind together
 truemonths<-rbind_all(truemonths)
   
-truemonths$Date_C<-as.POSIXct(truemonths$Date_C)
+truemonths$Date_C<-as.POSIXct(truemonths$Date_C,tz = "")
 
 #Null states
 nullmonths<-lapply(int.M,function(x){
-  nullframe<-rand1(int,10)
+  nullframe<-rand1(int,100)
   nullframe$Date_C<-unique(x$Date_C)
   return(nullframe)
 })
@@ -168,9 +168,12 @@ nullmonths<-lapply(int.M,function(x){
 #bind
 nullmonths<-rbind_all(nullmonths)
 
-nullmonths$Date_C<-as.POSIXct(nullmonths$Date_C)
+nullmonths$Date_C<-as.POSIXct(nullmonths$Date_C,tz="")
+nullmonths$variable<-NULL
+colnames(nullmonths)<-c("Hummingbird","Mean_Null","Iteration","Date_C")
+colnames(truemonths)<-c("Hummingbird","Mean_True","Lower_True","Higher_True","Date_C")
 
-ggplot(nullmonths) + geom_violin(alpha=.8,aes(y=value,x=Date_C,group=Date_C))+ geom_point(data=truemonths,aes(y=mean,x=Date_C),col="red",size=1) + theme_bw() + ylab("Difference between Bill and Corolla Length") + facet_wrap(~Hummingbird,scales="free")
+ggplot(nullmonths) + geom_violin(alpha=.8,aes(y=Mean_Null,x=Date_C,group=Date_C))+ geom_point(data=truemonths,aes(y=Mean_True,x=Date_C),col="red",size=1) + theme_bw() + ylab("Corolla Length Selected") + facet_wrap(~Hummingbird,scales="free") + scale_x_datetime(date_breaks = "4 months")
 
 ```
 
@@ -180,14 +183,11 @@ Color code the randomization to tell when it is greater than expected, less than
 
 ```{r}
 #Standardize names
-nullmonths$variable<-NULL
-colnames(nullmonths)<-c("Hummingbird","Mean_Null","Iteration","Date_C")
-colnames(truemonths)<-c("Hummingbird","Mean_True","Lower_True","Higher_True","Date_C")
 allmonths<-merge(nullmonths,truemonths,by=c("Hummingbird","Date_C"))
 
 allmonths$Mean_Diff<-allmonths$Mean_Null-allmonths$Mean_True
 
-ggplot(allmonths) + geom_violin(alpha=.8,aes(y=Mean_Diff,x=Date_C,group=Date_C,fill=Mean_Diff>0)) + theme_bw() + ylab("Difference between Bill and Corolla Length") + facet_wrap(~Hummingbird,scales="free") 
+ggplot(allmonths) + geom_violin(alpha=.8,aes(y=Mean_Diff,x=as.POSIXct(Date_C),group=Date_C,fill=Mean_Diff>0)) + theme_bw() + ylab("Difference between Bill and Corolla Length") + facet_wrap(~Hummingbird,scales="free",ncol=4)  + labs(fill="Evidence of Trait-matching") + scale_x_datetime(date_breaks = "5 months",date_labels = "%m/%y")
 ```
 
 As line plot
@@ -195,10 +195,42 @@ As line plot
 ```{r}
 sumnull<-allmonths %>% group_by(Hummingbird,Date_C) %>% summarize(mean=mean(Mean_Diff),lower=quantile(Mean_Diff,0.05),upper=quantile(Mean_Diff,0.95))
 
-ggplot(sumnull,aes(x=Date_C)) + geom_line(alpha=.9,aes(y=mean,col=mean>0,group=1),size=1.2) + geom_linerange(aes(ymin=lower,ymax=upper)) + theme_bw() + ylab("Difference between Bill and Corolla Length") + facet_wrap(~Hummingbird,scales="free") + scale_x_datetime() + scale_color_manual("Trait-matching",labels=c("True","False"),values=c("grey80","black")) + xlab("Date")
+ggplot(sumnull,aes(x=Date_C)) + geom_line(alpha=.9,aes(y=mean,col=mean>0,group=1),size=1.2) + geom_linerange(aes(ymin=lower,ymax=upper)) + theme_bw() + ylab("Difference between Bill and Corolla Length") + facet_wrap(~Hummingbird,scales="free") + scale_x_datetime() + scale_color_manual("Evidence for Trait-matching",labels=c("True","False"),values=c("grey80","black")) + xlab("Date")
+```
+
+##As a function of environment
+
+```{r}
+#Merge Flower Data
+full.fl<-read.csv("InputData/FlowerTransectClean.csv")[,-1]
+
+#month should be capital 
+colnames(full.fl)[colnames(full.fl) %in% "month"]<-"Month"
+
+#Take out flowers not in the network
+full.fl<-full.fl[full.fl$Iplant_Double %in% levels(int$Iplant_Double),]
+
+#Time Stamp
+full.fl$Date_F<-as.POSIXct(full.fl$Date_F)
+
+#Cut Stamp
+full.fl$Date_C<-cut(full.fl$Date_F,breaks=unique(allmonths$Date_C))
+
+#group by date cut
+flower.month<-group_by(full.fl,Date_C,Transect_R,Date) %>% dplyr::summarise(Flowers=sum(Total_Flowers,na.rm=TRUE))%>% filter(Flowers>10) %>% summarize(Flowers=mean(Flowers)) %>% summarize(Flowers=sum(Flowers))
+
+full.fl$Date_C<-as.POSIXct(full.fl$Date_C,tz = "")
+
+#combine the flower totals and network metrics
+flower.month$Date_C<-as.character(flower.month$Date_C)
+allmonths$Date_C<-as.character(allmonths$Date_C)
+
+network.fl<-merge(flower.month,allmonths,by="Date_C")
 ```
 
 ```{r}
+ggplot(network.fl,aes(x=Flowers,y=Mean_Diff)) + geom_point() + facet_wrap(~Hummingbird,scales="free") + stat_smooth(method="lm")
+```
 
 #Randomization II
 
