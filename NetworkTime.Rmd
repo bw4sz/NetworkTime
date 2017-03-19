@@ -57,12 +57,15 @@ opts_chunk$set(message=FALSE,warning=FALSE,fig.height=5,fig.width=12,echo=FALSE,
 #From Generate.Rmd
 
 int<-read.csv("InputData/FinalObs.csv",row.names=1)
+int$State<-(int$Yobs==1)*1
+int$State<-as.factor(int$State)
+levels(int$State)<-c("Unused","Used")
 
 #just presence records
 #int<-int[int$State=="Used",]
 
 #Just use cameras
-int<-int[int$Survey_Type=="Camera",]
+#int<-int[int$Survey_Type=="Camera",]
 
 fl.morph<-read.csv(paste(droppath,"Thesis/Maquipucuna_SantaLucia/Results/FlowerMorphology.csv",sep=""))
 
@@ -126,7 +129,7 @@ ggplot(tvisits,aes(y=Hummingbird,x=Iplant_Double,fill=Rate)) + theme_bw() + geom
 ##Calculate overall statistics.
 
 ```{r}
-overallmetrics<-specieslevel(as.matrix(tweb),level="lower",index=c("PDI"))
+overallmetrics<-networklevel(as.matrix(tweb),level="lower",index=c("niche overlap"))
 #melt into data frame
 overallmetrics<-data.frame(Hummingbird=rownames(overallmetrics),Metric=names(overallmetrics),value=overallmetrics)
 ```
@@ -159,7 +162,7 @@ for(x in 1:100){
   
   #cast into network
   nweb<-acast(nvisits,Hummingbird~Iplant_Double,value.var="Rate",fill=0)
-  nm<-specieslevel(nweb,level="lower",index=c("PDI"))
+  nm<-networklevel(nweb,level="lower",index=c("niche overlap"))
   null_metrics[[x]]<-data.frame(Hummingbird=rownames(overallmetrics),Metric=names(nm),value=nm)
 }
 
